@@ -1,33 +1,46 @@
-'use client'; // Error boundaries must be Client Components
+'use client';
 
 import { useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+import { useRouter } from 'next/navigation';
+import { ShieldAlert } from 'lucide-react';
 
-export default function Error({
+export default function ErrorBoundary({
   error,
   reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const router = useRouter();
+
   useEffect(() => {
-    // Log the error to an error reporting service
-    console.error(error);
+    console.error('DreamPath Application Error:', error);
   }, [error]);
 
   return (
-    <div className="min-h-[70vh] flex flex-col items-center justify-center bg-background text-center px-4">
-      <h2 className="text-3xl font-extrabold text-foreground mb-4">Something went wrong</h2>
-      <p className="text-muted-foreground mb-8 max-w-md">
-        An unexpected error occurred. Our team has been notified.
-      </p>
-      <div className="flex gap-4">
-        <Button onClick={() => reset()} variant="default">
-          Try again
-        </Button>
-        <Button onClick={() => window.location.href = '/'} variant="outline">
+    <div className="min-h-[70vh] flex flex-col items-center justify-center bg-[#FAFAF9] text-center px-4 space-y-4">
+      <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center">
+        <ShieldAlert className="w-6 h-6" />
+      </div>
+      <div className="space-y-1">
+        <h2 className="font-serif text-3xl font-bold text-[#0B1B3D]">Something went wrong</h2>
+        <p className="text-xs text-slate-500 max-w-md mx-auto">
+          An unexpected issue interrupted your session. Verified data is preserved safely.
+        </p>
+      </div>
+      <div className="flex items-center gap-3 pt-2">
+        <button
+          onClick={() => reset()}
+          className="px-5 py-2.5 bg-[#0B1B3D] text-white text-xs font-bold rounded-xl hover:bg-[#132A5C] transition-colors"
+        >
+          Try Again
+        </button>
+        <button
+          onClick={() => router.push('/')}
+          className="px-5 py-2.5 bg-white border border-slate-200 text-slate-700 text-xs font-semibold rounded-xl hover:bg-slate-50 transition-colors"
+        >
           Return Home
-        </Button>
+        </button>
       </div>
     </div>
   );

@@ -4,6 +4,8 @@ import { db } from '@/db';
 import { scholarships, intakes, intakeVersions, requirements } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { CheckerWizard } from '@/components/CheckerWizard';
+import { SiteNav } from '@/components/home/SiteNav';
+import { Footer } from '@/components/home/Footer';
 
 export default async function EligibilityCheckPage({
   params,
@@ -50,33 +52,37 @@ export default async function EligibilityCheckPage({
 
   if (!rules || !rules.ruleAst) {
     return (
-      <div className="container mx-auto px-4 py-20 text-center">
-        <h1 className="text-2xl font-bold">No Rules Defined</h1>
-        <p className="text-muted-foreground mt-2">Eligibility criteria have not been fully modeled for this scholarship yet.</p>
-        <Link href={`/scholarships/${id}`} className="text-primary hover:underline mt-4 inline-block">Return to details</Link>
+      <div className="min-h-screen bg-[#FAFAF9] flex flex-col">
+        <SiteNav />
+        <main className="flex-1 container mx-auto px-4 py-20 text-center max-w-xl">
+          <h1 className="font-serif text-3xl font-bold text-[#0B1B3D]">No Rules Modeled Yet</h1>
+          <p className="text-slate-600 mt-2 text-sm leading-relaxed">
+            Eligibility criteria for this intake are currently undergoing authoritative audit and modeling.
+          </p>
+          <Link
+            href={`/scholarships/${id}`}
+            className="mt-6 inline-flex items-center gap-1.5 px-5 py-2.5 bg-[#0B1B3D] text-white text-xs font-bold rounded-xl"
+          >
+            &larr; Return to Scholarship Overview
+          </Link>
+        </main>
+        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <header className="px-6 py-4 border-b border-border bg-card">
-        <div className="container mx-auto flex items-center justify-between">
-          <div className="font-bold text-xl text-primary">
-            DreamPath Eligibility Engine
-          </div>
-          <Link href={`/scholarships/${id}`} className="text-sm font-medium hover:underline text-muted-foreground">
-            &larr; Cancel
-          </Link>
-        </div>
-      </header>
+    <div className="min-h-screen bg-[#FAFAF9] flex flex-col">
+      <SiteNav />
 
-      <main className="flex-1 container mx-auto px-4 py-12 max-w-4xl">
-        <div className="text-center mb-10">
-          <h1 className="text-3xl font-extrabold text-foreground tracking-tight">Eligibility Checker</h1>
-          <p className="text-muted-foreground mt-2 text-lg">
-            Verifying against <strong className="text-foreground">{scholarshipData.name}</strong> official requirements
-          </p>
+      <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-10 max-w-4xl">
+        <div className="mb-6">
+          <Link
+            href={`/scholarships/${id}`}
+            className="text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors inline-flex items-center gap-1"
+          >
+            &larr; Back to {scholarshipData.name}
+          </Link>
         </div>
 
         {/* 
@@ -89,6 +95,8 @@ export default async function EligibilityCheckPage({
           ruleAst={rules.ruleAst}
         />
       </main>
+
+      <Footer />
     </div>
   );
 }

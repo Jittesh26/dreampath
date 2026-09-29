@@ -2,7 +2,6 @@
 
 import { db } from '@/db';
 import { dataReports } from '@/db/schema';
-import { revalidatePath } from 'next/cache';
 
 export async function reportMistake(formData: FormData) {
   const scholarshipId = formData.get('scholarshipId') as string;

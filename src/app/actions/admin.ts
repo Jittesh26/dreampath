@@ -156,3 +156,15 @@ export async function emergencyUnpublish(intakeId: string) {
   // Instantly clear Next.js caching
   revalidatePath('/', 'layout');
 }
+
+export async function resolveDataReport(reportId: string, status: string = 'resolved') {
+  await requireAdmin();
+
+  const { dataReports } = await import('@/db/schema');
+  await db.update(dataReports)
+    .set({ status })
+    .where(eq(dataReports.id, reportId));
+
+  revalidatePath('/admin');
+  revalidatePath('/admin/reports');
+}

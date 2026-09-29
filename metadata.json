@@ -1,0 +1,7 @@
+{
+  "name": "DreamPath | Verified Malaysian Scholarships",
+  "description": "Your officially verified path to Malaysian scholarships.",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

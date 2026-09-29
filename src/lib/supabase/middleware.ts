@@ -6,31 +6,46 @@ export async function updateSession(request: NextRequest) {
     request,
   });
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value));
-          supabaseResponse = NextResponse.next({
-            request,
-          });
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          );
-        },
-      },
-    }
-  );
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  // refreshing the auth token
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  let user: any = null;
+
+  if (supabaseUrl && supabaseKey && !supabaseUrl.includes('mock') && !supabaseUrl.includes('your-project')) {
+    try {
+      const supabase = createServerClient(supabaseUrl, supabaseKey, {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll();
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+            supabaseResponse = NextResponse.next({
+              request,
+            });
+            cookiesToSet.forEach(({ name, value, options }) =>
+              supabaseResponse.cookies.set(name, value, options)
+            );
+          },
+        },
+      });
+
+      const { data } = await supabase.auth.getUser();
+      user = data.user;
+    } catch {
+      user = null;
+    }
+  } else {
+    // Check mock cookie session
+    const sessionCookie = request.cookies.get('sb-session')?.value;
+    if (sessionCookie) {
+      try {
+        user = JSON.parse(decodeURIComponent(sessionCookie));
+      } catch {
+        user = null;
+      }
+    }
+  }
 
   // Route protection
   const isAuthRoute = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/register');
@@ -46,7 +61,7 @@ export async function updateSession(request: NextRequest) {
   if (isAuthRoute && user) {
     // user is logged in, redirect to dashboard
     const url = request.nextUrl.clone();
-    url.pathname = '/student'; // Default redirect for now
+    url.pathname = user?.role === 'admin' ? '/admin' : '/student';
     return NextResponse.redirect(url);
   }
 

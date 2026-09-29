@@ -147,7 +147,7 @@ async function seedGoldenDataset() {
       },
     ]).returning();
 
-    const providerMap = Object.fromEntries(insertedProviders.map(p => [p.name, p.id]));
+    const providerMap = Object.fromEntries(insertedProviders.map((p: any) => [p.name, p.id]));
 
     // 3. Insert Scholarships (5 Initial + 10 Batch 1 + 12 Batch 2 = 27 Verified Scholarships)
     console.log('🎓 Inserting 27 verified scholarships...');
@@ -292,7 +292,7 @@ async function seedGoldenDataset() {
       },
     ]).returning();
 
-    const scholarshipMap = Object.fromEntries(insertedScholarships.map(s => [s.name, s.id]));
+    const scholarshipMap = Object.fromEntries(insertedScholarships.map((s: any) => [s.name, s.id]));
 
     // 4. Insert Published Intakes (Status: 'published', Open for 2026 cycle)
     console.log('📅 Inserting published 2026 intakes...');
@@ -329,7 +329,7 @@ async function seedGoldenDataset() {
       { scholarshipId: scholarshipMap['Yayasan Sarawak Tun Taib Scholarship'], year: 2026, openDate: '2026-02-01', closeDate: '2026-07-31', status: 'published' },
     ]).returning();
 
-    const intakeMap = Object.fromEntries(insertedIntakes.map(i => [i.scholarshipId, i.id]));
+    const intakeMap = Object.fromEntries(insertedIntakes.map((i: any) => [i.scholarshipId, i.id]));
 
     // 5. Insert Intake Versions (with Authoritative Official Sources)
     console.log('🔖 Inserting intake versions with authoritative evidence...');
@@ -366,7 +366,7 @@ async function seedGoldenDataset() {
       { intakeId: intakeMap[scholarshipMap['Yayasan Sarawak Tun Taib Scholarship']], versionNum: 1, sourceUrl: 'https://yayasansarawak.org.my/en/services/scholarship/', evidenceNotes: 'Official Yayasan Sarawak Tun Taib Scholarship gazette and STEM thresholds 2026.' },
     ]).returning();
 
-    const versionMap = Object.fromEntries(insertedVersions.map(v => [v.intakeId, v.id]));
+    const versionMap = Object.fromEntries(insertedVersions.map((v: any) => [v.intakeId, v.id]));
 
     // 6. Deterministic Requirement AST Rules Creation
     console.log('⚙️ Modeling deterministic AST rules with machine-checkable & non-machine-checkable criteria...');

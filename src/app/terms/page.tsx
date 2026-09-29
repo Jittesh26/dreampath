@@ -1,43 +1,62 @@
 import Link from 'next/link';
+import { SiteNav } from '@/components/home/SiteNav';
+import { Footer } from '@/components/home/Footer';
+import { AlertTriangle, ArrowLeft } from 'lucide-react';
 
 export default function TermsPage() {
   return (
-    <div className="container mx-auto px-4 py-12 max-w-4xl space-y-8 min-h-screen">
-      <h1 className="text-4xl font-extrabold tracking-tight">Terms of Service</h1>
-      
-      <p className="text-sm text-muted-foreground">Last Updated: September 2026</p>
+    <div className="min-h-screen bg-[#FAFAF9] flex flex-col font-sans">
+      <SiteNav />
 
-      <div className="p-4 bg-destructive/10 border-l-4 border-destructive rounded-r-md">
-        <h3 className="font-bold text-destructive mb-1">Disclaimer of Liability</h3>
-        <p className="text-sm text-foreground/80 leading-relaxed">
-          DreamPath is a third-party discovery tool. While we rigorously strive to verify all requirement data, official scholarship criteria are subject to change by the respective providers at any time without notice. DreamPath cannot be held liable for missed deadlines, rejected applications, or discrepancies in eligibility. <strong>Always verify requirements on the official provider portal before applying.</strong>
-        </p>
-      </div>
+      <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-12 max-w-4xl space-y-8">
+        <div>
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 mb-3"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" /> Back to Home
+          </Link>
+          <h1 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight text-[#0B1B3D]">
+            Terms of Service &amp; Consultancy Disclaimer
+          </h1>
+          <p className="text-xs text-slate-500 mt-1">
+            Last Updated: March 2026 · Independent Malaysian Scholarship Consultancy
+          </p>
+        </div>
 
-      <section className="space-y-4 mt-8">
-        <h2 className="text-2xl font-bold">1. Independent Service</h2>
-        <p className="text-foreground/80 leading-relaxed">
-          DreamPath is not affiliated with, endorsed by, or sponsored by any government agency, foundation, or corporation listed on this platform. The "Eligibility Check" feature is purely informational and does not guarantee an award.
-        </p>
-      </section>
+        <div className="p-4 bg-amber-50 border-l-4 border-amber-700 rounded-r-xl text-xs text-amber-950 leading-relaxed space-y-1">
+          <div className="flex items-center gap-1.5 font-bold">
+            <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0" />
+            <span>Non-Affiliation &amp; Independent Liability Disclaimer</span>
+          </div>
+          <p>
+            DreamPath is a third-party discovery and preparation platform. While we rigorously test and encode published criteria, official criteria are subject to revision by respective providers. DreamPath does not guarantee selection, admission, or award disbursement. <strong>Always confirm terms on the official provider portal before filing official papers.</strong>
+          </p>
+        </div>
 
-      <section className="space-y-4">
-        <h2 className="text-2xl font-bold">2. User Responsibilities</h2>
-        <p className="text-foreground/80 leading-relaxed">
-          By utilizing the platform, you agree to provide truthful and accurate information when checking eligibility. You acknowledge that any applications must be filed directly with the official provider, and our Application Tracker is strictly for your personal organization.
-        </p>
-      </section>
+        <section className="space-y-3 bg-white border border-slate-200 rounded-2xl p-6 shadow-xs text-xs text-slate-700 leading-relaxed">
+          <h2 className="font-serif text-xl font-bold text-[#0B1B3D]">1. Independent Discovery Platform</h2>
+          <p>
+            DreamPath is not officially endorsed by, partnered with, or an agent of Gamuda, Yayasan Bank Rakyat, Maxis, Yayasan TM, JPA, Petronas, Bank Negara Malaysia, Yayasan Khazanah, or any other scholarship provider listed on this site.
+          </p>
+        </section>
 
-      <section className="space-y-4">
-        <h2 className="text-2xl font-bold">3. Account Termination</h2>
-        <p className="text-foreground/80 leading-relaxed">
-          We reserve the right to suspend or terminate accounts that abuse the platform, submit malicious data reports, or violate these terms. You may terminate your account at any time via the Settings page.
-        </p>
-      </section>
+        <section className="space-y-3 bg-white border border-slate-200 rounded-2xl p-6 shadow-xs text-xs text-slate-700 leading-relaxed">
+          <h2 className="font-serif text-xl font-bold text-[#0B1B3D]">2. Deterministic Matching Scope</h2>
+          <p>
+            Our deterministic eligibility engine validates user-submitted facts against published criteria. An &ldquo;Eligible&rdquo; outcome indicates your numbers meet the machine-checkable thresholds; it does not constitute an official acceptance or contract with the scholarship provider.
+          </p>
+        </section>
 
-      <div className="pt-8">
-        <Link href="/" className="text-primary font-medium hover:underline">&larr; Back to Home</Link>
-      </div>
+        <section className="space-y-3 bg-white border border-slate-200 rounded-2xl p-6 shadow-xs text-xs text-slate-700 leading-relaxed">
+          <h2 className="font-serif text-xl font-bold text-[#0B1B3D]">3. User Responsibilities &amp; Truthfulness</h2>
+          <p>
+            Students agree to provide accurate information when using the platform. Automated scraping or submitting abusive mistake reports is prohibited.
+          </p>
+        </section>
+      </main>
+
+      <Footer />
     </div>
   );
 }

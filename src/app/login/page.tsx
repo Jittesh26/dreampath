@@ -109,6 +109,12 @@ export default function LoginPage() {
             <Button type="submit" size="lg" className="w-full h-12 text-base font-bold" disabled={isPending}>
               {isPending ? 'Signing in...' : 'Sign in'}
             </Button>
+
+            <div className="pt-2 text-center">
+              <p className="text-xs text-slate-500 font-jakarta">
+                Demo Accounts: <span className="font-semibold text-slate-700">student@dreampath.my</span> or <span className="font-semibold text-slate-700">admin@dreampath.my</span>
+              </p>
+            </div>
           </form>
         </CardContent>
       </Card>

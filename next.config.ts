@@ -9,13 +9,13 @@ const cspHeader = `
   object-src 'none';
   base-uri 'self';
   form-action 'self';
-  frame-ancestors 'none';
   frame-src 'self' blob:;
   worker-src 'self' blob:;
-  connect-src 'self' https://*.supabase.co;
+  connect-src 'self' https://*.supabase.co https://generativelanguage.googleapis.com;
 `.replace(/\s{2,}/g, ' ').trim();
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
   async headers() {
     return [
       {
@@ -24,10 +24,6 @@ const nextConfig: NextConfig = {
           {
             key: 'Content-Security-Policy',
             value: cspHeader,
-          },
-          {
-            key: 'X-Frame-Options',
-            value: 'DENY',
           },
           {
             key: 'X-Content-Type-Options',

@@ -17,8 +17,8 @@ export async function updateStudentProfile(formData: FormData) {
   const incomeBand = formData.get('incomeBand') as string;
   const cgpaRaw = formData.get('cgpa') as string;
   const cgpa = cgpaRaw ? cgpaRaw : null;
-  
-  // Example specific SPM grades
+
+  // SPM subjects
   const math = formData.get('spm_math') as string;
   const addMath = formData.get('spm_addmath') as string;
   const bm = formData.get('spm_bm') as string;
@@ -56,6 +56,7 @@ export async function updateStudentProfile(formData: FormData) {
   }
 
   revalidatePath('/student/profile');
+  revalidatePath('/student');
 }
 
 export async function updateApplicationStatus(appId: string, newStatus: string) {
@@ -70,4 +71,46 @@ export async function updateApplicationStatus(appId: string, newStatus: string) 
     .where(and(eq(applications.id, appId), eq(applications.userId, user.id)));
 
   revalidatePath('/student/applications');
+  revalidatePath('/student');
+}
+
+export async function saveScholarshipApplication(intakeId: string, status: string = 'saved') {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) throw new Error('Unauthorized');
+
+  // Check if already saved
+  const [existing] = await db
+    .select()
+    .from(applications)
+    .where(and(eq(applications.userId, user.id), eq(applications.intakeId, intakeId)));
+
+  if (existing) {
+    await db.update(applications)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(applications.id, existing.id));
+  } else {
+    await db.insert(applications).values({
+      userId: user.id,
+      intakeId,
+      status,
+    });
+  }
+
+  revalidatePath('/student/applications');
+  revalidatePath('/student');
+}
+
+export async function deleteApplication(appId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (!user) throw new Error('Unauthorized');
+
+  await db.delete(applications)
+    .where(and(eq(applications.id, appId), eq(applications.userId, user.id)));
+
+  revalidatePath('/student/applications');
+  revalidatePath('/student');
 }

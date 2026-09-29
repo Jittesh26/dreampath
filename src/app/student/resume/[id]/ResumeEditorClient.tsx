@@ -7,6 +7,9 @@ import { GeneratedWording } from '@/domain/ai-interview';
 import Link from 'next/link';
 import AIInterviewModal from './AIInterviewModal';
 import PDFPreviewModal from '@/components/resume/PDFPreviewModal';
+import { ATSCheckerModal } from '@/components/resume/ATSCheckerModal';
+import { ScholarshipTailoringModal } from '@/components/resume/ScholarshipTailoringModal';
+import { ShareResumeModal } from '@/components/resume/ShareResumeModal';
 import { Card } from '@/components/ui/card';
 
 export default function ResumeEditorClient({
@@ -20,6 +23,9 @@ export default function ResumeEditorClient({
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
   const [aiModalView, setAiModalView] = useState<'interview' | 'review'>('interview');
   const [isPDFModalOpen, setIsPDFModalOpen] = useState(false);
+  const [isATSModalOpen, setIsATSModalOpen] = useState(false);
+  const [isTailorModalOpen, setIsTailorModalOpen] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   const handleSave = () => {
@@ -247,6 +253,33 @@ export default function ResumeEditorClient({
           >
             <span>✨</span>
             <span>AI Assistant</span>
+          </button>
+
+          <button
+            type="button"
+            className="h-9 px-3 text-xs font-medium border border-slate-200 bg-white text-emerald-800 hover:bg-emerald-50 rounded-lg shadow-xs flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0"
+            onClick={() => setIsATSModalOpen(true)}
+          >
+            <span>🛡️</span>
+            <span>ATS Check</span>
+          </button>
+
+          <button
+            type="button"
+            className="h-9 px-3 text-xs font-medium border border-slate-200 bg-white text-amber-900 hover:bg-amber-50 rounded-lg shadow-xs flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0"
+            onClick={() => setIsTailorModalOpen(true)}
+          >
+            <span>🎯</span>
+            <span>Tailor</span>
+          </button>
+
+          <button
+            type="button"
+            className="h-9 px-3 text-xs font-medium border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 rounded-lg shadow-xs flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0"
+            onClick={() => setIsShareModalOpen(true)}
+          >
+            <span>🔗</span>
+            <span>Share</span>
           </button>
 
           <button
@@ -799,6 +832,28 @@ export default function ResumeEditorClient({
         isOpen={isPDFModalOpen}
         onClose={() => setIsPDFModalOpen(false)}
         content={content}
+        title={title}
+      />
+
+      {/* ATS Checker Modal */}
+      <ATSCheckerModal
+        isOpen={isATSModalOpen}
+        onClose={() => setIsATSModalOpen(false)}
+        content={content}
+      />
+
+      {/* Scholarship Tailoring Modal */}
+      <ScholarshipTailoringModal
+        isOpen={isTailorModalOpen}
+        onClose={() => setIsTailorModalOpen(false)}
+        content={content}
+      />
+
+      {/* Share Resume Modal */}
+      <ShareResumeModal
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        resumeId={resume.id}
         title={title}
       />
     </div>

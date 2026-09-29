@@ -135,7 +135,7 @@ export async function generateWordingFromFacts() {
   });
   
   // Strict Zod boundary mapping from DB output to Domain logic
-  const confirmedFacts: ExtractedFact[] = confirmedFactsRaw.map(f => {
+  const confirmedFacts: ExtractedFact[] = confirmedFactsRaw.map((f: any) => {
     return extractedFactSchema.parse({
       id: f.id,
       category: f.category,

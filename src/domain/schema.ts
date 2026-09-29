@@ -1,12 +1,10 @@
-import { SPMGrade } from './registry';
-
 export type ConditionOperator = 
   | 'EQUALS'
   | 'NOT_EQUALS'
   | 'GREATER_THAN_OR_EQUAL'
   | 'LESS_THAN_OR_EQUAL'
   | 'IN_ARRAY'
-  | 'HAS_SPM_SUBJECT_GRADE'; // value structure: { subject: string, minGrade: SPMGrade }
+  | 'HAS_SPM_SUBJECT_GRADE'; // value structure: { subject: string, minGrade: string }
 
 export interface BaseConditionNode {
   type: 'CONDITION';

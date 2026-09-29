@@ -134,14 +134,12 @@ describe('AI Interview Action Pipeline', () => {
     
     // We override findMany mock to simulate filtering
     const { db } = await import('@/db');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (db.query.resumeFacts.findMany as any).mockResolvedValueOnce([]); // No confirmed facts yet
     
     const wording1 = await generateWordingFromFacts();
     expect(wording1.education?.length ?? 0).toBe(0);
 
     // 2. Confirmed fact
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (db.query.resumeFacts.findMany as any).mockResolvedValueOnce([{
       ...mockDbState[0],
       isConfirmed: true,
@@ -161,7 +159,6 @@ describe('AI Interview Action Pipeline', () => {
   it('should reject malformed provider output during generation', async () => {
     const { db } = await import('@/db');
     
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (db.query.resumeFacts.findMany as any).mockResolvedValueOnce([{
       id: crypto.randomUUID(),
       isConfirmed: true,
@@ -175,7 +172,6 @@ describe('AI Interview Action Pipeline', () => {
   it('should generate wording for a single confirmed fact without mutating the fact', async () => {
     const factId = crypto.randomUUID();
     const { db } = await import('@/db');
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (db.query.resumeFacts.findFirst as any).mockResolvedValueOnce({
       id: factId,
       isConfirmed: true,

@@ -2,9 +2,7 @@ import { db } from '@/db';
 import { applications, intakes, scholarships, providers } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { createClient } from '@/lib/supabase/server';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '@/components/ui/table';
+import { ApplicationTrackerClient, ApplicationItem } from '@/components/student/ApplicationTrackerClient';
 
 export default async function ApplicationsPage() {
   const supabase = await createClient();
@@ -12,61 +10,53 @@ export default async function ApplicationsPage() {
 
   if (!user) return null;
 
-  const myApps = await db
-    .select({
-      id: applications.id,
-      status: applications.status,
-      updatedAt: applications.updatedAt,
-      scholarshipName: scholarships.name,
-      providerName: providers.name,
-    })
-    .from(applications)
-    .innerJoin(intakes, eq(applications.intakeId, intakes.id))
-    .innerJoin(scholarships, eq(intakes.scholarshipId, scholarships.id))
-    .innerJoin(providers, eq(scholarships.providerId, providers.id))
-    .where(eq(applications.userId, user.id))
-    .orderBy(desc(applications.updatedAt));
+  let myApps: ApplicationItem[] = [];
+  try {
+    const raw = await db
+      .select({
+        id: applications.id,
+        status: applications.status,
+        updatedAt: applications.updatedAt,
+        scholarshipId: scholarships.id,
+        scholarshipName: scholarships.name,
+        providerName: providers.name,
+        closeDate: intakes.closeDate,
+      })
+      .from(applications)
+      .innerJoin(intakes, eq(applications.intakeId, intakes.id))
+      .innerJoin(scholarships, eq(intakes.scholarshipId, scholarships.id))
+      .innerJoin(providers, eq(scholarships.providerId, providers.id))
+      .where(eq(applications.userId, user.id))
+      .orderBy(desc(applications.updatedAt));
+
+    myApps = raw.map((r) => ({
+      id: r.id,
+      status: r.status,
+      updatedAt: r.updatedAt,
+      scholarshipId: r.scholarshipId,
+      scholarshipName: r.scholarshipName,
+      providerName: r.providerName,
+      closeDate: r.closeDate,
+    }));
+  } catch {
+    myApps = [];
+  }
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 max-w-7xl">
       <div>
-        <h1 className="font-instrument text-4xl font-bold tracking-tight text-primary">Application Tracker</h1>
-        <p className="font-jakarta text-slate-500 mt-2 text-lg">Manage and track the progress of your verified scholarships.</p>
+        <div className="text-xs font-semibold text-amber-800 uppercase tracking-wider mb-1">
+          Student Workspace
+        </div>
+        <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-[#0B1B3D]">
+          Application Pipeline Tracker
+        </h1>
+        <p className="font-sans text-slate-500 mt-2 text-base max-w-2xl">
+          Manage deadlines, interview dates, and track your verified scholarship applications across every stage from discovery to award.
+        </p>
       </div>
 
-      <Card className="bg-white border-slate-100 shadow-premium">
-        <CardHeader>
-          <CardTitle className="font-jakarta text-xl">My Applications</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {myApps.length === 0 ? (
-            <p className="text-sm text-muted-foreground">You haven't saved or applied to any scholarships yet.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Scholarship</TableHead>
-                  <TableHead>Provider</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Last Updated</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {myApps.map(app => (
-                  <TableRow key={app.id}>
-                    <TableCell className="font-medium">{app.scholarshipName}</TableCell>
-                    <TableCell>{app.providerName}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline" className="uppercase">{app.status.replace('_', ' ')}</Badge>
-                    </TableCell>
-                    <TableCell>{new Date(app.updatedAt).toLocaleDateString()}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      <ApplicationTrackerClient initialApplications={myApps} />
     </div>
   );
 }

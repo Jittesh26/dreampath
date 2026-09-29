@@ -37,7 +37,7 @@ export async function getResumes() {
   
   const versions = await db.query.resumeVersions.findMany({
     where: eq(resumeVersions.resumeProfileId, profile.id),
-    orderBy: (resumeVersions, { desc }) => [desc(resumeVersions.updatedAt)],
+    orderBy: (resumeVersions: any, { desc }: any) => [desc(resumeVersions.updatedAt)],
   });
 
   return versions;

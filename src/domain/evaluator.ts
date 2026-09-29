@@ -1,4 +1,4 @@
-import { StudentProfile, SPMGrade, isGradeGte } from './registry';
+import { StudentProfile, isGradeGte } from './registry';
 import { RequirementNode, ScholarshipRequirement, BaseConditionNode, LogicalNode } from './schema';
 
 export type EligibilityStatus = 'MET' | 'NOT_MET' | 'MISSING_INFO';

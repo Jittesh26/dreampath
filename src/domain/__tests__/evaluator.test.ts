@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { evaluateEligibility } from '../evaluator';
 import { PROFILES, REQUIREMENTS } from './fixtures';
-import { ScholarshipRequirement, LogicalNode } from '../schema';
+import { ScholarshipRequirement } from '../schema';
 import { StudentProfile } from '../registry';
 
 describe('Deterministic Evaluator', () => {
