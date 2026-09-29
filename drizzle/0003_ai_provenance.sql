@@ -1,0 +1,1 @@
+ALTER TABLE "resume_facts" ADD COLUMN "original_answer" text;
