@@ -7,16 +7,9 @@ import {
   interviewFacts,
   interviewIntents,
 } from '@/db/schema';
-import { eq, asc } from 'drizzle-orm';
+import { eq, asc, desc } from 'drizzle-orm';
 import { InterviewLedger } from './ledger';
-import {
-  InterviewSessionData,
-  InterviewTranscript,
-  InterviewEntity,
-  InterviewSlot,
-  InterviewFact,
-  InterviewIntent,
-} from './types';
+import { InterviewSessionData } from './types';
 
 /**
  * Robust Interview Persistence Layer
@@ -85,8 +78,7 @@ export async function saveSessionSnapshot(ledger: InterviewLedger): Promise<void
   // 3. Persist Entities
   const existingEntityRows = await db
     .select({ id: interviewEntities.id })
-    .from(interviewEntities)
-    .where(eq(interviewEntities.sessionId, sessionId));
+    .from(interviewEntities);
   const existingEntityIds = new Set(existingEntityRows.map((r) => r.id));
 
   for (const entity of ledger.entities.values()) {
@@ -106,6 +98,7 @@ export async function saveSessionSnapshot(ledger: InterviewLedger): Promise<void
       await db
         .update(interviewEntities)
         .set({
+          sessionId,
           displayName: entity.displayName,
           metadata: entity.metadata || {},
           updatedAt: new Date(),
@@ -117,8 +110,7 @@ export async function saveSessionSnapshot(ledger: InterviewLedger): Promise<void
   // 4. Persist Slots
   const existingSlotRows = await db
     .select({ id: interviewSlots.id })
-    .from(interviewSlots)
-    .where(eq(interviewSlots.sessionId, sessionId));
+    .from(interviewSlots);
   const existingSlotIds = new Set(existingSlotRows.map((r) => r.id));
 
   for (const slot of ledger.slots.values()) {
@@ -138,6 +130,7 @@ export async function saveSessionSnapshot(ledger: InterviewLedger): Promise<void
       await db
         .update(interviewSlots)
         .set({
+          sessionId,
           state: slot.state,
           value: slot.value !== undefined ? slot.value : null,
           factId: slot.factId || null,
@@ -177,8 +170,7 @@ export async function saveSessionSnapshot(ledger: InterviewLedger): Promise<void
   // 6. Persist Intents
   const existingIntentRows = await db
     .select({ id: interviewIntents.id })
-    .from(interviewIntents)
-    .where(eq(interviewIntents.sessionId, sessionId));
+    .from(interviewIntents);
   const existingIntentIds = new Set(existingIntentRows.map((r) => r.id));
 
   for (const intent of ledger.intents.values()) {
@@ -195,6 +187,7 @@ export async function saveSessionSnapshot(ledger: InterviewLedger): Promise<void
       await db
         .update(interviewIntents)
         .set({
+          sessionId,
           status: intent.status,
           updatedAt: new Date(),
         })
@@ -210,7 +203,8 @@ export async function loadSessionSnapshot(resumeVersionId: string): Promise<Inte
   const [sessionRow] = await db
     .select()
     .from(interviewSessions)
-    .where(eq(interviewSessions.resumeVersionId, resumeVersionId));
+    .where(eq(interviewSessions.resumeVersionId, resumeVersionId))
+    .orderBy(desc(interviewSessions.updatedAt));
 
   if (!sessionRow) {
     return null;
@@ -332,6 +326,23 @@ export async function loadSessionSnapshot(resumeVersionId: string): Promise<Inte
  * Resets and purges the interview session for a resume version.
  */
 export async function deleteSession(resumeVersionId: string): Promise<void> {
+  const sessions = await db
+    .select({ id: interviewSessions.id })
+    .from(interviewSessions)
+    .where(eq(interviewSessions.resumeVersionId, resumeVersionId));
+
+  for (const s of sessions) {
+    try {
+      await db.delete(interviewTranscripts).where(eq(interviewTranscripts.sessionId, s.id));
+      await db.delete(interviewSlots).where(eq(interviewSlots.sessionId, s.id));
+      await db.delete(interviewFacts).where(eq(interviewFacts.sessionId, s.id));
+      await db.delete(interviewEntities).where(eq(interviewEntities.sessionId, s.id));
+      await db.delete(interviewIntents).where(eq(interviewIntents.sessionId, s.id));
+    } catch {
+      // In case Postgres cascade already handled it
+    }
+  }
+
   await db
     .delete(interviewSessions)
     .where(eq(interviewSessions.resumeVersionId, resumeVersionId));

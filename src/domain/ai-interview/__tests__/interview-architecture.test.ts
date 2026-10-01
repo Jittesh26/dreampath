@@ -1,15 +1,12 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
   InterviewLedger,
-  makeEntityId,
-  makeSlotId,
-  makeIntentKey,
 } from '../ledger';
-import { DeterministicPlanner } from '../planner';
-import { DeterministicExtractor } from '../extractor';
+import { DeterministicPlanner, deterministicPlanner } from '../planner';
+import { DeterministicExtractor, deterministicExtractor } from '../extractor';
 import { ProviderCascade } from '../provider-cascade';
 import { redactSensitiveData } from '../redactor';
-import { saveSessionSnapshot, loadSessionSnapshot } from '../persistence';
+import { saveSessionSnapshot, loadSessionSnapshot, deleteSession } from '../persistence';
 import { synthesizeResumeFromLedger } from '../synthesis';
 
 describe('Approved Resume AI Architecture & Regression Tests', () => {
@@ -46,7 +43,7 @@ describe('Approved Resume AI Architecture & Regression Tests', () => {
 
     // Verify loading snapshot
     const loaded = await loadSessionSnapshot(resumeVersionId);
-    expect(loaded).not.null;
+    expect(loaded).not.toBeNull();
     expect(loaded!.transcripts.length).toBe(1);
     expect(loaded!.transcripts[0].id).toBe(trx.id);
 
@@ -216,7 +213,7 @@ describe('Approved Resume AI Architecture & Regression Tests', () => {
     expect(result.text).toBeDefined();
     expect(result.text.length).toBeGreaterThan(0);
     // When external providers are mocked/offline, falls back cleanly
-    expect(['gemini', 'deterministic_template', 'openrouter']).toContain(result.provider);
+    expect(['gemini', 'groq', 'mistral', 'openrouter', 'deterministic_template']).toContain(result.provider);
   });
 
   // --------------------------------------------------------------------------
@@ -274,4 +271,218 @@ describe('Approved Resume AI Architecture & Regression Tests', () => {
     expect(content.certifications?.length).toBe(0);
     expect(content.awards?.length).toBe(0);
   });
+
+  // --------------------------------------------------------------------------
+  // 8. Experience Responsibilities State Transition & Persistence Regression
+  // --------------------------------------------------------------------------
+  it('correctly transitions experience|health_lane|responsibilities to known and closes the slot across reloads', async () => {
+    const testLedger = new InterviewLedger({
+      id: 'sess_repro_test',
+      resumeVersionId: 'ver_repro_test',
+      resumeProfileId: 'prof_repro_test',
+      currentTurn: 0,
+      isComplete: false,
+      currentIntentKey: 'education|general|overview',
+      summary: null,
+    });
+
+    // 1. Student provides education facts -> education slots become known
+    testLedger.addTranscript('ai', "Hello! Let's build your resume together. What are you currently studying and where?");
+    const eduAnswer = 'I’m currently pursuing a Bachelor of Computer Science with Honours at Universiti Pertahanan Nasional Malaysia (UPNM). I started in 2025, and my current CGPA is 3.98.';
+    testLedger.addTranscript('student', eduAnswer);
+    deterministicExtractor.extract(eduAnswer, testLedger);
+
+    const eduEntity = testLedger.getEntity('education|upnm');
+    expect(eduEntity).toBeDefined();
+    expect(testLedger.isSlotKnown('education|upnm', 'degree')).toBe(true);
+    expect(testLedger.isSlotKnown('education|upnm', 'cgpa')).toBe(true);
+    expect(testLedger.isSlotKnown('education|upnm', 'start_year')).toBe(true);
+    expect(testLedger.isSlotKnown('education|upnm', 'institution')).toBe(true);
+
+    let plan = deterministicPlanner.planNextIntent(testLedger);
+    expect(plan.intentKey).toBe('experience|general|overview');
+    testLedger.session.currentIntentKey = plan.intentKey;
+
+    // 2. Student introduces Health Lane -> creates experience|health_lane
+    testLedger.addTranscript('ai', plan.suggestedPrompt);
+    const expAnswer = 'I worked part-time at Health Lane Family Pharmacy. I helped customers, handled pharmacy-related tasks, and worked with the team.';
+    testLedger.addTranscript('student', expAnswer);
+    deterministicExtractor.extract(expAnswer, testLedger);
+
+    const expEntity = testLedger.getEntity('experience|health_lane');
+    expect(expEntity).toBeDefined();
+    expect(expEntity?.displayName).toBe('Health Lane Family Pharmacy');
+    expect(testLedger.isSlotKnown('experience|health_lane', 'employer')).toBe(true);
+    expect(testLedger.isSlotKnown('experience|health_lane', 'position')).toBe(true);
+
+    plan = deterministicPlanner.planNextIntent(testLedger);
+    expect(plan.intentKey).toBe('experience|health_lane|responsibilities');
+    testLedger.session.currentIntentKey = plan.intentKey;
+
+    // 3. Student provides responsibilities -> experience|health_lane|responsibilities becomes known
+    testLedger.addTranscript('ai', plan.suggestedPrompt);
+    const respAnswer = 'I assisted customers, arranged and restocked products, checked product availability, handled sales transactions, and helped maintain the pharmacy\'s daily operations.';
+    testLedger.addTranscript('student', respAnswer);
+    const extractionResult = deterministicExtractor.extract(respAnswer, testLedger);
+    expect(extractionResult.facts.length).toBeGreaterThan(0);
+
+    // Verify fact creation
+    const respSlot = testLedger.getSlot('experience|health_lane', 'responsibilities');
+    expect(respSlot).toBeDefined();
+    expect(respSlot?.state).toBe('known');
+    expect(respSlot?.value).toBe(respAnswer);
+
+    const respFact = testLedger.getFactsForEntity('experience|health_lane').find(f => f.slot === 'responsibilities');
+    expect(respFact).toBeDefined();
+    expect(respFact?.entityId).toBe('experience|health_lane');
+    expect(respFact?.origin).toBe('explicit');
+    expect(respFact?.value).toBe(respAnswer);
+    expect(testLedger.isIntentResolved('experience|health_lane|responsibilities')).toBe(true);
+
+    // 4. Planner does NOT ask responsibilities again
+    plan = deterministicPlanner.planNextIntent(testLedger);
+    expect(plan.intentKey).not.toBe('experience|health_lane|responsibilities');
+
+    // 5. Save snapshot -> reload snapshot -> responsibilities remains known
+    const snapshot = testLedger.toSnapshot();
+    const reloadedLedger = InterviewLedger.fromSnapshot(snapshot);
+
+    const reloadedRespSlot = reloadedLedger.getSlot('experience|health_lane', 'responsibilities');
+    expect(reloadedRespSlot).toBeDefined();
+    expect(reloadedRespSlot?.state).toBe('known');
+    expect(reloadedRespSlot?.value).toBe(respAnswer);
+
+    const reloadedFact = reloadedLedger.getFactsForEntity('experience|health_lane').find(f => f.slot === 'responsibilities');
+    expect(reloadedFact).toBeDefined();
+    expect(reloadedFact?.entityId).toBe('experience|health_lane');
+    expect(reloadedFact?.slot).toBe('responsibilities');
+
+    // 6. Planner still selects another legitimate missing slot instead of responsibilities
+    const reloadedPlan = deterministicPlanner.planNextIntent(reloadedLedger);
+    expect(reloadedPlan.intentKey).toBe('project|general|overview');
+    expect(reloadedPlan.intentKey).not.toBe('experience|health_lane|responsibilities');
+
+    // 7. Same slot cannot be reopened merely because another provider phrases the next question
+    const cascade = new ProviderCascade();
+    const phrasedResult = await cascade.phraseQuestion({
+      intentKey: reloadedPlan.intentKey!,
+      template: reloadedPlan.suggestedPrompt,
+      topic: reloadedPlan.topic,
+      ledger: reloadedLedger,
+      latestAnswer: respAnswer,
+    });
+    expect(phrasedResult.text).toBeDefined();
+    expect(phrasedResult.text.length).toBeGreaterThan(0);
+    // Planner state after cascade phrasing must still have responsibilities closed
+    expect(reloadedLedger.isSlotKnown('experience|health_lane', 'responsibilities')).toBe(true);
+    expect(deterministicPlanner.planNextIntent(reloadedLedger).intentKey).toBe('project|general|overview');
+
+    // 8. A separate project such as CampusFind remains a separate entity
+    reloadedLedger.session.currentIntentKey = reloadedPlan.intentKey;
+    const projectAnswer = 'I worked on a project called CampusFind, a university lost and found system. I was the project manager.';
+    reloadedLedger.addTranscript('student', projectAnswer);
+    deterministicExtractor.extract(projectAnswer, reloadedLedger);
+
+    const healthLaneEntity = reloadedLedger.getEntity('experience|health_lane');
+    const campusFindEntity = reloadedLedger.getEntity('project|campusfind');
+
+    expect(healthLaneEntity).toBeDefined();
+    expect(healthLaneEntity?.entityType).toBe('experience');
+    expect(campusFindEntity).toBeDefined();
+    expect(campusFindEntity?.entityType).toBe('project');
+    expect(healthLaneEntity?.id).not.toBe(campusFindEntity?.id);
+
+    // Verify facts isolation
+    const healthLaneFacts = reloadedLedger.getFactsForEntity('experience|health_lane');
+    const campusFindFacts = reloadedLedger.getFactsForEntity('project|campusfind');
+
+    expect(healthLaneFacts.map(f => f.slot)).toContain('responsibilities');
+    expect(campusFindFacts.map(f => f.slot)).not.toContain('responsibilities');
+    expect(campusFindFacts.map(f => f.slot)).toContain('name');
+  });
+
+  // --------------------------------------------------------------------------
+  // 14. Full End-to-End Action/DB Persistence Regression Test
+  // --------------------------------------------------------------------------
+  it('exercises full multi-turn DB persistence and ensures responsibilities slot remains closed after reload', async () => {
+    const testResumeVersionId = crypto.randomUUID();
+    const testResumeProfileId = crypto.randomUUID();
+
+    // 1. Create fresh interview session in DB
+    const sLedger = new InterviewLedger({
+      id: `session_${crypto.randomUUID()}`,
+      resumeVersionId: testResumeVersionId,
+      resumeProfileId: testResumeProfileId,
+      currentTurn: 0,
+      isComplete: false,
+      currentIntentKey: 'education|general|overview',
+      summary: null,
+    });
+    sLedger.addTranscript('ai', "Hello! Let's build your resume together. What are you currently studying and where?");
+    sLedger.registerIntent('education|general|overview', 'active');
+    await saveSessionSnapshot(sLedger);
+
+    // 2. Submit education answer
+    let loaded = (await loadSessionSnapshot(testResumeVersionId))!;
+    expect(loaded).toBeDefined();
+    const eduAnswer = "I’m currently pursuing a Bachelor of Computer Science with Honours at Universiti Pertahanan Nasional Malaysia (UPNM). I started in 2025, and my current CGPA is 3.98.";
+    loaded.addTranscript('student', eduAnswer);
+    deterministicExtractor.extract(eduAnswer, loaded);
+    let plan = deterministicPlanner.planNextIntent(loaded);
+    expect(plan.intentKey).toBe('experience|general|overview');
+    loaded.session.currentIntentKey = plan.intentKey;
+    if (plan.intentKey) loaded.registerIntent(plan.intentKey, 'active');
+    loaded.addTranscript('ai', plan.suggestedPrompt);
+    await saveSessionSnapshot(loaded);
+
+    // 3. Submit Health Lane experience answer
+    loaded = (await loadSessionSnapshot(testResumeVersionId))!;
+    expect(loaded.currentIntentKey).toBe('experience|general|overview');
+    const expAnswer = "I worked part-time at Health Lane Family Pharmacy. I helped customers, handled pharmacy-related tasks, and worked with the team.";
+    loaded.addTranscript('student', expAnswer);
+    deterministicExtractor.extract(expAnswer, loaded);
+
+    // 4. Receive responsibilities question
+    plan = deterministicPlanner.planNextIntent(loaded);
+    expect(plan.intentKey).toBe('experience|health_lane|responsibilities');
+    expect(plan.suggestedPrompt).toContain('Health Lane Family Pharmacy');
+    loaded.session.currentIntentKey = plan.intentKey;
+    if (plan.intentKey) loaded.registerIntent(plan.intentKey, 'active');
+    loaded.addTranscript('ai', plan.suggestedPrompt);
+    await saveSessionSnapshot(loaded);
+
+    // 5. Submit the responsibilities answer
+    loaded = (await loadSessionSnapshot(testResumeVersionId))!;
+    expect(loaded.currentIntentKey).toBe('experience|health_lane|responsibilities');
+    const respAnswer = "I assisted customers, arranged and restocked products, checked product availability, handled sales transactions, and helped maintain the pharmacy's daily operations.";
+    loaded.addTranscript('student', respAnswer);
+    const extResult = deterministicExtractor.extract(respAnswer, loaded);
+    expect(extResult.facts.length).toBeGreaterThan(0);
+
+    plan = deterministicPlanner.planNextIntent(loaded);
+    loaded.session.currentIntentKey = plan.intentKey;
+    if (plan.intentKey) loaded.registerIntent(plan.intentKey, 'active');
+    loaded.addTranscript('ai', plan.suggestedPrompt);
+    await saveSessionSnapshot(loaded);
+
+    // 6. Inspect the resulting persisted session from database
+    const finalLoaded = (await loadSessionSnapshot(testResumeVersionId))!;
+    expect(finalLoaded).toBeDefined();
+
+    // 8. Assert that responsibilities is known/resolved
+    expect(finalLoaded.isSlotKnown('experience|health_lane', 'responsibilities')).toBe(true);
+    const respFact = finalLoaded.getFactsForEntity('experience|health_lane').find(f => f.slot === 'responsibilities');
+    expect(respFact).toBeDefined();
+    expect(respFact?.origin).toBe('explicit');
+    expect(respFact?.value).toBe(respAnswer);
+    expect(finalLoaded.isIntentResolved('experience|health_lane|responsibilities')).toBe(true);
+
+    // 7 & 9. Generate the next intent and assert that it is different
+    const nextPlan = deterministicPlanner.planNextIntent(finalLoaded);
+    expect(nextPlan.intentKey).toBe('project|general|overview');
+    expect(nextPlan.intentKey).not.toBe('experience|health_lane|responsibilities');
+
+    // Clean up
+    await deleteSession(testResumeVersionId);
+  }, 20_000);
 });

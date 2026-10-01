@@ -15,7 +15,6 @@ import { ExtractionResult, EntityType } from './types';
 export class DeterministicExtractor {
   public extract(answer: string, ledger: InterviewLedger): ExtractionResult {
     const text = answer.trim();
-    const lower = text.toLowerCase();
 
     const entities: any[] = [];
     const slots: any[] = [];
@@ -223,6 +222,25 @@ export class DeterministicExtractor {
         });
         ledger.resolveIntent(makeIntentKey('experience', normKey, 'position'));
       }
+
+      // Check if responsibilities were also explicitly declared in the same turn (e.g. "my responsibilities were...")
+      const respMatch = text.match(/\b(?:(?:my\s+)?(?:main\s+)?responsibilities\s+(?:were|included|are|include)|responsible\s+for|(?:my\s+)?duties\s+(?:were|included|are|include)|(?:my\s+)?(?:daily\s+)?tasks\s+(?:were|included|are|include))\s*[:\-]?\s*([^.]+)/i);
+      if (respMatch) {
+        const respText = respMatch[1].trim();
+        if (respText.length > 5) {
+          const respFact = ledger.addFact({
+            entityId: expEntity.id,
+            slot: 'responsibilities',
+            value: respText,
+            rawEvidence: text,
+            origin: 'explicit',
+          });
+          facts.push(respFact);
+          slots.push(ledger.getSlot(expEntity.id, 'responsibilities'));
+          ledger.resolveIntent(makeIntentKey('experience', normKey, 'responsibilities'));
+          resolvedIntentKeys.push(makeIntentKey('experience', normKey, 'responsibilities'));
+        }
+      }
     }
 
     // -------------------------------------------------------------
@@ -308,6 +326,105 @@ export class DeterministicExtractor {
       slots.push(ledger.getSlot(skillEntity.id, 'technical'));
       ledger.resolveIntent('skill|self|technical');
       resolvedIntentKeys.push('skill|self|technical');
+    }
+
+    // -------------------------------------------------------------
+    // 6. TARGETED ACTIVE INTENT SLOT RESOLUTION
+    // -------------------------------------------------------------
+    // If the interviewer previously asked a question targeting a specific slot on an entity,
+    // and the student responded to that question:
+    const activeIntentKey = ledger.currentIntentKey;
+    if (activeIntentKey) {
+      const intentParts = activeIntentKey.split('|');
+      if (intentParts.length >= 3) {
+        const [targetEntityType, targetEntityKey, targetSlot] = intentParts;
+
+        if (targetEntityType === 'leadership' && targetEntityKey === 'self') {
+          // Leadership prompt resolution
+          const isNegative =
+            /^(?:none|no|nothing|n\/?a|not\s+applicable|skip|don'?t\s+have|haven'?t)$/i.test(
+              text.replace(/[.,!]/g, '').trim()
+            ) || /\b(?:no\s+leadership|haven'?t\s+held\s+any|never\s+held)\b/i.test(text);
+
+          if (isNegative) {
+            const s = ledger.setSlot('leadership|self', 'overview', 'declared_none', 'declared_none');
+            slots.push(s);
+            ledger.resolveIntent(activeIntentKey);
+            resolvedIntentKeys.push(activeIntentKey);
+          } else if (text.length > 0) {
+            const leadEntity = ledger.getOrCreateEntity('leadership', 'general', 'Leadership Experience');
+            entities.push(leadEntity);
+            const fact = ledger.addFact({
+              entityId: leadEntity.id,
+              slot: 'description',
+              value: text,
+              rawEvidence: text,
+              origin: 'explicit',
+            });
+            facts.push(fact);
+            slots.push(ledger.getSlot(leadEntity.id, 'description'));
+            ledger.resolveIntent(activeIntentKey);
+            resolvedIntentKeys.push(activeIntentKey);
+          }
+        } else if (targetEntityKey !== 'general') {
+          const targetEntityId = makeEntityId(targetEntityType as EntityType, targetEntityKey);
+          let targetEntity = ledger.getEntity(targetEntityId);
+          if (!targetEntity) {
+            targetEntity =
+              ledger.getEntitiesByType(targetEntityType as EntityType).find((e) => e.normalizedKey === targetEntityKey) ||
+              ledger.getEntitiesByType(targetEntityType as EntityType)[0];
+          }
+
+          if (targetEntity) {
+            const currentSlot = ledger.getSlot(targetEntity.id, targetSlot);
+            const isSlotKnown = currentSlot?.state === 'known' || currentSlot?.state === 'inferred';
+
+            if (!isSlotKnown) {
+              const isNegative =
+                /^(?:none|no|nothing|n\/?a|not\s+applicable|skip|prefer\s+not\s+to\s+say|don'?t\s+have|haven'?t|no\s+(?:responsibilities|specific\s+responsibilities|leadership|roles))$/i.test(
+                  text.replace(/[.,!]/g, '').trim()
+                ) ||
+                /\b(?:no\s+responsibilities|don'?t\s+have\s+any|not\s+applicable|skip\s+this|no\s+specific\s+tasks)\b/i.test(text);
+
+              if (isNegative) {
+                const s = ledger.setSlot(targetEntity.id, targetSlot, 'declared_none', 'declared_none');
+                slots.push(s);
+                ledger.resolveIntent(activeIntentKey);
+                resolvedIntentKeys.push(activeIntentKey);
+              } else if (text.length > 0) {
+                // Determine slot value based on target slot type
+                let slotValue: any = text;
+
+                if (targetSlot === 'technologies') {
+                  slotValue = foundSkills.length > 0 ? foundSkills : text;
+                } else if (targetSlot === 'degree' && degreeMatch) {
+                  slotValue = degreeMatch[0].trim();
+                } else if (targetSlot === 'cgpa' && cgpaMatch) {
+                  slotValue = cgpaMatch[1];
+                } else if (targetSlot === 'start_year' && yearMatch) {
+                  slotValue = yearMatch[1];
+                } else if (targetSlot === 'field_of_study' && fieldMatch) {
+                  slotValue = fieldMatch[1].trim();
+                } else if (targetSlot === 'institution' && matchedUni) {
+                  slotValue = matchedUni.name;
+                }
+
+                const fact = ledger.addFact({
+                  entityId: targetEntity.id,
+                  slot: targetSlot,
+                  value: slotValue,
+                  rawEvidence: text,
+                  origin: 'explicit',
+                });
+                facts.push(fact);
+                slots.push(ledger.getSlot(targetEntity.id, targetSlot));
+                ledger.resolveIntent(activeIntentKey);
+                resolvedIntentKeys.push(activeIntentKey);
+              }
+            }
+          }
+        }
+      }
     }
 
     return {
