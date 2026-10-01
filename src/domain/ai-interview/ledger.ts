@@ -2,7 +2,6 @@ import {
   EntityType,
   SlotState,
   FactOrigin,
-  FactStatus,
   IntentStatus,
   InterviewEntity,
   InterviewSlot,

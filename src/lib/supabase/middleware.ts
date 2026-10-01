@@ -35,12 +35,17 @@ export async function updateSession(request: NextRequest) {
     } catch {
       user = null;
     }
-  } else {
+  }
+
+  if (!user) {
     // Graceful preview/local cookie session
     const sessionCookie = request.cookies.get('dreampath_session')?.value;
     if (sessionCookie) {
       try {
-        const parsed = JSON.parse(decodeURIComponent(sessionCookie));
+        let str = sessionCookie;
+        try { str = decodeURIComponent(str); } catch {}
+        try { str = decodeURIComponent(str); } catch {}
+        const parsed = JSON.parse(str);
         if (parsed && parsed.id) {
           user = parsed;
         }

@@ -368,10 +368,15 @@ export class DeterministicExtractor {
           }
         } else if (targetEntityKey !== 'general') {
           const targetEntityId = makeEntityId(targetEntityType as EntityType, targetEntityKey);
-          const targetEntity = ledger.getEntity(targetEntityId);
+          let targetEntity = ledger.getEntity(targetEntityId);
+          if (!targetEntity) {
+            targetEntity =
+              ledger.getEntitiesByType(targetEntityType as EntityType).find((e) => e.normalizedKey === targetEntityKey) ||
+              ledger.getEntitiesByType(targetEntityType as EntityType)[0];
+          }
 
           if (targetEntity) {
-            const currentSlot = ledger.getSlot(targetEntityId, targetSlot);
+            const currentSlot = ledger.getSlot(targetEntity.id, targetSlot);
             const isSlotKnown = currentSlot?.state === 'known' || currentSlot?.state === 'inferred';
 
             if (!isSlotKnown) {
@@ -382,7 +387,7 @@ export class DeterministicExtractor {
                 /\b(?:no\s+responsibilities|don'?t\s+have\s+any|not\s+applicable|skip\s+this|no\s+specific\s+tasks)\b/i.test(text);
 
               if (isNegative) {
-                const s = ledger.setSlot(targetEntityId, targetSlot, 'declared_none', 'declared_none');
+                const s = ledger.setSlot(targetEntity.id, targetSlot, 'declared_none', 'declared_none');
                 slots.push(s);
                 ledger.resolveIntent(activeIntentKey);
                 resolvedIntentKeys.push(activeIntentKey);

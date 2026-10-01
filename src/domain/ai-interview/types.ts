@@ -1,7 +1,3 @@
-import { z } from 'zod';
-import { ChatMessage, ExtractedFact } from '../ai-interview';
-import { ResumeContent } from '../resume';
-
 // -------------------------------------------------------------
 // Approved Entity Types
 // -------------------------------------------------------------

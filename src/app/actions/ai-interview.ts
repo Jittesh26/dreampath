@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { db } from '@/db';
 import { resumeFacts, resumeProfiles, resumeVersions } from '@/db/schema';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { createClient } from '@/lib/supabase/server';
 import { MockResumeAIProvider } from '../../lib/ai/mock-provider';
 import { GeminiResumeAIProvider } from '../../lib/ai/gemini-provider';
@@ -197,8 +197,28 @@ export async function submitInterviewTurn(params: {
   // 3. Record student turn in transcript
   ledger.addTranscript('student', safeAnswer);
 
+  const prevActiveIntentKey = ledger.currentIntentKey;
+
   // 4. Extract entities, slots, and facts deterministically
-  deterministicExtractor.extract(safeAnswer, ledger);
+  const extraction = deterministicExtractor.extract(safeAnswer, ledger);
+
+  console.log('[AI Interview Turn] State after extraction:', {
+    previousIntentKey: prevActiveIntentKey,
+    currentIntentKey: ledger.currentIntentKey,
+    extractedFacts: extraction.facts.map((f: any) => ({
+      entityId: f.entityId,
+      slot: f.slot,
+      value: f.value,
+      sourceTurn: f.sourceTurn,
+    })),
+    extractedSlots: extraction.slots.map((s: any) => ({
+      id: s.id,
+      entityId: s.entityId,
+      slot: s.slot,
+      state: s.state,
+    })),
+    resolvedIntents: extraction.resolvedIntentKeys,
+  });
 
   // 5. Deterministic Planner picks next intent
   const plan = deterministicPlanner.planNextIntent(ledger);
@@ -208,6 +228,14 @@ export async function submitInterviewTurn(params: {
   if (plan.intentKey) {
     ledger.registerIntent(plan.intentKey, 'active');
   }
+
+  console.log('[AI Interview Turn] State before phrasing question:', {
+    nextIntentKey: plan.intentKey,
+    isComplete: plan.isComplete,
+    slotName: plan.slotName,
+    topic: plan.topic,
+    suggestedPrompt: plan.suggestedPrompt,
+  });
 
   // 6. Conversational question phrasing via Provider Cascade:
   // Gemini -> Groq -> Mistral -> OpenRouter -> deterministic template

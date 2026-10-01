@@ -289,6 +289,27 @@ export class MockSelectQueryBuilder {
       rows = rows.filter(row => evaluateCondition(row, this.whereCondition));
     }
 
+    // Apply orderBy
+    if (this.orderBys.length > 0) {
+      for (const order of this.orderBys) {
+        const isDesc = order?.direction === 'desc' || order?.order === 'desc' || order?.constructor?.name === 'Desc' || (order?._?.order === 'desc');
+        const col = order?.column || order?.left || order;
+        const colName = getColumnName(col);
+        if (colName) {
+          const camelCol = colName.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase());
+          rows.sort((a, b) => {
+            const valA = a[colName] !== undefined ? a[colName] : a[camelCol];
+            const valB = b[colName] !== undefined ? b[colName] : b[camelCol];
+            if (valA === valB) return 0;
+            if (valA === undefined || valA === null) return 1;
+            if (valB === undefined || valB === null) return -1;
+            const res = valA > valB ? 1 : -1;
+            return isDesc ? -res : res;
+          });
+        }
+      }
+    }
+
     // Apply limit
     if (this.limitCount !== undefined) {
       rows = rows.slice(0, this.limitCount);
