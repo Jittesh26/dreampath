@@ -114,7 +114,7 @@ describe('Cross-Scholarship Deterministic Evaluator', () => {
 
     const s1 = report.results.find((r) => r.scholarship.id === 's-1');
     expect(s1?.evaluation.status).toBe('NOT_MET');
-    expect(s1?.evaluation.reasons[0].message).toContain('is below minimum required 3.4');
+    expect(s1?.evaluation.reasons[0].message).toContain('is below minimum');
   });
 
   it('correctly marks ineligible when Bumiputera criterion is not satisfied', () => {

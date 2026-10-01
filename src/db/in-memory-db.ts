@@ -24,6 +24,12 @@ export function getTableName(table: any): string {
   if (table === schema.resumeProfiles) return 'resume_profiles';
   if (table === schema.resumeVersions) return 'resume_versions';
   if (table === schema.resumeFacts) return 'resume_facts';
+  if (table === schema.interviewSessions) return 'interview_sessions';
+  if (table === schema.interviewTranscripts) return 'interview_transcripts';
+  if (table === schema.interviewEntities) return 'interview_entities';
+  if (table === schema.interviewSlots) return 'interview_slots';
+  if (table === schema.interviewFacts) return 'interview_facts';
+  if (table === schema.interviewIntents) return 'interview_intents';
 
   if (table?.name) return table.name;
   if (table?._?.name) return table._.name;
@@ -53,6 +59,12 @@ export class MockDatabase {
   resume_profiles: any[] = [];
   resume_versions: any[] = [];
   resume_facts: any[] = [];
+  interview_sessions: any[] = [];
+  interview_transcripts: any[] = [];
+  interview_entities: any[] = [];
+  interview_slots: any[] = [];
+  interview_facts: any[] = [];
+  interview_intents: any[] = [];
 
   getTable(name: string): any[] {
     return (this as any)[name] || [];
@@ -119,7 +131,6 @@ function evaluateCondition(row: any, cond: any): boolean {
 }
 
 function evaluateQueryChunks(row: any, chunks: any[]): boolean {
-  // Try to extract columns, values, and operators from Drizzle SQL queryChunks
   let colName: string | null = null;
   let op = '=';
   let val: any = undefined;
@@ -128,37 +139,45 @@ function evaluateQueryChunks(row: any, chunks: any[]): boolean {
     const chunk = chunks[idx];
     if (!chunk) continue;
 
-    // String tokens
-    if (typeof chunk === 'string' || (chunk.value && typeof chunk.value === 'string')) {
-      const text = (typeof chunk === 'string' ? chunk : chunk.value).trim().toLowerCase();
+    // Sub-expression SQL
+    if (Array.isArray(chunk.queryChunks)) {
+      return evaluateQueryChunks(row, chunk.queryChunks);
+    }
+
+    // Column chunk
+    if (chunk.name || chunk._?.name || chunk.columnType) {
+      colName = getColumnName(chunk);
+      continue;
+    }
+
+    // Param chunk
+    if (chunk.constructor?.name === 'Param' || (chunk.value !== undefined && !Array.isArray(chunk.value))) {
+      val = chunk.value;
+      continue;
+    }
+
+    // String tokens / StringChunk
+    if (typeof chunk === 'string' || Array.isArray(chunk.value) || typeof chunk.value === 'string') {
+      const raw = typeof chunk === 'string' ? chunk : Array.isArray(chunk.value) ? chunk.value.join('') : chunk.value;
+      const text = String(raw).trim().toLowerCase();
       if (text === 'ilike' || text === 'like') op = 'ilike';
       else if (text === '=') op = '=';
+      else if (text === '!=' || text === '<>') op = '!=';
       else if (text === 'in') op = 'in';
       else if (text === 'not in') op = 'not in';
       else if (text === '>=') op = '>=';
       else if (text === '<=') op = '<=';
-    }
-
-    // Column chunk
-    if (chunk.name || chunk._?.name) {
-      colName = getColumnName(chunk);
-    }
-
-    // Param chunk
-    if (chunk.value !== undefined && typeof chunk !== 'string') {
-      val = chunk.value;
-    }
-
-    // Array / Expression chunks
-    if (Array.isArray(chunk.queryChunks)) {
-      // Sub-expression
-      return evaluateQueryChunks(row, chunk.queryChunks);
+      else if (text === '>') op = '>';
+      else if (text === '<') op = '<';
+      continue;
     }
   }
 
   if (colName) {
-    const rowVal = row[colName] ?? row[colName.replace(/_([a-z])/g, (_, c) => c.toUpperCase())];
+    const camelCol = colName.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase());
+    const rowVal = row[colName] !== undefined ? row[colName] : row[camelCol];
     if (op === '=') return rowVal == val;
+    if (op === '!=' || op === '<>') return rowVal != val;
     if (op === 'ilike') {
       const pattern = String(val || '').replace(/%/g, '.*');
       return new RegExp(`^${pattern}$`, 'i').test(String(rowVal || ''));
@@ -169,6 +188,8 @@ function evaluateQueryChunks(row: any, chunks: any[]): boolean {
     }
     if (op === '>=') return Number(rowVal) >= Number(val);
     if (op === '<=') return Number(rowVal) <= Number(val);
+    if (op === '>') return Number(rowVal) > Number(val);
+    if (op === '<') return Number(rowVal) < Number(val);
   }
 
   return true;
@@ -284,8 +305,14 @@ export class MockSelectQueryBuilder {
         const projected: Record<string, any> = {};
         for (const [key, col] of Object.entries(this.selectedFields)) {
           const colName = getColumnName(col);
+          const colTable = (col as any)?.table;
+          const tblName = getTableName(colTable);
           if (colName) {
-            projected[key] = row[colName] ?? row[key];
+            if (tblName && tblName !== 'unknown' && row[tblName] && row[tblName][colName] !== undefined) {
+              projected[key] = row[tblName][colName];
+            } else {
+              projected[key] = row[colName] ?? row[key];
+            }
           } else {
             projected[key] = row[key];
           }
@@ -486,6 +513,12 @@ export function createInMemoryDrizzle() {
     resumeProfiles: createTableQueryApi('resume_profiles'),
     resumeVersions: createTableQueryApi('resume_versions'),
     resumeFacts: createTableQueryApi('resume_facts'),
+    interviewSessions: createTableQueryApi('interview_sessions'),
+    interviewTranscripts: createTableQueryApi('interview_transcripts'),
+    interviewEntities: createTableQueryApi('interview_entities'),
+    interviewSlots: createTableQueryApi('interview_slots'),
+    interviewFacts: createTableQueryApi('interview_facts'),
+    interviewIntents: createTableQueryApi('interview_intents'),
     dataReports: createTableQueryApi('data_reports'),
   };
 

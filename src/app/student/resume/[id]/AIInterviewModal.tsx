@@ -172,15 +172,7 @@ export default function AIInterviewModal({
       }
     } catch (err: any) {
       console.error('Turn submission error:', err);
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: crypto.randomUUID(),
-          role: 'ai',
-          content: "I understood that! Could you also share any specific achievements, key tools, or milestones from that experience?",
-          timestamp: new Date(),
-        },
-      ]);
+      setErrorMsg(err?.message || 'We encountered an issue processing your response. Please try again.');
     } finally {
       setIsLoading(false);
     }

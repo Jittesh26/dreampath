@@ -14,6 +14,17 @@ import {
   generatedWordingSchema,
   ResumeAIProvider,
 } from '../../domain/ai-interview';
+import {
+  InterviewLedger,
+  loadSessionSnapshot,
+  saveSessionSnapshot,
+  deleteSession,
+  deterministicPlanner,
+  deterministicExtractor,
+  providerCascade,
+  redactSensitiveData,
+  synthesizeResumeFromLedger,
+} from '../../domain/ai-interview/index';
 import { resumeContentSchema, ResumeContent } from '../../domain/resume';
 import { mergeResumeContent } from '../../domain/resume-merge';
 
@@ -72,19 +83,44 @@ async function requireResumeOwnership(resumeId: string) {
 
 /**
  * Retrieves the persisted interview session state for a specific resume.
+ * Uses interview_sessions / interview_transcripts as source of truth.
  */
 export async function getInterviewSession(resumeId: string) {
-  const { version } = await requireResumeOwnership(resumeId);
-  const state = (version.interviewState || {}) as Record<string, unknown>;
+  const { profile } = await requireResumeOwnership(resumeId);
 
-  const messages = Array.isArray(state.messages) ? (state.messages as ChatMessage[]) : [];
-  const isComplete = Boolean(state.isComplete);
-  const topic = typeof state.currentTopic === 'string' ? state.currentTopic : 'education';
+  // 1. Load session from authoritative interview tables
+  let ledger = await loadSessionSnapshot(resumeId);
 
+  // 2. If no interview session exists yet, initialize a clean one
+  if (!ledger) {
+    const sessionId = `session_${crypto.randomUUID()}`;
+    ledger = new InterviewLedger({
+      id: sessionId,
+      resumeVersionId: resumeId,
+      resumeProfileId: profile.id,
+      currentTurn: 0,
+      isComplete: false,
+      currentIntentKey: 'education|general|overview',
+      summary: null,
+    });
+
+    // Add initial greeting transcript
+    ledger.addTranscript(
+      'ai',
+      "Hello! Let's build your resume together. What are you currently studying and where?"
+    );
+    ledger.registerIntent('education|general|overview', 'active');
+
+    // Safely persist initial snapshot
+    await saveSessionSnapshot(ledger);
+  }
+
+  const messages = ledger.getTranscriptsAsChatMessages();
   return {
     messages,
-    isComplete,
-    topic,
+    isComplete: ledger.isComplete,
+    topic: ledger.getCurrentTopic(),
+    sessionId: ledger.sessionId,
   };
 }
 
@@ -94,6 +130,10 @@ export async function getInterviewSession(resumeId: string) {
 export async function resetInterviewSession(resumeId: string) {
   const { profile } = await requireResumeOwnership(resumeId);
 
+  // 1. Purge from authoritative interview tables
+  await deleteSession(resumeId);
+
+  // 2. Update downstream resume version state
   await db.update(resumeVersions)
     .set({
       interviewState: {},
@@ -115,91 +155,90 @@ export async function resetInterviewSession(resumeId: string) {
 }
 
 /**
- * Core Unified Interview Turn:
- * Executes natural follow-up dialogue and background entity extraction in a single AI operation.
- * Persists session state and extracted entities immediately to Postgres.
+ * Core Deterministic Interview Turn:
+ * 1. Redacts sensitive data before storage and LLM transmission.
+ * 2. Extracts entities, slots, and facts deterministically.
+ * 3. Advances deterministic planner to pick next target intent.
+ * 4. Phrases conversational follow-up via provider cascade.
+ * 5. Persists session snapshot to interview tables safely.
  */
 export async function submitInterviewTurn(params: {
   resumeId: string;
   history: ChatMessage[];
   answer: string;
 }) {
-  const { resumeId, history, answer } = params;
+  const { resumeId, answer } = params;
   const trimmed = answer.trim();
   if (!trimmed) {
     throw new Error('Answer cannot be empty');
   }
 
-  // Double-submit protection / race condition guard
-  const lastMsg = history[history.length - 1];
-  if (lastMsg && lastMsg.role === 'student' && lastMsg.content === trimmed) {
-    const existingSession = await getInterviewSession(resumeId);
-    return {
-      nextQuestion: existingSession.messages[existingSession.messages.length - 1]?.content || '',
-      isComplete: existingSession.isComplete,
-      topic: 'general',
-      extractedCount: 0,
-      messages: existingSession.messages,
-    };
+  const { profile } = await requireResumeOwnership(resumeId);
+
+  // 1. Redact sensitive secrets (NRIC, cards, passwords, etc.)
+  const redaction = redactSensitiveData(trimmed);
+  const safeAnswer = redaction.text;
+
+  // 2. Load or initialize authoritative session ledger
+  let ledger = await loadSessionSnapshot(resumeId);
+  if (!ledger) {
+    ledger = new InterviewLedger({
+      id: `session_${crypto.randomUUID()}`,
+      resumeVersionId: resumeId,
+      resumeProfileId: profile.id,
+      currentTurn: 0,
+      isComplete: false,
+      currentIntentKey: 'education|general|overview',
+      summary: null,
+    });
+    ledger.addTranscript('ai', "Hello! Let's build your resume together. What are you currently studying and where?");
   }
 
-  const { profile, version } = await requireResumeOwnership(resumeId);
-  const provider = getProvider();
+  // 3. Record student turn in transcript
+  ledger.addTranscript('student', safeAnswer);
 
-  // 1. Process turn through unified AI engine
-  const turnResult = await provider.processInterviewTurn({
-    history,
-    latestAnswer: trimmed,
-    currentResume: version.content as Partial<ResumeContent>,
-  });
+  // 4. Extract entities, slots, and facts deterministically
+  deterministicExtractor.extract(safeAnswer, ledger);
 
-  // 2. Persist extracted facts silently into Postgres (scoped strictly to this resume version)
-  const savedFacts: ExtractedFact[] = [];
-  for (const fact of turnResult.extractedFacts) {
-    try {
-      const validated = extractedFactSchema.parse(fact);
-      const inserted = await db.insert(resumeFacts).values({
-        resumeProfileId: profile.id,
-        resumeVersionId: resumeId,
-        category: validated.category,
-        source: 'ai',
-        originalAnswer: validated.originalAnswer,
-        content: validated.structuredData,
-        isConfirmed: true, // Auto-confirmed internally for provenance
-      }).returning();
+  // 5. Deterministic Planner picks next intent
+  const plan = deterministicPlanner.planNextIntent(ledger);
+  ledger.session.isComplete = plan.isComplete;
+  ledger.session.currentIntentKey = plan.intentKey;
 
-      if (inserted[0]) {
-        savedFacts.push(validated);
-      }
-    } catch (err: any) {
-      console.warn('[AI] Skipping invalid entity:', err?.message);
-    }
+  if (plan.intentKey) {
+    ledger.registerIntent(plan.intentKey, 'active');
   }
 
-  // 3. Update conversation history
-  const userMessage: ChatMessage = {
-    id: crypto.randomUUID(),
-    role: 'student',
-    content: trimmed,
-    timestamp: new Date(),
-  };
+  // 6. Conversational question phrasing via Provider Cascade:
+  // Gemini -> Groq -> Mistral -> OpenRouter -> deterministic template
+  let phrasedQuestion = plan.suggestedPrompt;
+  if (!plan.isComplete) {
+    const cascadeResult = await providerCascade.phraseQuestion({
+      intentKey: plan.intentKey || 'general',
+      slotName: plan.slotName,
+      template: plan.suggestedPrompt,
+      topic: plan.topic,
+      ledger,
+      latestAnswer: safeAnswer,
+    });
+    phrasedQuestion = cascadeResult.text;
+  }
 
-  const aiMessage: ChatMessage = {
-    id: crypto.randomUUID(),
-    role: 'ai',
-    content: turnResult.nextQuestion,
-    timestamp: new Date(),
-  };
+  // 7. Record AI turn in transcript
+  ledger.addTranscript('ai', phrasedQuestion);
 
-  const updatedHistory = [...history, userMessage, aiMessage];
+  // 8. Safely save snapshot to authoritative interview tables
+  await saveSessionSnapshot(ledger);
 
-  // 4. Persist interview session state to resume version
+  const updatedMessages = ledger.getTranscriptsAsChatMessages();
+
+  // 9. Update downstream resume version state for fast client UI sync
   await db.update(resumeVersions)
     .set({
       interviewState: {
-        messages: updatedHistory,
-        isComplete: turnResult.isComplete,
-        currentTopic: turnResult.topic,
+        messages: updatedMessages,
+        isComplete: ledger.isComplete,
+        currentTopic: plan.topic,
         updatedAt: new Date().toISOString(),
       },
       updatedAt: new Date(),
@@ -207,73 +246,74 @@ export async function submitInterviewTurn(params: {
     .where(eq(resumeVersions.id, resumeId));
 
   return {
-    nextQuestion: turnResult.nextQuestion,
-    isComplete: turnResult.isComplete,
-    topic: turnResult.topic,
-    extractedCount: savedFacts.length,
-    messages: updatedHistory,
+    nextQuestion: phrasedQuestion,
+    isComplete: ledger.isComplete,
+    topic: plan.topic,
+    extractedCount: ledger.getAllFacts().length,
+    messages: updatedMessages,
   };
 }
 
 /**
  * Consolidated Resume Synthesis & Automated Save:
- * Takes all facts for this resume version, generates structured professional wording,
- * semantically merges with existing resume content, and automatically persists to Postgres.
+ * Synthesizes strictly from verified facts in the interview ledger.
+ * No invented achievements, metrics, or technologies.
  */
 export async function synthesizeAndSaveResume(resumeId: string) {
-  const { profile, version } = await requireResumeOwnership(resumeId);
+  const { version, user } = await requireResumeOwnership(resumeId);
 
-  // 1. Fetch facts strictly scoped to this resume version, ordered chronologically
-  let factsRaw = await db.query.resumeFacts.findMany({
-    where: and(
-      eq(resumeFacts.resumeProfileId, profile.id),
-      eq(resumeFacts.resumeVersionId, resumeId),
-      eq(resumeFacts.isConfirmed, true)
-    ),
-    orderBy: (facts, { asc }) => [asc(facts.createdAt)],
-  });
+  // 1. Load authoritative session ledger
+  const ledger = await loadSessionSnapshot(resumeId);
 
-  // Backward-compatibility: if no version-scoped facts exist, check for unassigned legacy facts
-  if (factsRaw.length === 0) {
-    factsRaw = await db.query.resumeFacts.findMany({
+  let synthesizedContent: ResumeContent;
+
+  if (ledger && ledger.getAllFacts().length > 0) {
+    // Primary path: synthesize directly from interview facts
+    synthesizedContent = synthesizeResumeFromLedger(ledger);
+    ledger.session.isComplete = true;
+    await saveSessionSnapshot(ledger);
+  } else {
+    // Downstream fallback: synthesize from legacy resumeFacts if present
+    const provider = getProvider();
+    const confirmedFactsRaw = await db.query.resumeFacts.findMany({
       where: and(
-        eq(resumeFacts.resumeProfileId, profile.id),
-        isNull(resumeFacts.resumeVersionId),
+        eq(resumeFacts.resumeVersionId, resumeId),
         eq(resumeFacts.isConfirmed, true)
       ),
-      orderBy: (facts, { asc }) => [asc(facts.createdAt)],
     });
+    const confirmedFacts: ExtractedFact[] = confirmedFactsRaw.map((f: any) =>
+      extractedFactSchema.parse({
+        id: f.id,
+        category: f.category,
+        originalAnswer: f.originalAnswer || '',
+        structuredData: f.content,
+        isConfirmed: true,
+      })
+    );
+    const rawWording = await provider.generateProfessionalWording(confirmedFacts);
+    const validatedWording = generatedWordingSchema.parse(rawWording);
+    const current = (version.content || {}) as ResumeContent;
+    synthesizedContent = mergeResumeContent(current, validatedWording);
   }
 
-  const confirmedFacts: ExtractedFact[] = factsRaw.map((f: any) =>
-    extractedFactSchema.parse({
-      id: f.id,
-      category: f.category,
-      originalAnswer: f.originalAnswer || '',
-      structuredData: f.content,
-      isConfirmed: true,
-    })
-  );
-
-  if (confirmedFacts.length === 0) {
-    return {
-      success: true,
-      content: version.content as ResumeContent,
-      message: 'No new facts to synthesize.',
-    };
-  }
-
-  // 2. Synthesize complete professional resume wording in one batch operation
-  const provider = getProvider();
-  const rawWording = await provider.generateProfessionalWording(confirmedFacts);
-  const validatedWording = generatedWordingSchema.parse(rawWording);
-
-  // 3. Semantically merge with existing resume content (preventing duplicate schools/jobs)
+  // 2. Semantically merge with existing resume content
   const currentContent = (version.content || {}) as ResumeContent;
-  const mergedContent = mergeResumeContent(currentContent, validatedWording);
+  const mergedContent = mergeResumeContent(currentContent, synthesizedContent);
+
+  if (mergedContent.personal) {
+    if (!mergedContent.personal.fullName && !mergedContent.personal.email) {
+      delete mergedContent.personal;
+    } else {
+      if (!mergedContent.personal.fullName) mergedContent.personal.fullName = 'Student Scholar';
+      if (!mergedContent.personal.email || !mergedContent.personal.email.includes('@')) {
+        mergedContent.personal.email = user?.email || 'student@dreampath.my';
+      }
+    }
+  }
+
   const validatedFinalContent = resumeContentSchema.parse(mergedContent);
 
-  // 4. AUTOMATICALLY PERSIST TO POSTGRESQL
+  // 3. Persist to resume_versions
   const updatedVersion = await db.update(resumeVersions)
     .set({
       content: validatedFinalContent,
@@ -289,11 +329,6 @@ export async function synthesizeAndSaveResume(resumeId: string) {
 
   revalidatePath('/student/resume');
   revalidatePath(`/student/resume/${resumeId}`);
-
-  console.info('[AI] synthesizeAndSaveResume succeeded', {
-    resumeId,
-    sectionsUpdated: Object.keys(validatedFinalContent),
-  });
 
   return {
     success: true,

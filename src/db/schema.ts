@@ -226,3 +226,136 @@ export const resumeFactsRelations = relations(resumeFacts, ({ one }) => ({
     references: [resumeVersions.id],
   }),
 }));
+
+// ==========================================
+// APPROVED RESUME AI INTERVIEW ARCHITECTURE
+// Source of truth for conversational interviews
+// ==========================================
+
+export const interviewSessions = pgTable('interview_sessions', {
+  id: varchar('id', { length: 255 }).primaryKey(),
+  resumeVersionId: uuid('resume_version_id').references(() => resumeVersions.id, { onDelete: 'cascade' }),
+  resumeProfileId: uuid('resume_profile_id').references(() => resumeProfiles.id, { onDelete: 'cascade' }),
+  currentTurn: integer('current_turn').notNull().default(0),
+  isComplete: boolean('is_complete').notNull().default(false),
+  currentIntentKey: varchar('current_intent_key', { length: 255 }),
+  summary: text('summary'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const interviewTranscripts = pgTable('interview_transcripts', {
+  id: varchar('id', { length: 255 }).primaryKey(),
+  sessionId: varchar('session_id', { length: 255 }).references(() => interviewSessions.id, { onDelete: 'cascade' }).notNull(),
+  turn: integer('turn').notNull(),
+  role: varchar('role', { length: 50 }).notNull(), // 'ai', 'student', 'system'
+  content: text('content').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const interviewEntities = pgTable('interview_entities', {
+  id: varchar('id', { length: 255 }).primaryKey(), // <entity_type>|<normalized_key>
+  sessionId: varchar('session_id', { length: 255 }).references(() => interviewSessions.id, { onDelete: 'cascade' }).notNull(),
+  entityType: varchar('entity_type', { length: 50 }).notNull(),
+  normalizedKey: varchar('normalized_key', { length: 255 }).notNull(),
+  displayName: varchar('display_name', { length: 255 }).notNull(),
+  metadata: jsonb('metadata').notNull().default('{}'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const interviewSlots = pgTable('interview_slots', {
+  id: varchar('id', { length: 255 }).primaryKey(), // <entity_id>|<slot_name>
+  sessionId: varchar('session_id', { length: 255 }).references(() => interviewSessions.id, { onDelete: 'cascade' }).notNull(),
+  entityId: varchar('entity_id', { length: 255 }).references(() => interviewEntities.id, { onDelete: 'cascade' }).notNull(),
+  slot: varchar('slot', { length: 100 }).notNull(),
+  state: varchar('state', { length: 50 }).notNull().default('unknown'), // unknown, known, inferred, declared_none, skipped, uncertain, conflicted
+  value: jsonb('value'),
+  factId: varchar('fact_id', { length: 255 }),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const interviewFacts = pgTable('interview_facts', {
+  id: varchar('id', { length: 255 }).primaryKey(),
+  sessionId: varchar('session_id', { length: 255 }).references(() => interviewSessions.id, { onDelete: 'cascade' }).notNull(),
+  entityId: varchar('entity_id', { length: 255 }).references(() => interviewEntities.id, { onDelete: 'cascade' }).notNull(),
+  slot: varchar('slot', { length: 100 }).notNull(),
+  value: jsonb('value').notNull(),
+  rawEvidence: text('raw_evidence').notNull(),
+  sourceTurn: integer('source_turn').notNull(),
+  confidence: varchar('confidence', { length: 20 }).default('1.0').notNull(),
+  origin: varchar('origin', { length: 50 }).default('explicit').notNull(), // 'explicit', 'inferred', 'system'
+  status: varchar('status', { length: 50 }).default('active').notNull(), // 'active', 'superseded', 'conflicted', 'deleted'
+  sourceFactIds: jsonb('source_fact_ids').default('[]').notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+export const interviewIntents = pgTable('interview_intents', {
+  id: varchar('id', { length: 255 }).primaryKey(), // <entity_type>|<entity_key>|<slot_name>
+  sessionId: varchar('session_id', { length: 255 }).references(() => interviewSessions.id, { onDelete: 'cascade' }).notNull(),
+  intentKey: varchar('intent_key', { length: 255 }).notNull(),
+  status: varchar('status', { length: 50 }).default('pending').notNull(), // pending, active, resolved, skipped
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
+
+export const interviewSessionsRelations = relations(interviewSessions, ({ one, many }) => ({
+  resumeVersion: one(resumeVersions, {
+    fields: [interviewSessions.resumeVersionId],
+    references: [resumeVersions.id],
+  }),
+  resumeProfile: one(resumeProfiles, {
+    fields: [interviewSessions.resumeProfileId],
+    references: [resumeProfiles.id],
+  }),
+  transcripts: many(interviewTranscripts),
+  entities: many(interviewEntities),
+  slots: many(interviewSlots),
+  facts: many(interviewFacts),
+  intents: many(interviewIntents),
+}));
+
+export const interviewTranscriptsRelations = relations(interviewTranscripts, ({ one }) => ({
+  session: one(interviewSessions, {
+    fields: [interviewTranscripts.sessionId],
+    references: [interviewSessions.id],
+  }),
+}));
+
+export const interviewEntitiesRelations = relations(interviewEntities, ({ one, many }) => ({
+  session: one(interviewSessions, {
+    fields: [interviewEntities.sessionId],
+    references: [interviewSessions.id],
+  }),
+  slots: many(interviewSlots),
+  facts: many(interviewFacts),
+}));
+
+export const interviewSlotsRelations = relations(interviewSlots, ({ one }) => ({
+  session: one(interviewSessions, {
+    fields: [interviewSlots.sessionId],
+    references: [interviewSessions.id],
+  }),
+  entity: one(interviewEntities, {
+    fields: [interviewSlots.entityId],
+    references: [interviewEntities.id],
+  }),
+}));
+
+export const interviewFactsRelations = relations(interviewFacts, ({ one }) => ({
+  session: one(interviewSessions, {
+    fields: [interviewFacts.sessionId],
+    references: [interviewSessions.id],
+  }),
+  entity: one(interviewEntities, {
+    fields: [interviewFacts.entityId],
+    references: [interviewEntities.id],
+  }),
+}));
+
+export const interviewIntentsRelations = relations(interviewIntents, ({ one }) => ({
+  session: one(interviewSessions, {
+    fields: [interviewIntents.sessionId],
+    references: [interviewSessions.id],
+  }),
+}));
+
