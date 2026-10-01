@@ -5,18 +5,18 @@ import { ChevronDown } from 'lucide-react';
 export function FaqSection() {
   const faqs = [
     {
-      q: 'How does DreamPath verify criteria without hallucinations?',
-      a: "Every criteria rule is extracted directly from official provider announcements, university circulars, and foundation charters. We don't rely on probabilistic language models to guess eligibility—our platform uses formal boolean decision trees compiled from verified requirements, ensuring direct provenance for every eligibility score.",
+      q: 'How does DreamPath evaluate eligibility without guessing?',
+      a: 'Criteria rules are structured directly from published provider guidelines, university circulars, and foundation charters. Rather than relying on generative AI to guess eligibility, our platform evaluates machine-checkable rules against published criteria, providing transparent explanations for every match.',
       defaultOpen: true,
     },
     {
       q: 'What happens if a provider updates their deadline or funding criteria?',
-      a: 'Our intake registry runs continuous audits against official institutional portals and foundation circulars to capture mid-cycle amendments. When a deadline or income tier adjusts, active matching criteria and urgency clocks refresh accordingly.',
+      a: 'Our database is curated from published institutional portals and foundation circulars to reflect current cycle details. When providers publish updated guidelines or deadlines, the matching criteria and cycle dates are updated accordingly.',
       defaultOpen: false,
     },
     {
       q: 'Is DreamPath completely free for Malaysian students?',
-      a: 'Yes, 100% free with no paywalls or hidden fees. Under our strict PDPA Act 709 compliance, we never sell student data or charge students for scholarship eligibility scoring or resume synthesis.',
+      a: 'Yes, 100% free with no paywalls or hidden fees. We are committed to student privacy: we do not sell student data, and students are never charged for checking eligibility or managing applications.',
       defaultOpen: false,
     },
     {
@@ -31,7 +31,7 @@ export function FaqSection() {
     },
     {
       q: 'Can I use DreamPath without creating an account?',
-      a: 'Yes. You can browse the verified scholarship catalogue, run preliminary eligibility screenings, and inspect requirements completely free without an account. Creating a free student account lets you save opportunities, track application statuses, and build customized resumes with the AI Career Assistant.',
+      a: 'Yes. You can browse the scholarship catalogue, run preliminary eligibility screenings, and inspect requirements completely free without an account. Creating a free student account lets you save opportunities, track application statuses, and build customized resumes with the AI Career Assistant.',
       defaultOpen: false,
     },
   ];

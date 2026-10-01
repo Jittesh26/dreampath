@@ -58,8 +58,8 @@ async function runVerification() {
 
     // 6. Featured Verified Scholarships Catalog
     const catalogHeader = await page.textContent('#scholarship-catalog');
-    results['catalog_authoritative_registry'] = catalogHeader?.includes('AUTHORITATIVE REGISTRY') || false;
-    results['catalog_featured_scholarships'] = catalogHeader?.includes('Featured Verified Scholarships') || false;
+    results['catalog_authoritative_registry'] = catalogHeader?.includes('SCHOLARSHIP DIRECTORY') || false;
+    results['catalog_featured_scholarships'] = catalogHeader?.includes('Featured Scholarships') || false;
 
     // Check cards
     const cards = await page.$$('#scholarship-catalog .grid > div');
@@ -123,7 +123,7 @@ async function runVerification() {
 
     // 10. Pre-Footer Conversion Band
     const preFooter = await page.textContent('section:has-text("Ready to find your path?")');
-    results['prefooter_cta'] = (preFooter?.includes('Check Your Eligibility, Free') && preFooter?.includes('PDPA Act 709 Compliant')) || false;
+    results['prefooter_cta'] = (preFooter?.includes('Check Your Eligibility, Free') && preFooter?.includes('Privacy-Focused by Design')) || false;
     console.log('✓ Pre-Footer Conversion Band verified');
 
     // 11. Footer

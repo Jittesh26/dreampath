@@ -37,7 +37,7 @@ export function VerificationArchitecture() {
             Every rule, traced to its source.
           </h2>
           <p className="text-base sm:text-lg text-slate-300 font-normal leading-relaxed">
-            Standard student portals rely on probabilistic models that hallucinate guidelines. DreamPath maps rule-based criteria derived directly from authoritative gazettes and foundation charters with direct deterministic matching.
+            Navigating scholarship criteria shouldn&apos;t involve guesswork. DreamPath structures published requirements into machine-checkable criteria derived directly from provider guidelines and announcements.
           </p>
         </div>
 
@@ -64,7 +64,7 @@ export function VerificationArchitecture() {
                 </h3>
               </div>
               <p className="text-[14px] text-slate-300 leading-relaxed font-normal">
-                Structured parameter intake covering certified SPM/STPM transcripts, MyKad citizenship verification, and official LHDN household income.
+                Structured parameter intake covering SPM/STPM grades, Malaysian citizenship requirements, and household income bands.
               </p>
             </div>
           </div>
@@ -89,7 +89,7 @@ export function VerificationArchitecture() {
                 </h3>
               </div>
               <p className="text-[14px] text-slate-300 leading-relaxed font-normal">
-                Execution of official policy criteria against published foundation guidelines. Checks strict residency, bond obligations, and prerequisite subjects.
+                Evaluation of published eligibility criteria against structured requirements. Evaluates citizenship, academic cutoffs, study levels, and bond terms.
               </p>
             </div>
           </div>
@@ -114,7 +114,7 @@ export function VerificationArchitecture() {
                 </h3>
               </div>
               <p className="text-[14px] text-slate-300 leading-relaxed font-normal">
-                Instant generation of an auditable qualification breakdown with eligibility scoring and direct routing to institutional portals.
+                Clear criteria breakdown with rule-by-rule match explanations and direct links to official provider portals.
               </p>
             </div>
           </div>
@@ -129,28 +129,18 @@ export function VerificationArchitecture() {
             </div>
             <div className="space-y-0.5">
               <span className="text-[18px] font-bold text-white block">
-                Rule-Based Accuracy for Malaysian Undergraduates & Pre-U Scholars.
+                Rule-Based Clarity for Malaysian Undergraduates &amp; Pre-U Scholars.
               </span>
               <p className="text-[13px] text-slate-400">
-                Every rule traced to published provider guidelines. Direct source provenance across active 2026/2027 cycles.
+                Every rule referenced to published provider guidelines. Direct source provenance across active 2026/2027 cycles.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="flex -space-x-2">
-              <div className="w-8 h-8 rounded-full bg-slate-700 border-2 border-[#0B1120] flex items-center justify-center text-white text-[11px] font-bold">
-                AZ
-              </div>
-              <div className="w-8 h-8 rounded-full bg-blue-700 border-2 border-[#0B1120] flex items-center justify-center text-white text-[11px] font-bold">
-                TL
-              </div>
-              <div className="w-8 h-8 rounded-full bg-indigo-700 border-2 border-[#0B1120] flex items-center justify-center text-white text-[11px] font-bold">
-                KH
-              </div>
-            </div>
-            <span className="text-[12px] text-blue-300 font-bold tracking-wide">
-              Source-Verified Evaluation
+          <div className="flex items-center gap-2.5 px-4 py-2 rounded-xl bg-blue-500/10 border border-blue-400/20 shrink-0">
+            <BadgeCheck className="w-5 h-5 text-blue-400" />
+            <span className="text-[12px] text-blue-200 font-bold tracking-wide">
+              Structured Criteria Evaluation
             </span>
           </div>
         </div>

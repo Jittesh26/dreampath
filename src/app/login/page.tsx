@@ -1,14 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, Suspense } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import { login } from '@/app/actions/auth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Eye, EyeOff, ShieldCheck, GraduationCap } from 'lucide-react';
 
-export default function LoginPage() {
+function LoginForm() {
+  const searchParams = useSearchParams();
+  const redirectParam = searchParams.get('redirect') || '/student';
+
   const [error, setError] = useState<string | null>(null);
   const [isPending, setIsPending] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -30,6 +34,83 @@ export default function LoginPage() {
     }
   };
 
+  return (
+    <Card className="sm:mx-auto sm:w-full sm:max-w-md bg-white border-slate-200/90 shadow-2xs rounded-2xl relative z-10">
+      <CardContent className="pt-8 px-6 sm:px-10">
+        <form className="space-y-5" onSubmit={handleSubmit}>
+          <input type="hidden" name="redirect" value={redirectParam} />
+
+          {error && (
+            <div className="p-3.5 bg-rose-50/80 border border-rose-200 rounded-xl" role="alert" aria-live="assertive">
+              <p className="text-xs text-rose-800 font-medium">{error}</p>
+            </div>
+          )}
+
+          <div className="space-y-1.5">
+            <label htmlFor="email" className="block text-xs font-bold text-slate-700">
+              Email address
+            </label>
+            <Input
+              id="email"
+              name="email"
+              type="email"
+              autoComplete="email"
+              required
+              className="h-11 w-full text-xs bg-slate-50 border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 font-medium"
+              placeholder="you@example.com"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label htmlFor="password" className="block text-xs font-bold text-slate-700">
+              Password
+            </label>
+            <div className="relative">
+              <Input
+                id="password"
+                name="password"
+                type={showPassword ? 'text' : 'password'}
+                autoComplete="current-password"
+                required
+                className="h-11 w-full text-xs bg-slate-50 border-slate-200 rounded-xl focus:bg-white pr-10 focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 font-medium"
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded transition-colors"
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+              >
+                {showPassword ? (
+                  <EyeOff className="w-4 h-4" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
+              </button>
+            </div>
+          </div>
+
+          <Button
+            type="submit"
+            size="lg"
+            className="w-full h-11 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-xl shadow-xs transition-all cursor-pointer"
+            disabled={isPending}
+          >
+            {isPending ? 'Signing in...' : 'Sign in to Workspace'}
+          </Button>
+
+          <div className="pt-3 text-center border-t border-slate-100">
+            <p className="text-[11px] text-slate-500">
+              Demo Accounts: <span className="font-semibold text-slate-800">student@dreampath.my</span> or <span className="font-semibold text-slate-800">admin@dreampath.my</span>
+            </p>
+          </div>
+        </form>
+      </CardContent>
+    </Card>
+  );
+}
+
+export default function LoginPage() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden font-sans">
       {/* Ambient background decoration */}
@@ -60,80 +141,13 @@ export default function LoginPage() {
         </p>
       </div>
 
-      <Card className="sm:mx-auto sm:w-full sm:max-w-md bg-white border-slate-200/90 shadow-2xs rounded-2xl relative z-10">
-        <CardContent className="pt-8 px-6 sm:px-10">
-          <form className="space-y-5" onSubmit={handleSubmit}>
-            {error && (
-              <div className="p-3.5 bg-rose-50/80 border border-rose-200 rounded-xl" role="alert" aria-live="assertive">
-                <p className="text-xs text-rose-800 font-medium">{error}</p>
-              </div>
-            )}
-
-            <div className="space-y-1.5">
-              <label htmlFor="email" className="block text-xs font-bold text-slate-700">
-                Email address
-              </label>
-              <Input
-                id="email"
-                name="email"
-                type="email"
-                autoComplete="email"
-                required
-                className="h-11 w-full text-xs bg-slate-50 border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 font-medium"
-                placeholder="you@example.com"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <label htmlFor="password" className="block text-xs font-bold text-slate-700">
-                Password
-              </label>
-              <div className="relative">
-                <Input
-                  id="password"
-                  name="password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  required
-                  className="h-11 w-full text-xs bg-slate-50 border-slate-200 rounded-xl focus:bg-white pr-10 focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 font-medium"
-                  placeholder="••••••••"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded transition-colors"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? (
-                    <EyeOff className="w-4 h-4" />
-                  ) : (
-                    <Eye className="w-4 h-4" />
-                  )}
-                </button>
-              </div>
-            </div>
-
-            <Button
-              type="submit"
-              size="lg"
-              className="w-full h-11 text-xs font-bold bg-slate-900 hover:bg-slate-800 text-white rounded-xl shadow-xs transition-all cursor-pointer"
-              disabled={isPending}
-            >
-              {isPending ? 'Signing in...' : 'Sign in to Workspace'}
-            </Button>
-
-            <div className="pt-3 text-center border-t border-slate-100">
-              <p className="text-[11px] text-slate-500">
-                Demo Accounts: <span className="font-semibold text-slate-800">student@dreampath.my</span> or <span className="font-semibold text-slate-800">admin@dreampath.my</span>
-              </p>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+      <Suspense fallback={<div className="sm:mx-auto sm:w-full sm:max-w-md bg-white h-72 rounded-2xl animate-pulse" />}>
+        <LoginForm />
+      </Suspense>
 
       <div className="mt-8 text-center text-[11px] text-slate-400 flex items-center justify-center gap-1.5 relative z-10 font-medium">
         <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-        <span>End-to-end verified session • Malaysian PDPA compliant</span>
+        <span>Privacy-first design • Secure session handling</span>
       </div>
     </div>
   );

@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { motion, AnimatePresence, useReducedMotion, type Variants } from 'motion/react';
-import { ArrowRight, CheckCircle2, Sparkles, Check } from 'lucide-react';
+import { CheckCircle2, Sparkles, Check } from 'lucide-react';
 
 interface AnimatedScreenerCardProps {
   totalScholarships?: number;
@@ -166,7 +166,7 @@ export function AnimatedScreenerCard({
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-blue-700" />
             <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
-              PRE-SCREENING ENGINE
+              PRELIMINARY ELIGIBILITY
             </span>
           </div>
 
@@ -203,7 +203,7 @@ export function AnimatedScreenerCard({
             Quick Eligibility Screener
           </h2>
           <p className="text-[13px] text-slate-500 leading-normal">
-            Configure your background for an instant preliminary rule screening against active cycles.
+            See how DreamPath evaluates structured information against published scholarship requirements.
           </p>
         </div>
 
@@ -223,7 +223,7 @@ export function AnimatedScreenerCard({
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <label className="block text-[13px] font-semibold text-slate-700">
-                      Academic Qualification & Grades
+                      01. Academic Profile
                     </label>
                     <span className="text-[11px] font-medium text-blue-600 flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-blue-600 animate-pulse" />
@@ -245,7 +245,7 @@ export function AnimatedScreenerCard({
                   <div className="w-4 h-4 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
                     <Check className="w-2.5 h-2.5 stroke-[3]" />
                   </div>
-                  <span>Academic threshold met for top tier merit charters</span>
+                  <span>Academic threshold check against published requirements</span>
                 </div>
               </motion.div>
             )}
@@ -263,7 +263,7 @@ export function AnimatedScreenerCard({
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <label className="block text-[13px] font-semibold text-slate-700">
-                      Household Income Tier (LHDN Definition)
+                      02. Household Income Tier
                     </label>
                     <span className="text-[11px] font-medium text-emerald-600 flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse" />
@@ -285,7 +285,7 @@ export function AnimatedScreenerCard({
                   <div className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
                     <Check className="w-2.5 h-2.5 stroke-[3]" />
                   </div>
-                  <span>Qualifies for high-priority needs-based sponsorship quotas</span>
+                  <span>Evaluates socioeconomic priority criteria</span>
                 </div>
               </motion.div>
             )}
@@ -303,7 +303,7 @@ export function AnimatedScreenerCard({
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between">
                     <label className="block text-[13px] font-semibold text-slate-700">
-                      Study Level & Field
+                      03. Study Level &amp; Field
                     </label>
                     <span className="text-[11px] font-medium text-indigo-600 flex items-center gap-1.5">
                       <span className="w-1.5 h-1.5 rounded-full bg-indigo-600 animate-pulse" />
@@ -325,7 +325,7 @@ export function AnimatedScreenerCard({
                   <div className="w-4 h-4 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center shrink-0">
                     <Check className="w-2.5 h-2.5 stroke-[3]" />
                   </div>
-                  <span>Aligned with high-demand national STEM priority sectors</span>
+                  <span>Field of study and degree alignment check</span>
                 </div>
               </motion.div>
             )}
@@ -340,20 +340,19 @@ export function AnimatedScreenerCard({
                 exit="exit"
                 className="space-y-3"
               >
-                {/* Result Banner with Animated Counter */}
+                {/* Result Banner with Animated Match Counter */}
                 <div className="flex items-center justify-between p-3.5 rounded-xl bg-emerald-50/90 border border-emerald-200/90 transition-all shadow-xs">
                   <div className="flex items-center gap-2.5">
                     <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
                     <div>
                       <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
-                        Preliminary Match
+                        04. Preliminary Match
                       </div>
-                      <div className="text-[14px] font-bold text-emerald-950">
-                        Matches{' '}
-                        <span className="text-emerald-700 text-[16px] font-extrabold tabular-nums">
-                          {effectiveDisplayCount}
-                        </span>{' '}
-                        of {totalScholarships} Programs
+                      <div className="text-[15px] font-extrabold text-emerald-950 font-sans tracking-tight">
+                        Matches {effectiveDisplayCount} of {totalScholarships} Programs
+                      </div>
+                      <div className="text-[11px] font-medium text-emerald-800">
+                        Academic, financial &amp; field criteria met
                       </div>
                     </div>
                   </div>
@@ -365,15 +364,15 @@ export function AnimatedScreenerCard({
                 {/* Verified profile summary chips */}
                 <div className="grid grid-cols-3 gap-2 text-center pt-0.5">
                   <div className="px-2 py-1.5 rounded-lg bg-slate-50 border border-slate-200/80">
-                    <div className="text-[10px] text-slate-500 font-medium">Academics</div>
+                    <div className="text-[10px] text-slate-500 font-medium">Academic</div>
                     <div className="text-[11px] font-bold text-slate-800 truncate">STPM 3.75+</div>
                   </div>
                   <div className="px-2 py-1.5 rounded-lg bg-slate-50 border border-slate-200/80">
-                    <div className="text-[10px] text-slate-500 font-medium">Income</div>
+                    <div className="text-[10px] text-slate-500 font-medium">Household</div>
                     <div className="text-[11px] font-bold text-slate-800 truncate">B40 Tier</div>
                   </div>
                   <div className="px-2 py-1.5 rounded-lg bg-slate-50 border border-slate-200/80">
-                    <div className="text-[10px] text-slate-500 font-medium">Field</div>
+                    <div className="text-[10px] text-slate-500 font-medium">Study</div>
                     <div className="text-[11px] font-bold text-slate-800 truncate">CS / Tech</div>
                   </div>
                 </div>
@@ -382,19 +381,18 @@ export function AnimatedScreenerCard({
           </AnimatePresence>
         </div>
 
-        {/* Action Link: Directly opens catalogue */}
+        {/* Action Link: Directly opens eligibility matcher */}
         <Link
-          href="/scholarships?level=Undergraduate%20Degree"
+          href="/eligibility"
           className="w-full h-[46px] flex items-center justify-center gap-2 bg-[#0F172A] hover:bg-slate-800 text-white text-[14px] font-semibold rounded-xl transition-all shadow-md hover:shadow-lg mt-3"
         >
-          <span>Evaluate Full Criteria Matches</span>
-          <ArrowRight className="w-4 h-4" />
+          <span>Evaluate Full Criteria Matches →</span>
         </Link>
 
         {/* Explanatory Disclaimer */}
         <div className="pt-3 text-center">
           <span className="text-[12px] text-slate-500">
-            Preliminary screening only. Full evaluation checks transcripts & provider charters.
+            Preliminary screening only. Full evaluation checks transcripts &amp; provider charters.
           </span>
         </div>
       </div>

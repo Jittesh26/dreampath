@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache';
 import { db } from '@/db';
-import { studentProfiles, applications } from '@/db/schema';
+import { studentProfiles, applications, users } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { createClient } from '@/lib/supabase/server';
 
@@ -79,6 +79,20 @@ export async function saveScholarshipApplication(intakeId: string, status: strin
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) return { success: false, reason: 'unauthorized' };
+
+  // Ensure user exists in users table
+  try {
+    const [dbUser] = await db.select().from(users).where(eq(users.id, user.id));
+    if (!dbUser) {
+      await db.insert(users).values({
+        id: user.id,
+        email: user.email || 'student@dreampath.my',
+        role: 'student',
+      }).onConflictDoNothing();
+    }
+  } catch {
+    // ignore
+  }
 
   // Check if already saved
   const [existing] = await db

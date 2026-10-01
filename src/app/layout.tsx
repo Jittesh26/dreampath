@@ -17,11 +17,11 @@ const plusJakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "DreamPath | Verified Malaysian Scholarships",
-  description: "Your officially verified path to Malaysian scholarships.",
+  title: "DreamPath | Malaysian Scholarship Intelligence",
+  description: "Independent Malaysian scholarship intelligence platform with structured eligibility rules and published provider criteria.",
   openGraph: {
-    title: "DreamPath | Verified Malaysian Scholarships",
-    description: "Your officially verified path to Malaysian scholarships.",
+    title: "DreamPath | Malaysian Scholarship Intelligence",
+    description: "Independent Malaysian scholarship intelligence platform with structured eligibility rules and published provider criteria.",
   },
 };
 

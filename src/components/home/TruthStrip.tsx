@@ -63,7 +63,7 @@ export function TruthStrip({
                 Direct Provenance
               </span>
               <span className="text-[13px] text-slate-500 leading-snug">
-                Every rule traced to official gazettes & charters
+                Rules referenced to published provider guidelines
               </span>
             </div>
 
@@ -71,12 +71,12 @@ export function TruthStrip({
             <div className="flex flex-col gap-1.5 sm:px-6 pt-4 sm:pt-0">
               <div className="flex items-center gap-2 text-[#0F172A]">
                 <span className="text-[28px] font-bold tracking-tight font-sans">
-                  Active Pools
+                  Active Cycles
                 </span>
                 <Landmark className="w-6 h-6 text-blue-700" />
               </div>
               <span className="text-[16px] font-bold text-[#0F172A]">
-                Verified Allocations
+                Malaysian Programs
               </span>
               <span className="text-[13px] text-slate-500 leading-snug">
                 Active 2026/2027 Malaysian funding cycles
@@ -87,15 +87,15 @@ export function TruthStrip({
             <div className="flex flex-col gap-1.5 sm:px-6 last:pr-0 pt-4 sm:pt-0">
               <div className="flex items-center gap-2 text-[#0F172A]">
                 <span className="text-[28px] font-bold tracking-tight font-sans">
-                  Updated Daily
+                  Cycle Tracking
                 </span>
                 <Clock className="w-6 h-6 text-blue-700" />
               </div>
               <span className="text-[16px] font-bold text-[#0F172A]">
-                Real-Time Clocks
+                Intake Status
               </span>
               <span className="text-[13px] text-slate-500 leading-snug">
-                Cycle status as of {currentDate}
+                Intake dates and deadlines tracked for {currentDate}
               </span>
             </div>
 
@@ -105,7 +105,7 @@ export function TruthStrip({
         {/* Horizontal Provider Trust Strip */}
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 pt-2">
           <span className="text-[11px] font-bold text-slate-400 uppercase tracking-widest shrink-0">
-            VERIFIED PROVIDERS & ENDOWMENTS
+            INDEXED MALAYSIAN SPONSORS &amp; FOUNDATIONS
           </span>
           <div className="flex flex-wrap items-center justify-center md:justify-end gap-x-7 gap-y-3 opacity-80">
             {featuredProviders.map((provider) => (

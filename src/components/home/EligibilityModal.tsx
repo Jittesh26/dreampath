@@ -63,16 +63,16 @@ export function EligibilityModal({
             Official Policy Mapping
           </h3>
           <p className="text-[13px] text-slate-500 leading-normal">
-            DreamPath checks your active student credentials against the published provider charter:
+            DreamPath compares your background against published provider guidelines:
           </p>
         </div>
 
-        {/* 3-Point Verified Criteria Breakdown */}
+        {/* 3-Point Criteria Breakdown */}
         <div className="space-y-3 bg-slate-50 border border-slate-200/80 p-4 rounded-xl">
           <div className="flex items-center justify-between text-[13px]">
-            <span className="text-slate-700 font-medium">Nationality Check (MyKad)</span>
+            <span className="text-slate-700 font-medium">Nationality Requirement</span>
             <span className="text-emerald-700 font-bold flex items-center gap-1">
-              <CheckCircle2 className="w-4 h-4" /> Malaysian
+              <CheckCircle2 className="w-4 h-4" /> Malaysian Citizen
             </span>
           </div>
           <div className="flex items-center justify-between text-[13px]">
@@ -82,7 +82,7 @@ export function EligibilityModal({
             </span>
           </div>
           <div className="flex items-center justify-between text-[13px]">
-            <span className="text-slate-700 font-medium">Funding Pool Allocation</span>
+            <span className="text-slate-700 font-medium">Award Coverage</span>
             <span className="text-emerald-700 font-bold flex items-center gap-1">
               <CheckCircle2 className="w-4 h-4" /> {scholarship.awardText || 'Full Grant'}
             </span>
@@ -95,7 +95,7 @@ export function EligibilityModal({
             href={`/scholarships/${scholarship.id}/check`}
             className="w-full py-3 bg-[#0F172A] hover:bg-slate-800 text-white text-[14px] font-semibold rounded-xl transition-all shadow-md flex items-center justify-center gap-2"
           >
-            <span>Run Complete Deterministic Check</span>
+            <span>Run Complete Criteria Check</span>
             <ArrowRight className="w-4 h-4" />
           </Link>
 

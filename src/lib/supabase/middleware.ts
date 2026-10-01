@@ -55,9 +55,10 @@ export async function updateSession(request: NextRequest) {
   const isProtectedRoute = request.nextUrl.pathname.startsWith('/student') || request.nextUrl.pathname.startsWith('/admin');
 
   if (isProtectedRoute && !user) {
-    // no user, redirect to login page
+    // no user, redirect to login page with return destination
     const url = request.nextUrl.clone();
     url.pathname = '/login';
+    url.searchParams.set('redirect', request.nextUrl.pathname);
     return NextResponse.redirect(url);
   }
 

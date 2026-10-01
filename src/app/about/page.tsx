@@ -25,7 +25,7 @@ export default function AboutPage() {
             About <span className="font-serif italic font-normal text-blue-900">DreamPath</span>
           </h1>
           <p className="text-sm text-slate-600 mt-2 font-normal">
-            Malaysia&rsquo;s Verified Scholarship &amp; Preparation Architecture
+            Independent Malaysian Scholarship Intelligence &amp; Preparation Architecture
           </p>
         </div>
       </div>
@@ -34,7 +34,7 @@ export default function AboutPage() {
         {/* Disclaimer Ribbon */}
         <div className="p-4.5 bg-amber-50/70 border-l-4 border-amber-600 rounded-r-2xl text-xs text-amber-950 leading-relaxed shadow-2xs">
           <strong className="font-bold block mb-1">Non-Affiliation Notice:</strong>
-          DreamPath is an independent educational consultancy platform. We are not officially affiliated with, endorsed by, or partnered with Gamuda, Yayasan Bank Rakyat, Maxis, Yayasan TM, JPA, Petronas, Bank Negara Malaysia, Yayasan Khazanah, or any other scholarship provider listed on this site.
+          DreamPath is an independent educational platform. We are not officially affiliated with, endorsed by, or partnered with JPA, MOHE/KPT, Gamuda, Yayasan Bank Rakyat, Maxis, Yayasan TM, PETRONAS, Bank Negara Malaysia, Yayasan Khazanah, YTL Foundation, or any other scholarship provider.
         </div>
 
         <section className="space-y-3 bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs text-xs sm:text-sm text-slate-700 leading-relaxed">
@@ -58,9 +58,9 @@ export default function AboutPage() {
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
             <div className="p-5 bg-slate-50 border border-slate-200/80 rounded-2xl space-y-1.5">
-              <strong className="text-sm font-bold text-slate-900 block">1. The Authoritative Layer</strong>
+              <strong className="text-sm font-bold text-slate-900 block">1. The Structured Criteria Layer</strong>
               <p className="text-xs text-slate-600 font-normal leading-relaxed">
-                Official source guidelines, verified intake cycles, structured AST rules, and deterministic eligibility logic. AI is never permitted to alter or hallucinate these cutoffs.
+                Published provider guidelines, verified intake cycles, structured rule sets, and machine-checkable eligibility logic. AI is never permitted to alter or guess these criteria.
               </p>
             </div>
             <div className="p-5 bg-blue-50/60 border border-blue-200/80 rounded-2xl space-y-1.5">
@@ -79,15 +79,15 @@ export default function AboutPage() {
           <div className="space-y-3">
             <div className="flex items-start gap-3">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-              <p className="font-normal text-slate-600"><strong className="text-slate-900 font-bold">Official Guidelines Audit:</strong> We inspect the primary provider portals and PDF circulars directly from official sources.</p>
+              <p className="font-normal text-slate-600"><strong className="text-slate-900 font-bold">Official Guidelines Audit:</strong> We inspect the primary provider portals and PDF circulars directly from published sources.</p>
             </div>
             <div className="flex items-start gap-3">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-              <p className="font-normal text-slate-600"><strong className="text-slate-900 font-bold">AST Rule Serialization:</strong> Human verifiers encode criteria into machine-checkable logic (e.g. CGPA &ge; 3.50, SPM Mathematics &ge; A).</p>
+              <p className="font-normal text-slate-600"><strong className="text-slate-900 font-bold">Rule Serialization:</strong> Verified criteria are encoded into machine-checkable logic (e.g. CGPA &ge; 3.50, SPM Mathematics &ge; A).</p>
             </div>
             <div className="flex items-start gap-3">
               <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-              <p className="font-normal text-slate-600"><strong className="text-slate-900 font-bold">Correction Queue:</strong> Our Report-a-Mistake infrastructure ensures outdated dates or criteria are reviewed within 24 hours.</p>
+              <p className="font-normal text-slate-600"><strong className="text-slate-900 font-bold">Correction Queue:</strong> Our Report-a-Mistake infrastructure ensures outdated dates or criteria corrections are reviewed promptly.</p>
             </div>
           </div>
         </section>

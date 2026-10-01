@@ -22,14 +22,14 @@ export function PreFooterCta() {
                 Ready to find your path?
               </h2>
               <p className="text-base sm:text-lg text-slate-300 leading-relaxed font-normal">
-                Discover your matching Malaysian scholarship opportunities with verified rule-based clarity.
+                Discover your matching Malaysian scholarship opportunities with structured rule-based clarity.
               </p>
             </div>
 
             {/* Action CTAs */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 shrink-0">
               <Link
-                href="/scholarships"
+                href="/eligibility"
                 className="inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white text-[14px] font-bold px-8 py-4 rounded-xl transition-all shadow-lg shadow-blue-600/30 hover:shadow-blue-500/40 min-h-[44px]"
               >
                 <span>Check Your Eligibility, Free</span>
@@ -45,7 +45,7 @@ export function PreFooterCta() {
             </div>
           </div>
 
-          {/* Micro Guarantee Strip & Updated Status Badge */}
+          {/* Micro Guarantee Strip */}
           <div className="relative pt-8 mt-8 border-t border-white/10 flex flex-wrap items-center justify-between gap-4 text-slate-400 text-[12px]">
             <div className="flex flex-wrap items-center gap-6">
               <span className="flex items-center gap-1.5 text-slate-300">
@@ -58,14 +58,12 @@ export function PreFooterCta() {
               </span>
               <span className="flex items-center gap-1.5 text-slate-300">
                 <Check className="w-4 h-4 text-blue-400" />
-                PDPA Act 709 Compliant
+                Privacy-Focused by Design
               </span>
             </div>
 
-            {/* System Status Indicator */}
-            <span className="text-[12px] text-blue-300 font-semibold flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              System Status: Active · 2026/2027 Intake Cycle
+            <span className="text-[12px] text-blue-300 font-semibold">
+              Active 2026/2027 Malaysian Intake Cycle
             </span>
           </div>
 

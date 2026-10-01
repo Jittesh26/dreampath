@@ -1,6 +1,6 @@
 {
-  "name": "DreamPath | Verified Malaysian Scholarships",
-  "description": "Your officially verified path to Malaysian scholarships.",
+  "name": "DreamPath | Malaysian Scholarship Intelligence",
+  "description": "Independent Malaysian scholarship intelligence platform with structured eligibility rules and published provider criteria.",
   "capabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
   ]

@@ -15,7 +15,7 @@ export function PlatformFeatures() {
       title: 'Deterministic Eligibility Engine',
       category: 'Core Evaluation',
       description:
-        'Verify your qualifications against published scholarship charters using machine-checkable boolean decision trees. Zero hallucinations, with transparent match reasons.',
+        'Evaluate your qualifications against published scholarship guidelines using machine-checkable boolean decision trees and transparent match explanations.',
       linkHref: '/scholarships',
       linkText: 'Check Eligibility Rules',
       badge: 'Rule Engine',
@@ -35,7 +35,7 @@ export function PlatformFeatures() {
       title: 'AI Career Assistant',
       category: 'Interview Coaching',
       description:
-        'Converse naturally with our ChatGPT/Gemini-style career partner. It silently extracts your achievements and drafts tailored STAR bullet points for your applications.',
+        'Interactive career and interview preparation assistance to help you reflect on achievements, refine phrasing, and structure compelling STAR bullet points.',
       linkHref: '/student/resume',
       linkText: 'Start Career Interview',
       badge: 'AI Powered',
@@ -45,7 +45,7 @@ export function PlatformFeatures() {
       title: 'Professional Resume Builder',
       category: 'Career Documents',
       description:
-        'Generate and manage scholarship-ready resumes. Features multi-version isolation, direct PostgreSQL persistence, and instantaneous PDF exports.',
+        'Draft and customize scholarship-ready resumes. Features structured templates, achievement tailoring, and instant PDF exports.',
       linkHref: '/student/resume',
       linkText: 'Build Scholarship Resume',
       badge: 'PDF Ready',

@@ -19,7 +19,7 @@ export function Footer() {
               </span>
             </div>
             <p className="text-[13px] text-slate-500 max-w-xl leading-relaxed">
-              The authoritative registry for institutional endowments, federal allocations, and merit scholarships across Malaysia.
+              An independent Malaysian scholarship intelligence platform helping students discover opportunities, evaluate structured eligibility criteria, and organize application materials.
             </p>
           </div>
 
@@ -57,20 +57,20 @@ export function Footer() {
           </nav>
         </div>
 
-        {/* Bottom Tier: Compliance & Disclaimer */}
+        {/* Bottom Tier: Structured Intelligence & Legal Notice */}
         <div className="pt-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-[12px] text-slate-500">
           <p>
-            Compliant with Malaysian Ministry of Higher Education (KPT) standards & PDPA Act 709
+            Structured eligibility intelligence referenced from publicly accessible provider guidelines.
           </p>
           <p>
-            © {currentYear} DreamPath Malaysia. National Higher Education Endowment Authority.
+            © {currentYear} DreamPath. Independent Malaysian Scholarship Platform.
           </p>
         </div>
 
         {/* Independent Service Disclaimer */}
         <div className="mt-6 pt-4 border-t border-slate-100 text-[11px] text-slate-400 leading-relaxed">
           <p>
-            <strong>Non-Affiliation Notice:</strong> DreamPath is an independent scholarship guidance and verification platform. DreamPath is not affiliated with, endorsed by, or operated in partnership with the Government of Malaysia, Jabatan Perkhidmatan Awam (JPA), Yayasan Khazanah, Yayasan PETRONAS, Bank Negara Malaysia, Shell Malaysia, or any third-party scholarship provider. All trademarks and organization names are the property of their respective owners. Scholarship information is compiled from public authoritative notices; students must always submit applications and verify terms via official provider portals.
+            <strong>Non-Affiliation Notice:</strong> DreamPath is an independent scholarship guidance and verification platform. DreamPath is not a government authority, ministry, or scholarship awarding body, and is not affiliated with, endorsed by, or operated in partnership with the Government of Malaysia, Jabatan Perkhidmatan Awam (JPA), MOHE/KPT, Yayasan Khazanah, Yayasan PETRONAS, Bank Negara Malaysia, Bank Rakyat, Maxis, Gamuda, YTL Foundation, or any third-party scholarship provider. All trademarks and organization names are the property of their respective owners. Scholarship information is compiled from published provider announcements; students must always submit applications and verify official terms directly on provider portals.
           </p>
         </div>
       </div>

@@ -32,9 +32,35 @@ export function SiteNav() {
 
   const closeMenu = () => setIsOpen(false);
 
+  const handleScrollToAnchor = (e: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    closeMenu();
+    if (href.startsWith('/#') && pathname === '/') {
+      e.preventDefault();
+      const targetId = href.replace('/#', '');
+      const el = document.getElementById(targetId);
+      if (el) {
+        const isReduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        el.scrollIntoView({ behavior: isReduced ? 'auto' : 'smooth' });
+        window.history.pushState(null, '', href);
+      }
+    }
+  };
+
+  const handleLogoClick = (e: React.MouseEvent) => {
+    closeMenu();
+    if (pathname === '/') {
+      e.preventDefault();
+      const isReduced = typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({ top: 0, behavior: isReduced ? 'auto' : 'smooth' });
+      if (window.location.hash) {
+        window.history.pushState(null, '', '/');
+      }
+    }
+  };
+
   const navLinks = [
     { href: '/scholarships', label: 'Scholarships' },
-    { href: '/scholarships', label: 'Eligibility Engine' },
+    { href: '/eligibility', label: 'Eligibility' },
     { href: '/student/applications', label: 'Tracker & Tools' },
     { href: '/#architecture', label: 'How It Works' },
     { href: '/about', label: 'About' },
@@ -52,7 +78,7 @@ export function SiteNav() {
         {/* Brand Logo & Authority Label */}
         <Link
           href="/"
-          onClick={closeMenu}
+          onClick={handleLogoClick}
           className="flex items-center gap-3.5 focus-visible:outline-2 focus-visible:outline-blue-600 rounded-lg group shrink-0"
         >
           <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#0F172A] to-[#1E293B] border border-slate-700/60 flex items-center justify-center text-white shadow-sm shrink-0 group-hover:scale-105 transition-transform">
@@ -63,7 +89,7 @@ export function SiteNav() {
               DreamPath
             </span>
             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-none whitespace-nowrap">
-              National Scholarship Intelligence
+              Malaysian Scholarship Intelligence
             </span>
           </div>
         </Link>
@@ -79,6 +105,7 @@ export function SiteNav() {
               <Link
                 key={`${link.href}-${idx}`}
                 href={link.href}
+                onClick={(e) => handleScrollToAnchor(e, link.href)}
                 className={`text-[14px] font-semibold transition-colors rounded py-1 px-1.5 focus-visible:outline-2 focus-visible:outline-blue-600 whitespace-nowrap shrink-0 ${
                   isActive
                     ? 'text-blue-700 font-bold'
@@ -130,7 +157,7 @@ export function SiteNav() {
             <Link
               key={`m-${link.href}-${idx}`}
               href={link.href}
-              onClick={closeMenu}
+              onClick={(e) => handleScrollToAnchor(e, link.href)}
               className="p-3 min-h-[44px] flex items-center text-[15px] font-semibold text-slate-700 hover:text-[#0F172A] hover:bg-slate-50 rounded-xl"
             >
               {link.label}

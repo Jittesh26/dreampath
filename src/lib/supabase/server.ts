@@ -7,11 +7,31 @@ import { initialUsers } from '@/db/initial-data';
 
 export async function createClient() {
   const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get('dreampath_session')?.value;
+  let previewUser: any = null;
+  if (sessionCookie) {
+    try {
+      let str = sessionCookie;
+      try {
+        str = decodeURIComponent(str);
+      } catch {}
+      try {
+        str = decodeURIComponent(str);
+      } catch {}
+      const parsed = JSON.parse(str);
+      if (parsed && parsed.id) {
+        previewUser = parsed;
+      }
+    } catch {
+      // fallback
+    }
+  }
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (supabaseUrl && supabaseKey && !supabaseUrl.includes('placeholder')) {
-    return createServerClient(supabaseUrl, supabaseKey, {
+    const client = createServerClient(supabaseUrl, supabaseKey, {
       cookies: {
         getAll() {
           return cookieStore.getAll();
@@ -27,22 +47,28 @@ export async function createClient() {
         },
       },
     });
+
+    const originalGetUser = client.auth.getUser.bind(client.auth);
+    client.auth.getUser = async () => {
+      const res = await originalGetUser();
+      if (res.data?.user) {
+        return res;
+      }
+      if (previewUser) {
+        return { data: { user: previewUser }, error: null };
+      }
+      return res;
+    };
+
+    return client;
   }
 
   // Graceful local preview session client when Supabase env vars are not set
   return {
     auth: {
       async getUser() {
-        const sessionCookie = cookieStore.get('dreampath_session')?.value;
-        if (sessionCookie) {
-          try {
-            const parsed = JSON.parse(decodeURIComponent(sessionCookie));
-            if (parsed && parsed.id) {
-              return { data: { user: parsed }, error: null };
-            }
-          } catch {
-            // fallback
-          }
+        if (previewUser) {
+          return { data: { user: previewUser }, error: null };
         }
         return { data: { user: null }, error: null };
       },

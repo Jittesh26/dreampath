@@ -156,14 +156,14 @@ export function ScholarshipDiscovery({
             <div className="flex items-center gap-2">
               <span className="w-2 h-2 rounded-full bg-blue-600" />
               <span className="text-[11px] font-bold text-blue-700 uppercase tracking-wider">
-                AUTHORITATIVE REGISTRY
+                SCHOLARSHIP DIRECTORY
               </span>
             </div>
             <h2 className="text-3xl sm:text-4xl font-bold text-[#0F172A] tracking-tight font-sans">
-              Featured Verified Scholarships
+              Featured Scholarships
             </h2>
             <p className="text-[15px] text-slate-600 leading-relaxed">
-              Real-time opportunities with confirmed eligibility criteria, verified minimum grade requirements, and open intake windows.
+              Curated opportunities with structured eligibility criteria, published minimum grade requirements, and open intake windows.
             </p>
           </div>
 

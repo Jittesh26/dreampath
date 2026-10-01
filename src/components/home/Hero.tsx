@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 import Link from 'next/link';
-import { ArrowRight, CheckCircle2, ShieldCheck, FileCheck, Lock } from 'lucide-react';
+import { CheckCircle2, ShieldCheck, FileCheck, Lock } from 'lucide-react';
 import { extractScholarshipAttributes } from '@/domain/scholarship-attributes';
 import { AnimatedScreenerCard } from './AnimatedScreenerCard';
 
@@ -90,7 +90,7 @@ export function Hero({
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600" />
               </span>
               <span className="text-[11px] font-bold text-blue-700 uppercase tracking-wider font-sans">
-                MALAYSIAN HIGHER EDUCATION SPONSORSHIP DIRECTORY
+                MALAYSIAN SCHOLARSHIP & SPONSORSHIP DIRECTORY · 2026/27
               </span>
             </div>
 
@@ -104,47 +104,45 @@ export function Hero({
 
             {/* Body Description */}
             <p className="text-base sm:text-lg text-slate-600 max-w-xl font-normal leading-relaxed">
-              Every Malaysian scholarship, checked against official provider rules. Direct source provenance. Zero guesswork.
+              Explore Malaysian scholarships with requirements structured from published provider information, transparent eligibility rules, and direct links to official application sources.
             </p>
 
             {/* Dual CTAs - Real Workflows */}
             <div className="flex flex-wrap items-center gap-4 pt-2">
               <Link
-                href="/scholarships"
+                href="/eligibility"
                 className="inline-flex items-center gap-2 bg-[#0F172A] hover:bg-slate-800 text-white text-[14px] px-6 py-3.5 rounded-xl transition-all shadow-md hover:shadow-lg font-semibold min-h-[44px]"
               >
-                <span>Check My Eligibility, Free</span>
-                <ArrowRight className="w-4 h-4" />
+                <span>Check My Eligibility, Free →</span>
               </Link>
 
               <Link
                 href="/scholarships"
                 className="inline-flex items-center gap-1.5 text-[14px] text-slate-700 hover:text-blue-700 px-4 py-3.5 rounded-xl transition-colors font-semibold min-h-[44px]"
               >
-                <span>Browse {totalScholarships} Verified Programs</span>
-                <span className="text-sm">↗</span>
+                <span>Browse Scholarships →</span>
               </Link>
             </div>
 
             {/* Credible Trust Strip */}
             <div className="flex flex-wrap items-center gap-y-2 gap-x-6 pt-3 text-slate-600 text-[13px] font-medium">
               <div className="flex items-center gap-2">
-                <CheckCircle2 className="w-4 h-4 text-blue-700" />
-                <span>Source-Verified Provenance</span>
+                <FileCheck className="w-4 h-4 text-blue-700" />
+                <span>Published Source References</span>
               </div>
               <div className="flex items-center gap-2">
-                <FileCheck className="w-4 h-4 text-blue-700" />
-                <span>Published Provider Charters</span>
+                <CheckCircle2 className="w-4 h-4 text-blue-700" />
+                <span>Provider Requirements Structured</span>
               </div>
               <div className="flex items-center gap-2">
                 <Lock className="w-4 h-4 text-blue-700" />
-                <span>PDPA Act 709 Compliant</span>
+                <span>Privacy-First Design</span>
               </div>
             </div>
           </div>
 
           {/* Right Column: Interactive Eligibility Pre-Screen Card with Floating Mini-Chips */}
-          <div className="lg:col-span-5 relative" id="pre-screen">
+          <div className="lg:col-span-5 relative scroll-mt-24 lg:scroll-mt-28" id="eligibility">
             {/* Floating Preview Mini-Card 1 (Top-Left Parallax Accent) */}
             <div className="hidden sm:flex absolute -top-5 -left-6 z-20 items-center gap-2.5 px-3.5 py-2 rounded-xl bg-white/90 backdrop-blur-md border border-indigo-100 shadow-lg shadow-indigo-500/10 pointer-events-none transform -rotate-2">
               <div className="w-6 h-6 rounded-md bg-indigo-700 text-white font-bold text-[10px] flex items-center justify-center shrink-0">

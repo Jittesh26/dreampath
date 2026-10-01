@@ -20,10 +20,10 @@ export function HowItWorks() {
   }, []);
 
   const steps = [
-    { title: "Discover", desc: "Find opportunities tailored to your profile." },
-    { title: "Check", desc: "Verify eligibility against official rules." },
-    { title: "Understand", desc: "Get clear reasons for your match status." },
-    { title: "Apply", desc: "Proceed securely to the provider's portal." },
+    { title: "Discover", desc: "Find opportunities matching your profile." },
+    { title: "Understand", desc: "Inspect published criteria and provider guidelines." },
+    { title: "Check", desc: "Evaluate eligibility against structured rules." },
+    { title: "Apply & Track", desc: "Prepare materials and apply on provider portals." },
   ];
 
   return (
