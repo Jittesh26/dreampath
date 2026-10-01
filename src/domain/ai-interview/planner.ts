@@ -52,19 +52,18 @@ export class DeterministicPlanner {
     for (const slot of CORE_EDUCATION_SLOTS) {
       const intentKey = makeIntentKey('education', primaryEdu.normalizedKey, slot);
       const slotRecord = ledger.getSlot(primaryEdu.id, slot);
+      const isSlotClosed = slotRecord && (slotRecord.state === 'known' || slotRecord.state === 'inferred' || slotRecord.state === 'declared_none' || slotRecord.state === 'skipped');
 
-      // If slot is unknown and intent not yet resolved, this is our next question
-      if (!slotRecord || slotRecord.state === 'unknown') {
-        if (!ledger.isIntentResolved(intentKey)) {
-          return {
-            intentKey,
-            isComplete: false,
-            targetEntityId: primaryEdu.id,
-            slotName: slot,
-            suggestedPrompt: this.getTemplateForIntent(intentKey, primaryEdu.displayName),
-            topic: 'education',
-          };
-        }
+      // If slot is not closed and intent not yet resolved, this is our next question
+      if (!isSlotClosed && !ledger.isIntentResolved(intentKey)) {
+        return {
+          intentKey,
+          isComplete: false,
+          targetEntityId: primaryEdu.id,
+          slotName: slot,
+          suggestedPrompt: this.getTemplateForIntent(intentKey, primaryEdu.displayName),
+          topic: 'education',
+        };
       }
     }
 
@@ -93,18 +92,17 @@ export class DeterministicPlanner {
           for (const slot of CORE_EXPERIENCE_SLOTS) {
             const intentKey = makeIntentKey('experience', exp.normalizedKey, slot);
             const slotRecord = ledger.getSlot(exp.id, slot);
+            const isSlotClosed = slotRecord && (slotRecord.state === 'known' || slotRecord.state === 'inferred' || slotRecord.state === 'declared_none' || slotRecord.state === 'skipped');
 
-            if (!slotRecord || slotRecord.state === 'unknown') {
-              if (!ledger.isIntentResolved(intentKey)) {
-                return {
-                  intentKey,
-                  isComplete: false,
-                  targetEntityId: exp.id,
-                  slotName: slot,
-                  suggestedPrompt: this.getTemplateForIntent(intentKey, exp.displayName),
-                  topic: 'experience',
-                };
-              }
+            if (!isSlotClosed && !ledger.isIntentResolved(intentKey)) {
+              return {
+                intentKey,
+                isComplete: false,
+                targetEntityId: exp.id,
+                slotName: slot,
+                suggestedPrompt: this.getTemplateForIntent(intentKey, exp.displayName),
+                topic: 'experience',
+              };
             }
           }
         }
@@ -131,18 +129,17 @@ export class DeterministicPlanner {
         for (const slot of CORE_PROJECT_SLOTS) {
           const intentKey = makeIntentKey('project', proj.normalizedKey, slot);
           const slotRecord = ledger.getSlot(proj.id, slot);
+          const isSlotClosed = slotRecord && (slotRecord.state === 'known' || slotRecord.state === 'inferred' || slotRecord.state === 'declared_none' || slotRecord.state === 'skipped');
 
-          if (!slotRecord || slotRecord.state === 'unknown') {
-            if (!ledger.isIntentResolved(intentKey)) {
-              return {
-                intentKey,
-                isComplete: false,
-                targetEntityId: proj.id,
-                slotName: slot,
-                suggestedPrompt: this.getTemplateForIntent(intentKey, proj.displayName),
-                topic: 'project',
-              };
-            }
+          if (!isSlotClosed && !ledger.isIntentResolved(intentKey)) {
+            return {
+              intentKey,
+              isComplete: false,
+              targetEntityId: proj.id,
+              slotName: slot,
+              suggestedPrompt: this.getTemplateForIntent(intentKey, proj.displayName),
+              topic: 'project',
+            };
           }
         }
       }
