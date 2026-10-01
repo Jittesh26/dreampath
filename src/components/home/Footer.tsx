@@ -1,30 +1,76 @@
 import Link from 'next/link';
-import { buttonVariants } from '@/components/ui/button';
+import { GraduationCap } from 'lucide-react';
 
 export function Footer() {
+  const currentYear = new Date().getFullYear();
+
   return (
-    <footer className="w-full bg-white border-t border-slate-200">
-      <div className="w-full bg-[#FAFAF9] py-20 text-center border-b border-slate-200">
-        <h2 className="font-serif text-[#0B1B3D] text-4xl md:text-5xl mb-6">Ready to find your path?</h2>
-        <Link href="/register" className={buttonVariants({ variant: "default", size: "lg", className: "px-10 h-14 text-lg font-bold" })}>
-          Create your free account
-        </Link>
-      </div>
-      <div className="container mx-auto px-4 py-12 text-center space-y-4">
-        <div className="font-serif text-2xl font-bold text-[#0B1B3D]">DreamPath</div>
-        <p className="text-sm text-slate-500 font-medium">© {new Date().getFullYear()} DreamPath Consultancy. Trust before AI.</p>
-        <div className="flex justify-center gap-6 flex-wrap pt-4 text-sm font-medium">
-          <Link href="/scholarships" className="text-slate-600 hover:text-[#0B1B3D] transition-colors p-2 min-h-[44px] flex items-center">Scholarship Directory</Link>
-          <Link href="/scholarships/compare" className="text-slate-600 hover:text-[#0B1B3D] transition-colors p-2 min-h-[44px] flex items-center">Compare</Link>
-          <Link href="/about" className="text-slate-600 hover:text-[#0B1B3D] transition-colors p-2 min-h-[44px] flex items-center">About DreamPath</Link>
-          <Link href="/privacy" className="text-slate-600 hover:text-[#0B1B3D] transition-colors p-2 min-h-[44px] flex items-center">Privacy Policy</Link>
-          <Link href="/terms" className="text-slate-600 hover:text-[#0B1B3D] transition-colors p-2 min-h-[44px] flex items-center">Terms of Service</Link>
+    <footer className="w-full bg-white border-t border-slate-200 shadow-[0_-1px_6px_rgba(15,23,42,0.02)]">
+      <div className="max-w-[1280px] mx-auto px-4 md:px-8 py-12">
+        {/* Top Tier: Logo, Description & Navigation */}
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 pb-8 border-b border-slate-100">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-[#0F172A] flex items-center justify-center text-white shadow-2xs">
+                <GraduationCap className="w-4 h-4 text-white" />
+              </div>
+              <span className="text-[18px] font-bold text-[#0F172A] font-sans">
+                DreamPath Intelligence
+              </span>
+            </div>
+            <p className="text-[13px] text-slate-500 max-w-xl leading-relaxed">
+              The authoritative registry for institutional endowments, federal allocations, and merit scholarships across Malaysia.
+            </p>
+          </div>
+
+          <nav className="flex flex-wrap items-center gap-6" aria-label="Footer Navigation">
+            <Link
+              href="/scholarships"
+              className="text-[13px] font-medium text-slate-600 hover:text-blue-700 transition-colors py-1"
+            >
+              Scholarships
+            </Link>
+            <Link
+              href="/scholarships/compare"
+              className="text-[13px] font-medium text-slate-600 hover:text-blue-700 transition-colors py-1"
+            >
+              Compare
+            </Link>
+            <Link
+              href="/about"
+              className="text-[13px] font-medium text-slate-600 hover:text-blue-700 transition-colors py-1"
+            >
+              About DreamPath
+            </Link>
+            <Link
+              href="/privacy"
+              className="text-[13px] font-medium text-slate-600 hover:text-blue-700 transition-colors py-1"
+            >
+              Privacy Policy
+            </Link>
+            <Link
+              href="/terms"
+              className="text-[13px] font-medium text-slate-600 hover:text-blue-700 transition-colors py-1"
+            >
+              Terms of Use
+            </Link>
+          </nav>
         </div>
 
-        <div className="max-w-3xl mx-auto pt-6 border-t border-slate-100 text-xs text-slate-400 leading-relaxed">
-          <p className="font-semibold text-slate-500 mb-1">Non-Affiliation & Independent Service Disclaimer</p>
+        {/* Bottom Tier: Compliance & Disclaimer */}
+        <div className="pt-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4 text-[12px] text-slate-500">
           <p>
-            DreamPath is an independent scholarship guidance and discovery platform. DreamPath is not affiliated with, endorsed by, or operated in partnership with the Government of Malaysia, Jabatan Perkhidmatan Awam (JPA), Yayasan Khazanah, Yayasan PETRONAS, Bank Negara Malaysia, Shell Malaysia, or any third-party scholarship provider. All trademarks and organization names are the property of their respective owners. Scholarship information is compiled from public authoritative notices; students must always submit applications and verify terms via the official provider portals.
+            Compliant with Malaysian Ministry of Higher Education (KPT) standards & PDPA Act 709
+          </p>
+          <p>
+            © {currentYear} DreamPath Malaysia. National Higher Education Endowment Authority.
+          </p>
+        </div>
+
+        {/* Independent Service Disclaimer */}
+        <div className="mt-6 pt-4 border-t border-slate-100 text-[11px] text-slate-400 leading-relaxed">
+          <p>
+            <strong>Non-Affiliation Notice:</strong> DreamPath is an independent scholarship guidance and verification platform. DreamPath is not affiliated with, endorsed by, or operated in partnership with the Government of Malaysia, Jabatan Perkhidmatan Awam (JPA), Yayasan Khazanah, Yayasan PETRONAS, Bank Negara Malaysia, Shell Malaysia, or any third-party scholarship provider. All trademarks and organization names are the property of their respective owners. Scholarship information is compiled from public authoritative notices; students must always submit applications and verify terms via official provider portals.
           </p>
         </div>
       </div>

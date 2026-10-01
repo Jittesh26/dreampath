@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { updateResume } from '@/app/actions/resume';
 import { ResumeContent } from '@/domain/resume';
 import { GeneratedWording } from '@/domain/ai-interview';
+import { mergeResumeContent } from '@/domain/resume-merge';
 import Link from 'next/link';
 import AIInterviewModal from './AIInterviewModal';
 import PDFPreviewModal from '@/components/resume/PDFPreviewModal';
@@ -11,6 +12,19 @@ import { ATSCheckerModal } from '@/components/resume/ATSCheckerModal';
 import { ScholarshipTailoringModal } from '@/components/resume/ScholarshipTailoringModal';
 import { ShareResumeModal } from '@/components/resume/ShareResumeModal';
 import { Card } from '@/components/ui/card';
+import {
+  Sparkles,
+  ShieldCheck,
+  Target,
+  Share2,
+  FileDown,
+  Eye,
+  Plus,
+  Trash2,
+  ArrowLeft,
+  Check,
+  Save,
+} from 'lucide-react';
 
 export default function ResumeEditorClient({
   resume,
@@ -21,7 +35,6 @@ export default function ResumeEditorClient({
   const [content, setContent] = useState<ResumeContent>(resume.content);
   const [title, setTitle] = useState(resume.title);
   const [isAIModalOpen, setIsAIModalOpen] = useState(false);
-  const [aiModalView, setAiModalView] = useState<'interview' | 'review'>('interview');
   const [isPDFModalOpen, setIsPDFModalOpen] = useState(false);
   const [isATSModalOpen, setIsATSModalOpen] = useState(false);
   const [isTailorModalOpen, setIsTailorModalOpen] = useState(false);
@@ -167,46 +180,10 @@ export default function ResumeEditorClient({
     }));
   };
 
-  const handleApplyGeneratedContent = (generatedContent: GeneratedWording) => {
-    setContent(prev => {
-      const mergeById = <T extends { id: string }>(currentList: T[], newItems?: T[]): T[] => {
-        if (!newItems || newItems.length === 0) return currentList;
-        const result = [...currentList];
-        for (const item of newItems) {
-          const index = result.findIndex(existing => existing.id === item.id);
-          if (index >= 0) {
-            result[index] = item;
-          } else {
-            result.push(item);
-          }
-        }
-        return result;
-      };
-
-      return {
-        ...prev,
-        education: mergeById(prev.education, generatedContent.education),
-        experience: mergeById(prev.experience, generatedContent.experience),
-        projects: mergeById(prev.projects, generatedContent.projects),
-        certifications: mergeById(prev.certifications, generatedContent.certifications),
-        awards: mergeById(prev.awards, generatedContent.awards),
-        leadership: mergeById(prev.leadership, generatedContent.leadership),
-        volunteering: mergeById(prev.volunteering, generatedContent.volunteering),
-        skills: generatedContent.skills
-          ? {
-              technical: Array.from(
-                new Set([...(prev.skills?.technical || []), ...(generatedContent.skills.technical || [])])
-              ),
-              soft: Array.from(
-                new Set([...(prev.skills?.soft || []), ...(generatedContent.skills.soft || [])])
-              ),
-              languages: Array.from(
-                new Set([...(prev.skills?.languages || []), ...(generatedContent.skills.languages || [])])
-              ),
-            }
-          : prev.skills,
-      };
-    });
+  const handleApplyGeneratedContent = (generatedContent: GeneratedWording | ResumeContent) => {
+    setContent(prev => mergeResumeContent(prev, generatedContent as GeneratedWording));
+    setSaveSuccess(true);
+    setTimeout(() => setSaveSuccess(false), 3500);
   };
 
   return (
@@ -216,60 +193,46 @@ export default function ResumeEditorClient({
         <div className="flex items-center gap-3 min-w-0">
           <Link
             href="/student/resume"
-            className="text-slate-500 hover:text-slate-800 text-sm font-medium transition-colors shrink-0"
+            className="text-slate-500 hover:text-[#0B1B3D] text-sm font-medium transition-colors shrink-0 flex items-center gap-1.5"
           >
-            &larr; Back
+            <ArrowLeft className="w-4 h-4" />
+            <span>Resumes</span>
           </Link>
           <span className="text-slate-300">|</span>
           <input
             type="text"
             value={title}
             onChange={e => setTitle(e.target.value)}
-            className="font-serif text-lg sm:text-xl font-bold border-none outline-none focus:ring-0 p-0 text-primary bg-transparent truncate max-w-xs sm:max-w-md"
+            className="font-serif text-lg sm:text-xl font-bold border-none outline-none focus:ring-0 p-0 text-[#0B1B3D] bg-transparent truncate max-w-xs sm:max-w-md"
             placeholder="Untitled Resume"
           />
         </div>
 
-        <div className="flex items-center gap-2.5 flex-wrap sm:flex-nowrap shrink-0">
+        <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
           <button
             type="button"
-            className="h-9 px-3.5 text-xs font-medium border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 rounded-lg shadow-xs flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0"
-            onClick={() => {
-              setAiModalView('review');
-              setIsAIModalOpen(true);
-            }}
+            className="h-9 px-3.5 text-xs font-semibold border border-amber-300/80 bg-amber-50/80 text-amber-950 hover:bg-amber-100 rounded-lg shadow-xs flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            onClick={() => setIsAIModalOpen(true)}
           >
-            <span>📋</span>
-            <span>Review AI Wording</span>
+            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+            <span>AI Career Assistant</span>
           </button>
 
           <button
             type="button"
-            className="h-9 px-3.5 text-xs font-medium border border-slate-200 bg-white text-[#0B1B3D] hover:bg-slate-50 rounded-lg shadow-xs flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0"
-            onClick={() => {
-              setAiModalView('interview');
-              setIsAIModalOpen(true);
-            }}
-          >
-            <span>✨</span>
-            <span>AI Assistant</span>
-          </button>
-
-          <button
-            type="button"
-            className="h-9 px-3 text-xs font-medium border border-slate-200 bg-white text-emerald-800 hover:bg-emerald-50 rounded-lg shadow-xs flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0"
+            className="h-9 px-3 text-xs font-medium border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 rounded-lg shadow-xs flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0"
             onClick={() => setIsATSModalOpen(true)}
           >
-            <span>🛡️</span>
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
             <span>ATS Check</span>
           </button>
 
           <button
             type="button"
-            className="h-9 px-3 text-xs font-medium border border-slate-200 bg-white text-amber-900 hover:bg-amber-50 rounded-lg shadow-xs flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0"
+            className="h-9 px-3 text-xs font-medium border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 rounded-lg shadow-xs flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0"
             onClick={() => setIsTailorModalOpen(true)}
           >
-            <span>🎯</span>
+            <Target className="w-3.5 h-3.5 text-amber-600" />
             <span>Tailor</span>
           </button>
 
@@ -278,7 +241,7 @@ export default function ResumeEditorClient({
             className="h-9 px-3 text-xs font-medium border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 rounded-lg shadow-xs flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0"
             onClick={() => setIsShareModalOpen(true)}
           >
-            <span>🔗</span>
+            <Share2 className="w-3.5 h-3.5 text-slate-500" />
             <span>Share</span>
           </button>
 
@@ -287,17 +250,29 @@ export default function ResumeEditorClient({
             className="h-9 px-3.5 text-xs font-medium border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 rounded-lg shadow-xs flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0"
             onClick={() => setIsPDFModalOpen(true)}
           >
-            <span>📄</span>
-            <span>Preview &amp; Export PDF</span>
+            <FileDown className="w-3.5 h-3.5 text-slate-500" />
+            <span>Export PDF</span>
           </button>
 
           <button
             type="button"
             onClick={handleSave}
             disabled={isPending}
-            className="h-9 px-5 bg-[#0B1B3D] text-white text-xs font-medium rounded-lg hover:opacity-95 disabled:opacity-50 shadow-xs transition-all whitespace-nowrap shrink-0"
+            className="h-9 px-4 bg-[#0B1B3D] text-white text-xs font-medium rounded-lg hover:bg-[#0B1B3D]/90 disabled:opacity-50 shadow-xs transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5"
           >
-            {isPending ? 'Saving...' : saveSuccess ? '✓ Saved' : 'Save'}
+            {isPending ? (
+              <span>Saving...</span>
+            ) : saveSuccess ? (
+              <>
+                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Saved</span>
+              </>
+            ) : (
+              <>
+                <Save className="w-3.5 h-3.5" />
+                <span>Save</span>
+              </>
+            )}
           </button>
         </div>
       </header>
@@ -403,15 +378,15 @@ export default function ResumeEditorClient({
               <button
                 type="button"
                 onClick={handleAddEducation}
-                className="text-xs font-semibold text-[#0B1B3D] hover:text-[#0B1B3D]/80 flex items-center gap-1 px-2.5 py-1.5 rounded-md hover:bg-slate-50 border border-slate-200 transition-colors"
+                className="text-xs font-semibold text-[#0B1B3D] hover:text-[#0B1B3D]/80 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md hover:bg-slate-50 border border-slate-200 transition-colors"
               >
-                <span>+</span> Add Education
+                <Plus className="w-3.5 h-3.5" /> Add Education
               </button>
             </div>
 
             {content.education.length === 0 ? (
               <div className="text-center py-6 text-xs text-slate-400 bg-[#FAFAF9] rounded-lg border border-dashed border-slate-200">
-                No education entries yet. Click &quot;+ Add Education&quot; or use the AI Assistant.
+                No education entries yet. Click &quot;Add Education&quot; or use the AI Assistant.
               </div>
             ) : (
               content.education.map((edu, idx) => (
@@ -423,9 +398,10 @@ export default function ResumeEditorClient({
                     <button
                       type="button"
                       onClick={() => handleDeleteEducation(edu.id)}
-                      className="text-xs text-red-500 hover:text-red-700 transition-colors"
+                      className="text-xs text-red-500 hover:text-red-700 transition-colors flex items-center gap-1"
                     >
-                      Delete
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete</span>
                     </button>
                   </div>
 
@@ -493,15 +469,15 @@ export default function ResumeEditorClient({
               <button
                 type="button"
                 onClick={handleAddExperience}
-                className="text-xs font-semibold text-[#0B1B3D] hover:text-[#0B1B3D]/80 flex items-center gap-1 px-2.5 py-1.5 rounded-md hover:bg-slate-50 border border-slate-200 transition-colors"
+                className="text-xs font-semibold text-[#0B1B3D] hover:text-[#0B1B3D]/80 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md hover:bg-slate-50 border border-slate-200 transition-colors"
               >
-                <span>+</span> Add Experience
+                <Plus className="w-3.5 h-3.5" /> Add Experience
               </button>
             </div>
 
             {content.experience.length === 0 ? (
               <div className="text-center py-6 text-xs text-slate-400 bg-[#FAFAF9] rounded-lg border border-dashed border-slate-200">
-                No experience entries recorded. Click &quot;+ Add Experience&quot; to begin.
+                No experience entries recorded. Click &quot;Add Experience&quot; to begin.
               </div>
             ) : (
               content.experience.map((exp, idx) => (
@@ -513,9 +489,10 @@ export default function ResumeEditorClient({
                     <button
                       type="button"
                       onClick={() => handleDeleteExperience(exp.id)}
-                      className="text-xs text-red-500 hover:text-red-700 transition-colors"
+                      className="text-xs text-red-500 hover:text-red-700 transition-colors flex items-center gap-1"
                     >
-                      Delete
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete</span>
                     </button>
                   </div>
 
@@ -568,15 +545,15 @@ export default function ResumeEditorClient({
               <button
                 type="button"
                 onClick={handleAddProject}
-                className="text-xs font-semibold text-[#0B1B3D] hover:text-[#0B1B3D]/80 flex items-center gap-1 px-2.5 py-1.5 rounded-md hover:bg-slate-50 border border-slate-200 transition-colors"
+                className="text-xs font-semibold text-[#0B1B3D] hover:text-[#0B1B3D]/80 flex items-center gap-1.5 px-2.5 py-1.5 rounded-md hover:bg-slate-50 border border-slate-200 transition-colors"
               >
-                <span>+</span> Add Project
+                <Plus className="w-3.5 h-3.5" /> Add Project
               </button>
             </div>
 
             {content.projects.length === 0 ? (
               <div className="text-center py-6 text-xs text-slate-400 bg-[#FAFAF9] rounded-lg border border-dashed border-slate-200">
-                No projects listed. Click &quot;+ Add Project&quot; to showcase your technical accomplishments.
+                No projects listed. Click &quot;Add Project&quot; to showcase your technical accomplishments.
               </div>
             ) : (
               content.projects.map((proj, idx) => (
@@ -588,9 +565,10 @@ export default function ResumeEditorClient({
                     <button
                       type="button"
                       onClick={() => handleDeleteProject(proj.id)}
-                      className="text-xs text-red-500 hover:text-red-700 transition-colors"
+                      className="text-xs text-red-500 hover:text-red-700 transition-colors flex items-center gap-1"
                     >
-                      Delete
+                      <Trash2 className="w-3.5 h-3.5" />
+                      <span>Delete</span>
                     </button>
                   </div>
 
@@ -693,15 +671,16 @@ export default function ResumeEditorClient({
         <div className="lg:col-span-5 sticky top-20 self-start">
           <div className="flex items-center justify-between mb-3 px-1">
             <span className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
-              <span>👁️</span> Live Document Preview
+              <Eye className="w-3.5 h-3.5 text-slate-500" />
+              <span>Live Document Preview</span>
             </span>
-            <span className="text-[11px] font-medium text-slate-400 bg-white border border-slate-200 px-2 py-0.5 rounded">
+            <span className="text-[11px] font-medium text-slate-500 bg-white border border-slate-200 px-2 py-0.5 rounded shadow-2xs">
               Standard A4
             </span>
           </div>
 
           {/* Styled Desktop Page Frame with Drop Shadow */}
-          <div className="shadow-md border border-slate-200 bg-white rounded-sm p-6 sm:p-8 min-h-[600px] text-slate-800 font-sans text-xs space-y-5">
+          <div className="shadow-lg border border-slate-200/90 bg-white rounded-md p-6 sm:p-8 min-h-[600px] text-slate-800 font-sans text-xs space-y-5">
             {/* Faux Preview Header */}
             <div className="text-center border-b border-slate-900 pb-3">
               <h1 className="text-xl sm:text-2xl font-serif font-bold tracking-tight text-slate-900">
@@ -824,7 +803,7 @@ export default function ResumeEditorClient({
         isOpen={isAIModalOpen}
         onClose={() => setIsAIModalOpen(false)}
         onApplyGeneratedContent={handleApplyGeneratedContent}
-        initialView={aiModalView}
+        resumeId={resume.id}
       />
 
       {/* PDF Export & Preview Modal */}

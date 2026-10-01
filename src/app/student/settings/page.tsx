@@ -1,14 +1,20 @@
 import { PrivacyControls } from '@/components/PrivacyControls';
+import { PageHeader } from '@/components/design-system';
 
 export default function SettingsPage() {
   return (
-    <div className="space-y-8">
-      <div>
-        <h1 className="font-instrument text-4xl font-bold tracking-tight text-primary">Settings & Privacy</h1>
-        <p className="font-jakarta text-slate-500 mt-2 text-lg">Manage your account and exercise your data rights.</p>
-      </div>
+    <div className="space-y-6 max-w-3xl">
+      <PageHeader
+        breadcrumbs={[
+          { label: 'Student Workspace', href: '/student' },
+          { label: 'Settings & Privacy' },
+        ]}
+        eyebrow="Account Governance & Data Rights"
+        title="Settings & Privacy"
+        subtitle="Manage your account preferences, exercise statutory data portability rights under PDPA, and control profile visibility."
+      />
 
-      <div className="pt-4">
+      <div className="pt-2">
         <PrivacyControls />
       </div>
     </div>

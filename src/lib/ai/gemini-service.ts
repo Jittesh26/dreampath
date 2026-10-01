@@ -1,3 +1,4 @@
+import { aiRouter } from './router';
 import { GoogleGenAI } from '@google/genai';
 
 /**
@@ -109,13 +110,14 @@ Extract structured filter fields in JSON format:
 }
 Output only pure JSON.`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-      },
+    const result = await aiRouter.generateText({
+      prompt: prompt,
+      systemPrompt: undefined,
+      jsonSchema: true,
+      timeoutMs: 6000
     });
+    if (result.error) throw new Error(result.error);
+    const response = { text: result.text };
 
     const parsed = JSON.parse(response.text?.trim() || '{}');
     return {
@@ -180,14 +182,16 @@ Verified Requirements:
 ${requirementsSummary.map((r) => `- ${r}`).join('\n') || '- Machine-checkable criteria mapped in database'}
 `;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: question.slice(0, 500),
-      config: {
-        systemInstruction: systemPrompt,
-      },
+    const result = await aiRouter.generateText({
+      prompt: question.slice(0, 500),
+      systemPrompt: systemPrompt,
+      jsonSchema: false,
+      timeoutMs: 6000
     });
+    if (result.error) throw new Error(result.error);
+    const response = { text: result.text };
 
+    if (result.isFallback) sourcesUsed.push('Using a backup AI provider');
     const answer = response.text?.trim() || 'No answer generated.';
     const canConfirm = !answer.toLowerCase().includes('cannot be confirmed');
 
@@ -198,9 +202,9 @@ ${requirementsSummary.map((r) => `- ${r}`).join('\n') || '- Machine-checkable cr
     };
   } catch {
     return {
-      answer: `According to our verified intake data: ${scholarshipName} by ${providerName} closes on ${closeDate}. Machine-checkable requirements: ${requirementsSummary.join(', ') || 'Standard academic benchmarks'}.`,
-      sourcesUsed,
-      canConfirm: true,
+      answer: 'DreamPath AI is temporarily unavailable. Please try again in a moment.',
+      sourcesUsed: ['Offline fallback'],
+      canConfirm: false,
     };
   }
 }
@@ -210,6 +214,66 @@ ${requirementsSummary.map((r) => `- ${r}`).join('\n') || '- Machine-checkable cr
  * Extracts academic credentials (SPM grades, CGPA, subjects) from uploaded/pasted transcript text.
  * Never silently writes to DB: returns extracted data for student review.
  */
+/**
+ * Streamed version of Grounded Scholarship QA
+ */
+export async function* aiGroundedScholarshipQAStream(params: {
+  question: string;
+  scholarshipName: string;
+  providerName: string;
+  description: string;
+  sourceUrl: string;
+  openDate: string;
+  closeDate: string;
+  requirementsSummary: string[];
+}): AsyncGenerator<{ token?: string; status?: string; done?: boolean; sources?: string[] }, void, unknown> {
+  const { question, scholarshipName, providerName, description, sourceUrl, openDate, closeDate, requirementsSummary } = params;
+
+  const sourcesUsed = [
+    `Official Source: ${sourceUrl || providerName + ' Portal'}`,
+    `DreamPath Verified Intake: Cycle ${openDate} - ${closeDate}`,
+    'Authoritative Eligibility AST Engine Rules',
+  ];
+
+  const systemPrompt = `You are the DreamPath Grounded Scholarship Intelligence Assistant.
+You MUST answer questions strictly using the provided authoritative context.
+NEVER fabricate dates, amounts, bond terms, or requirements.
+If the information is not present in the provided context, state clearly: "This information cannot be confirmed from our official verified record. Please check the official provider portal directly."
+
+Authoritative Context:
+Scholarship: ${scholarshipName}
+Provider: ${providerName}
+Overview: ${description}
+Official Source: ${sourceUrl}
+Intake Dates: Open ${openDate}, Closes ${closeDate}
+Verified Requirements:
+${requirementsSummary.map((r) => '- ' + r).join('\n') || '- Machine-checkable criteria mapped in database'}
+`;
+
+  const stream = aiRouter.streamText({
+    feature: 'scholarship-qa',
+    prompt: question.slice(0, 500),
+    systemPrompt,
+    timeoutMs: 6000,
+    thinkingBudget: 0,
+  });
+
+  for await (const chunk of stream) {
+    if (chunk.token) yield { token: chunk.token };
+    if (chunk.status) yield { status: chunk.status };
+    if (chunk.done) {
+      yield { done: true, sources: sourcesUsed };
+      return;
+    }
+    if (chunk.error) {
+      yield { token: chunk.error, done: true, sources: ['Offline fallback'] };
+      return;
+    }
+  }
+
+  yield { done: true, sources: sourcesUsed };
+}
+
 export interface ExtractedAcademicData {
   cgpa?: string;
   qualificationLevel?: string;
@@ -271,13 +335,14 @@ Extract into JSON format:
 }
 Use standard Malaysian SPM subject names where applicable. Output only pure JSON.`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: prompt,
-      config: {
-        responseMimeType: 'application/json',
-      },
+    const result = await aiRouter.generateText({
+      prompt: prompt,
+      systemPrompt: undefined,
+      jsonSchema: true,
+      timeoutMs: 6000
     });
+    if (result.error) throw new Error(result.error);
+    const response = { text: result.text };
 
     const parsed = JSON.parse(response.text?.trim() || '{}');
     return {
@@ -297,53 +362,176 @@ Use standard Malaysian SPM subject names where applicable. Output only pure JSON
  * Scholarship Comparison Intelligence:
  * Provides structured comparative insights across 2-4 selected scholarships.
  */
+export interface ScholarshipComparisonOutput {
+  summary: string;
+  keyDifferences: string[];
+  perScholarship: Array<{
+    name: string;
+    strengths: string[];
+    considerations: string[];
+  }>;
+  tableHighlights?: Array<{ label: string; values: string[] }>;
+}
+
+function buildDeterministicComparisonFallback(
+  scholarships: Array<{
+    name: string;
+    provider: string;
+    description?: string;
+    closeDate?: string;
+    award?: string;
+    tuitionCoverage?: string;
+    livingAllowance?: string;
+    bond?: string;
+    minCgpa?: string;
+    requirements?: string[];
+  }>
+): ScholarshipComparisonOutput {
+  const keyDifferences: string[] = [];
+
+  if (scholarships.length >= 2) {
+    const s1 = scholarships[0];
+    const s2 = scholarships[1];
+
+    if (s1.minCgpa && s2.minCgpa && s1.minCgpa !== s2.minCgpa) {
+      keyDifferences.push(`${s1.name} lists ${s1.minCgpa}, whereas ${s2.name} lists ${s2.minCgpa}.`);
+    }
+
+    if (s1.bond && s2.bond && s1.bond !== s2.bond) {
+      keyDifferences.push(`${s1.name} has "${s1.bond}", while ${s2.name} has "${s2.bond}".`);
+    }
+
+    if (s1.closeDate && s2.closeDate && s1.closeDate !== s2.closeDate) {
+      keyDifferences.push(`${s1.name} application cycle closes on ${s1.closeDate}, compared to ${s2.closeDate} for ${s2.name}.`);
+    }
+
+    if (s1.award && s2.award && s1.award !== s2.award) {
+      keyDifferences.push(`${s1.name} is structured as ${s1.award}, whereas ${s2.name} is ${s2.award}.`);
+    }
+  }
+
+  const perScholarship = scholarships.map((s) => {
+    const text = `${s.name} ${s.description || ''} ${s.bond || ''} ${s.award || ''}`.toLowerCase();
+    const strengths: string[] = [];
+    const considerations: string[] = [];
+
+    if (text.includes('full') || text.includes('100%') || text.includes('tuition')) {
+      strengths.push('Offers full or substantial academic tuition coverage.');
+    }
+    if (text.includes('living allowance') || text.includes('stipend') || text.includes('allowance')) {
+      strengths.push('Includes monthly living allowance / educational stipend.');
+    }
+    if (text.includes('placement') || text.includes('career') || text.includes('mentorship')) {
+      strengths.push('Includes structured provider corporate development or mentorship track.');
+    }
+    if (strengths.length === 0) {
+      strengths.push(`Direct institutional sponsorship supported by ${s.provider}.`);
+    }
+
+    if (s.bond && !s.bond.toLowerCase().includes('no service bond')) {
+      considerations.push(`Contains service obligation: ${s.bond}.`);
+    } else {
+      considerations.push('No mandatory corporate bond specified in verified intake.');
+    }
+
+    if (s.minCgpa && s.minCgpa !== 'None specified') {
+      considerations.push(`Strict minimum academic cutoff: ${s.minCgpa}.`);
+    }
+
+    return {
+      name: s.name,
+      strengths: strengths.slice(0, 3),
+      considerations: considerations.slice(0, 3),
+    };
+  });
+
+  return {
+    summary: `Objective side-by-side comparison across ${scholarships.length} verified Malaysian scholarships. Every comparison point is grounded in verified provider terms.`,
+    keyDifferences: keyDifferences.slice(0, 5),
+    perScholarship,
+    tableHighlights: [
+      { label: 'Provider Focus', values: scholarships.map((s) => s.provider) },
+      { label: 'Closing Date', values: scholarships.map((s) => s.closeDate || 'TBA') },
+    ],
+  };
+}
+
 export async function aiCompareScholarships(scholarships: Array<{
   name: string;
   provider: string;
   description: string;
   closeDate: string;
-  requirements: string[];
-}>): Promise<{
-  summary: string;
-  tableHighlights: Array<{ label: string; values: string[] }>;
-  recommendationTip: string;
-}> {
-  const ai = getAIClient();
+  award?: string;
+  tuitionCoverage?: string;
+  livingAllowance?: string;
+  bond?: string;
+  minCgpa?: string;
+  requirements?: string[];
+}>): Promise<ScholarshipComparisonOutput> {
+  const fallback = buildDeterministicComparisonFallback(scholarships);
 
-  const fallback = {
-    summary: `Comparing ${scholarships.map(s => s.name).join(' vs ')}. Each scholarship offers targeted support with distinct provider focus.`,
-    tableHighlights: [
-      { label: 'Provider Focus', values: scholarships.map(s => s.provider) },
-      { label: 'Closing Date', values: scholarships.map(s => s.closeDate || 'TBA') },
-      { label: 'Key Criteria', values: scholarships.map(s => s.requirements.slice(0, 2).join('; ') || 'Standard criteria') },
-    ],
-    recommendationTip: 'Prioritize scholarships matching your immediate field of study and ensure your CGPA meets the hard cutoff.',
-  };
-
-  if (!ai || scholarships.length === 0) return fallback;
+  if (!scholarships || scholarships.length === 0) return fallback;
 
   try {
-    const prompt = `Compare these Malaysian scholarships objectively based on their verified data:
+    const prompt = `You are the DreamPath Objective Scholarship Comparative Intelligence Engine.
+Analyze and contrast these verified Malaysian scholarships:
 ${JSON.stringify(scholarships, null, 2)}
 
-Provide JSON:
+STRICT OBJECTIVITY RULES:
+1. NEVER declare an overall winner or use subjective superlatives like "better", "best", "winner".
+2. NEVER invent a score out of 100, percentage match, or recommendation ranking.
+3. Every strength, consideration, and key difference MUST be derived strictly from the provided verified data (e.g. tuition, living allowances, bonds, CGPA thresholds, closing dates).
+4. For "keyDifferences", write 3 to 5 concise bullet points directly highlighting factual trade-offs (e.g. "Scholarship A requires minimum 3.3 CGPA while Scholarship B requires 3.67.").
+
+Output MUST be valid JSON adhering to:
 {
-  "summary": "2-3 sentence executive comparative summary",
-  "tableHighlights": [
-    { "label": "Target Discipline", "values": ["...", "..."] },
-    { "label": "Financial / Bond Profile", "values": ["...", "..."] },
-    { "label": "Competitiveness", "values": ["...", "..."] }
+  "summary": "2-3 sentence grounded comparative synthesis of coverage and provider scopes",
+  "keyDifferences": [
+    "Difference statement 1",
+    "Difference statement 2",
+    "Difference statement 3"
   ],
-  "recommendationTip": "Actionable advice on how a student should choose between them"
+  "perScholarship": [
+    {
+      "name": "Exact scholarship name",
+      "strengths": ["Factual strength 1", "Factual strength 2"],
+      "considerations": ["Factual consideration 1", "Factual trade-off 2"]
+    }
+  ]
 }`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: prompt,
-      config: { responseMimeType: 'application/json' },
+    const result = await aiRouter.generateText({
+      feature: 'scholarship-compare',
+      prompt,
+      systemPrompt: 'You are an objective scholarship comparative analyst for Malaysian students. Compare strictly based on verified facts without subjective ranking.',
+      jsonSchema: true,
+      timeoutMs: 8000,
+      thinkingBudget: 0,
+      temperature: 0.1,
     });
 
-    return JSON.parse(response.text?.trim() || '{}') || fallback;
+    if (result.error || !result.text) {
+      return fallback;
+    }
+
+    let parsed: any;
+    try {
+      parsed = JSON.parse(result.text);
+    } catch {
+      const match = result.text.match(/\{[\s\S]*\}/);
+      parsed = match ? JSON.parse(match[0]) : null;
+    }
+
+    if (!parsed || !Array.isArray(parsed.keyDifferences)) {
+      return fallback;
+    }
+
+    return {
+      summary: parsed.summary || fallback.summary,
+      keyDifferences: parsed.keyDifferences && parsed.keyDifferences.length > 0 ? parsed.keyDifferences : fallback.keyDifferences,
+      perScholarship: parsed.perScholarship && parsed.perScholarship.length > 0 ? parsed.perScholarship : fallback.perScholarship,
+      tableHighlights: fallback.tableHighlights,
+    };
   } catch {
     return fallback;
   }
@@ -406,11 +594,14 @@ Rules:
   "improvements": ["...", "..."]
 }`;
 
-    const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
-      contents: prompt,
-      config: { responseMimeType: 'application/json' },
+    const result = await aiRouter.generateText({
+      prompt: prompt,
+      systemPrompt: undefined,
+      jsonSchema: true,
+      timeoutMs: 6000
     });
+    if (result.error) throw new Error(result.error);
+    const response = { text: result.text };
 
     return JSON.parse(response.text?.trim() || '{}');
   } catch {
@@ -479,11 +670,14 @@ Provide the next realistic interview question in pure JSON:
   "nextQuestion": "The question text"
 }`;
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: prompt,
-        config: { responseMimeType: 'application/json' },
-      });
+      const result = await aiRouter.generateText({
+      prompt: prompt,
+      systemPrompt: undefined,
+      jsonSchema: true,
+      timeoutMs: 6000
+    });
+    if (result.error) throw new Error(result.error);
+    const response = { text: result.text };
       return JSON.parse(response.text?.trim() || '{}');
     } else {
       const prompt = `You are a scholarship interview coach evaluating a student's answer for the ${scholarshipName} (${providerName}).
@@ -504,11 +698,14 @@ Evaluate the answer. Return pure JSON:
   }
 }`;
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.8-flash',
-        contents: prompt,
-        config: { responseMimeType: 'application/json' },
-      });
+      const result = await aiRouter.generateText({
+      prompt: prompt,
+      systemPrompt: undefined,
+      jsonSchema: true,
+      timeoutMs: 6000
+    });
+    if (result.error) throw new Error(result.error);
+    const response = { text: result.text };
       return JSON.parse(response.text?.trim() || '{}');
     }
   } catch {

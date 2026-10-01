@@ -14,6 +14,7 @@ import {
   ArrowRight,
   ShieldCheck
 } from 'lucide-react';
+import { StatusBadge } from '@/components/design-system';
 
 interface CheckerWizardProps {
   scholarshipId: string;
@@ -332,7 +333,7 @@ export function CheckerWizard({
               {result.reasons.length === 0 ? (
                 <div className="p-4 bg-emerald-50/50 flex items-center justify-between">
                   <span className="font-medium text-emerald-900">All machine-checkable requirements satisfied</span>
-                  <span className="font-bold text-emerald-700 uppercase">Passed</span>
+                  <StatusBadge status="eligible" label="Passed" size="sm" />
                 </div>
               ) : (
                 result.reasons.map((r, i) => (
@@ -343,9 +344,7 @@ export function CheckerWizard({
                       </span>
                       <span className="text-slate-600">{r.message}</span>
                     </div>
-                    <span className="text-rose-700 bg-rose-50 border border-rose-200 px-2.5 py-1 rounded font-bold uppercase shrink-0 text-center">
-                      Not Satisfied
-                    </span>
+                    <StatusBadge status="ineligible" label="Criteria Unmet" size="sm" />
                   </div>
                 ))
               )}

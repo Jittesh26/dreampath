@@ -4,6 +4,8 @@ import { eq, desc } from 'drizzle-orm';
 import { createClient } from '@/lib/supabase/server';
 import { ApplicationTrackerClient, ApplicationItem } from '@/components/student/ApplicationTrackerClient';
 
+import { PageHeader } from '@/components/design-system';
+
 export default async function ApplicationsPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -44,17 +46,11 @@ export default async function ApplicationsPage() {
 
   return (
     <div className="space-y-8 max-w-7xl">
-      <div>
-        <div className="text-xs font-semibold text-amber-800 uppercase tracking-wider mb-1">
-          Student Workspace
-        </div>
-        <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-[#0B1B3D]">
-          Application Pipeline Tracker
-        </h1>
-        <p className="font-sans text-slate-500 mt-2 text-base max-w-2xl">
-          Manage deadlines, interview dates, and track your verified scholarship applications across every stage from discovery to award.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Student Workspace · Application Management"
+        title="Application Journey Tracker"
+        subtitle="Track deadlines, interview dates, and advance your verified scholarship applications across each milestone from preparation to final award offer."
+      />
 
       <ApplicationTrackerClient initialApplications={myApps} />
     </div>

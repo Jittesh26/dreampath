@@ -2,8 +2,19 @@
 
 import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
-import { ScholarshipCard } from '@/components/ScholarshipCard';
-import { Search, ArrowRight, X } from 'lucide-react';
+import {
+  Search,
+  ArrowRight,
+  X,
+  LayoutList,
+  LayoutGrid,
+  Filter,
+  RotateCcw,
+  Scale,
+  SlidersHorizontal,
+} from 'lucide-react';
+import { OpportunityRow } from '@/components/design-system/OpportunityRow';
+import { EmptyState } from '@/components/design-system/EmptyState';
 
 export interface CatalogueScholarship {
   id: string;
@@ -35,6 +46,8 @@ export function ScholarshipCatalogueClient({
   const [availabilityFilter, setAvailabilityFilter] = useState('All');
   const [sortBy, setSortBy] = useState<'closingSoon' | 'newest' | 'name'>('closingSoon');
   const [comparedIds, setComparedIds] = useState<string[]>([]);
+  const [viewMode, setViewMode] = useState<'row' | 'card'>('row');
+  const [isMobileFiltersOpen, setIsMobileFiltersOpen] = useState(false);
 
   // Providers list for filtering
   const [providerFilter, setProviderFilter] = useState('All');
@@ -67,8 +80,8 @@ export function ScholarshipCatalogueClient({
           const matchName = item.scholarshipName.toLowerCase().includes(qLower);
           const matchProvider = item.providerName.toLowerCase().includes(qLower);
           const matchDesc = item.description?.toLowerCase().includes(qLower);
-          
-          // Alias matching (e.g. JPA, YBR, BNM, PETRONAS, TM)
+
+          // Alias matching
           let matchAlias = false;
           if (qLower === 'jpa' && (item.providerName.includes('JPA') || item.providerName.includes('Perkhidmatan Awam'))) matchAlias = true;
           if (qLower === 'ybr' && (item.providerName.includes('Bank Rakyat') || item.scholarshipName.includes('PPBU'))) matchAlias = true;
@@ -139,169 +152,330 @@ export function ScholarshipCatalogueClient({
     setAvailabilityFilter('All');
   };
 
-  const hasActiveFilters = search || levelFilter !== 'All' || fieldFilter !== 'All' || providerFilter !== 'All' || availabilityFilter !== 'All';
+  const hasActiveFilters =
+    search ||
+    levelFilter !== 'All' ||
+    fieldFilter !== 'All' ||
+    providerFilter !== 'All' ||
+    availabilityFilter !== 'All';
 
   return (
-    <div className="space-y-8">
-      {/* Top Filter Bar */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs space-y-4">
-        <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
-          {/* Main search bar */}
-          <div className="relative flex-1">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by scholarship, provider, or keyword (e.g. JPA, Gamuda, Computer Science)..."
-              className="w-full pl-10 pr-4 py-2.5 text-sm text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-700/20 focus:border-amber-700 transition-all font-medium"
-            />
-            {search && (
-              <button
-                onClick={() => setSearch('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-
-          {/* Provider Select */}
-          <div className="w-full md:w-56">
-            <select
-              value={providerFilter}
-              onChange={(e) => setProviderFilter(e.target.value)}
-              className="w-full py-2.5 px-3 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-amber-700 font-medium"
+    <div className="space-y-6">
+      {/* Search & Top Action Bar */}
+      <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+        {/* Search input */}
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by scholarship, provider, or keyword (e.g. JPA, Bank Rakyat, Computer Science)..."
+            className="w-full pl-10 pr-9 py-2.5 text-sm text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-700/20 focus:border-amber-700 transition-all font-medium"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+              aria-label="Clear search"
             >
-              <option value="All">All Providers (24)</option>
-              {providersList.filter(p => p !== 'All').map((p) => (
-                <option key={p} value={p}>{p}</option>
-              ))}
-            </select>
-          </div>
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2.5 shrink-0 justify-between md:justify-end">
+          {/* Mobile Filter Toggle */}
+          <button
+            type="button"
+            onClick={() => setIsMobileFiltersOpen(!isMobileFiltersOpen)}
+            className="md:hidden inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-colors"
+          >
+            <SlidersHorizontal className="w-3.5 h-3.5" />
+            <span>Filters {hasActiveFilters ? '(Active)' : ''}</span>
+          </button>
 
           {/* Sort By */}
-          <div className="w-full md:w-48">
+          <div className="w-44">
             <select
               value={sortBy}
               onChange={(e: any) => setSortBy(e.target.value)}
-              className="w-full py-2.5 px-3 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-amber-700 font-medium"
+              className="w-full py-2 px-3 text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-amber-700 font-semibold"
             >
               <option value="closingSoon">Sort: Closing Soon</option>
               <option value="name">Sort: Alphabetical</option>
             </select>
           </div>
-        </div>
 
-        {/* Segmented Controls for Study Level & Availability */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-slate-100 text-xs">
-          {/* Study Level Segmented Buttons */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-slate-500 font-semibold mr-1">Level:</span>
-            {['All', 'SPM', 'Pre-U / Foundation', 'Undergraduate Degree', 'Postgraduate'].map((level) => (
-              <button
-                key={level}
-                onClick={() => setLevelFilter(level)}
-                className={`px-3 py-1.5 rounded-lg font-medium transition-colors ${
-                  levelFilter === level
-                    ? 'bg-[#0B1B3D] text-white shadow-2xs'
-                    : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
-                }`}
-              >
-                {level}
-              </button>
-            ))}
-          </div>
-
-          {/* Availability Segmented Buttons */}
-          <div className="flex items-center gap-1.5">
-            <span className="text-slate-500 font-semibold mr-1">Status:</span>
-            {['All', 'Open', 'Closing Soon', 'Closed'].map((status) => (
-              <button
-                key={status}
-                onClick={() => setAvailabilityFilter(status)}
-                className={`px-3 py-1.5 rounded-lg font-medium transition-colors ${
-                  availabilityFilter === status
-                    ? 'bg-amber-800 text-white shadow-2xs'
-                    : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
-                }`}
-              >
-                {status}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Field of Study Row */}
-        <div className="flex flex-wrap items-center gap-1.5 pt-2 text-xs">
-          <span className="text-slate-500 font-semibold mr-1">Field:</span>
-          {['All', 'Engineering', 'Computer Science / Tech', 'Business / Finance', 'Medicine'].map((f) => (
+          {/* View Switcher: Row vs. Card */}
+          <div className="hidden sm:flex items-center bg-slate-100 p-1 rounded-xl">
             <button
-              key={f}
-              onClick={() => setFieldFilter(f)}
-              className={`px-2.5 py-1 rounded-md transition-colors ${
-                fieldFilter === f
-                  ? 'bg-slate-800 text-white font-semibold'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+              type="button"
+              onClick={() => setViewMode('row')}
+              aria-label="Editorial Row View"
+              className={`p-1.5 rounded-lg transition-colors ${
+                viewMode === 'row'
+                  ? 'bg-white text-slate-900 shadow-2xs'
+                  : 'text-slate-500 hover:text-slate-900'
               }`}
             >
-              {f}
+              <LayoutList className="w-4 h-4" />
             </button>
-          ))}
-
-          {hasActiveFilters && (
             <button
-              onClick={clearAllFilters}
-              className="ml-auto text-xs text-amber-800 hover:underline font-semibold"
+              type="button"
+              onClick={() => setViewMode('card')}
+              aria-label="Opportunity Card View"
+              className={`p-1.5 rounded-lg transition-colors ${
+                viewMode === 'card'
+                  ? 'bg-white text-slate-900 shadow-2xs'
+                  : 'text-slate-500 hover:text-slate-900'
+              }`}
             >
-              Reset All Filters
+              <LayoutGrid className="w-4 h-4" />
             </button>
-          )}
+          </div>
         </div>
       </div>
 
-      {/* Results Header Count & Zero-Pill Metadata */}
-      <div className="flex items-center justify-between text-xs text-slate-500 px-1 font-medium">
-        <div>
-          Showing <strong className="text-slate-900 font-bold">{filteredScholarships.length}</strong> verified opportunities
-          {hasActiveFilters && ' matching your criteria'}
-        </div>
-        <div>
-          Official 2026/2027 Malaysian Intakes
-        </div>
-      </div>
+      {/* Main Split Layout: Filter Rail (Left) + Opportunity Feed (Right) */}
+      <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
+        
+        {/* Left Filter Rail (Desktop + Mobile Collapsible) */}
+        <aside
+          className={`md:col-span-4 lg:col-span-3 space-y-6 ${
+            isMobileFiltersOpen ? 'block' : 'hidden md:block'
+          }`}
+        >
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs space-y-6 sticky top-24">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <Filter className="w-4 h-4 text-amber-800" />
+                <h3 className="font-serif text-base font-bold text-[#0B1B3D]">
+                  Directory Filters
+                </h3>
+              </div>
+              {hasActiveFilters && (
+                <button
+                  type="button"
+                  onClick={clearAllFilters}
+                  className="text-[11px] font-semibold text-amber-800 hover:underline inline-flex items-center gap-1"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                  <span>Reset</span>
+                </button>
+              )}
+            </div>
 
-      {/* Scholarships Grid */}
-      {filteredScholarships.length === 0 ? (
-        <div className="py-20 text-center bg-white border border-slate-200 rounded-2xl p-8 space-y-3">
-          <h3 className="font-serif text-2xl font-bold text-[#0B1B3D]">No matching scholarships found</h3>
-          <p className="text-sm text-slate-500 max-w-md mx-auto">
-            Try broadening your search filters or clearing the search keyword. Every opportunity listed is verified directly against official provider sources.
-          </p>
-          <button
-            onClick={clearAllFilters}
-            className="mt-4 px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-lg hover:bg-slate-800 transition-colors"
-          >
-            Reset Filters
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredScholarships.map((item) => (
-            <ScholarshipCard
-              key={item.id}
-              id={item.id}
-              providerName={item.providerName}
-              scholarshipName={item.scholarshipName}
-              status={item.status}
-              openDate={item.openDate}
-              closeDate={item.closeDate}
-              onToggleCompare={toggleCompare}
-              isCompared={comparedIds.includes(item.id)}
+            {/* Availability / Status */}
+            <div className="space-y-2">
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                Intake Status
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {['All', 'Open', 'Closing Soon', 'Closed'].map((status) => (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => setAvailabilityFilter(status)}
+                    className={`px-2.5 py-1 text-xs rounded-lg font-medium transition-colors ${
+                      availabilityFilter === status
+                        ? 'bg-[#0B1B3D] text-white shadow-2xs font-semibold'
+                        : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                    }`}
+                  >
+                    {status}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Study Level */}
+            <div className="space-y-2">
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                Study Qualification Level
+              </label>
+              <div className="space-y-1 text-xs">
+                {['All', 'SPM', 'Pre-U / Foundation', 'Undergraduate Degree', 'Postgraduate'].map((level) => (
+                  <button
+                    key={level}
+                    type="button"
+                    onClick={() => setLevelFilter(level)}
+                    className={`w-full text-left px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center justify-between ${
+                      levelFilter === level
+                        ? 'bg-amber-50 text-amber-950 font-bold border border-amber-200/80'
+                        : 'text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    <span>{level}</span>
+                    {levelFilter === level && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-amber-700" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Sponsor Provider Dropdown */}
+            <div className="space-y-2">
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                Sponsor / Provider
+              </label>
+              <select
+                value={providerFilter}
+                onChange={(e) => setProviderFilter(e.target.value)}
+                className="w-full py-2 px-3 text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-amber-700 font-medium"
+              >
+                <option value="All">All Providers (24)</option>
+                {providersList
+                  .filter((p) => p !== 'All')
+                  .map((p) => (
+                    <option key={p} value={p}>
+                      {p}
+                    </option>
+                  ))}
+              </select>
+            </div>
+
+            {/* Field of Study */}
+            <div className="space-y-2">
+              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+                Academic Discipline
+              </label>
+              <div className="flex flex-wrap gap-1.5 text-xs">
+                {['All', 'Engineering', 'Computer Science / Tech', 'Business / Finance', 'Medicine'].map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setFieldFilter(f)}
+                    className={`px-2.5 py-1 text-xs rounded-lg transition-colors ${
+                      fieldFilter === f
+                        ? 'bg-slate-800 text-white font-semibold'
+                        : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
+                    }`}
+                  >
+                    {f}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        {/* Right Opportunities List (Feed) */}
+        <section className="md:col-span-8 lg:col-span-9 space-y-4">
+          {/* Active Filter Pills Bar */}
+          <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 pb-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span>
+                Showing <strong className="text-slate-900 font-bold">{filteredScholarships.length}</strong> verified programs
+              </span>
+
+              {hasActiveFilters && (
+                <div className="flex flex-wrap items-center gap-1.5 pl-2">
+                  {search && (
+                    <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 rounded-full font-medium text-[11px]">
+                      Keyword: &ldquo;{search}&rdquo;
+                      <button onClick={() => setSearch('')} aria-label="Remove search filter">
+                        <X className="w-3 h-3 hover:text-amber-950" />
+                      </button>
+                    </span>
+                  )}
+                  {levelFilter !== 'All' && (
+                    <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 rounded-full font-medium text-[11px]">
+                      Level: {levelFilter}
+                      <button onClick={() => setLevelFilter('All')} aria-label="Remove level filter">
+                        <X className="w-3 h-3 hover:text-amber-950" />
+                      </button>
+                    </span>
+                  )}
+                  {fieldFilter !== 'All' && (
+                    <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 rounded-full font-medium text-[11px]">
+                      Field: {fieldFilter}
+                      <button onClick={() => setFieldFilter('All')} aria-label="Remove field filter">
+                        <X className="w-3 h-3 hover:text-amber-950" />
+                      </button>
+                    </span>
+                  )}
+                  {providerFilter !== 'All' && (
+                    <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 rounded-full font-medium text-[11px]">
+                      Provider: {providerFilter}
+                      <button onClick={() => setProviderFilter('All')} aria-label="Remove provider filter">
+                        <X className="w-3 h-3 hover:text-amber-950" />
+                      </button>
+                    </span>
+                  )}
+                  {availabilityFilter !== 'All' && (
+                    <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 rounded-full font-medium text-[11px]">
+                      Status: {availabilityFilter}
+                      <button onClick={() => setAvailabilityFilter('All')} aria-label="Remove status filter">
+                        <X className="w-3 h-3 hover:text-amber-950" />
+                      </button>
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <span className="text-[11px] text-slate-400">
+              Verified Malaysian Scholarship Intelligence
+            </span>
+          </div>
+
+          {/* List of Opportunities */}
+          {filteredScholarships.length === 0 ? (
+            <EmptyState
+              icon={<Search className="w-6 h-6 text-amber-800" />}
+              title="No scholarships match your filters"
+              description="Try resetting your active filters or broadening your qualification criteria. Every scholarship in this catalogue is grounded in authoritative intake guidelines."
+              action={
+                <button
+                  type="button"
+                  onClick={clearAllFilters}
+                  className="px-5 py-2.5 bg-[#0B1B3D] text-white text-xs font-bold rounded-xl hover:bg-[#132A5C] transition-colors"
+                >
+                  Reset All Filters
+                </button>
+              }
             />
-          ))}
-        </div>
-      )}
+          ) : viewMode === 'card' ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filteredScholarships.map((item) => (
+                <OpportunityRow
+                  key={item.id}
+                  id={item.id}
+                  scholarshipName={item.scholarshipName}
+                  providerName={item.providerName}
+                  description={item.description}
+                  status={item.status}
+                  openDate={item.openDate}
+                  closeDate={item.closeDate}
+                  isCompared={comparedIds.includes(item.id)}
+                  onToggleCompare={toggleCompare}
+                  viewMode="card"
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-3.5">
+              {filteredScholarships.map((item) => (
+                <OpportunityRow
+                  key={item.id}
+                  id={item.id}
+                  scholarshipName={item.scholarshipName}
+                  providerName={item.providerName}
+                  description={item.description}
+                  status={item.status}
+                  openDate={item.openDate}
+                  closeDate={item.closeDate}
+                  isCompared={comparedIds.includes(item.id)}
+                  onToggleCompare={toggleCompare}
+                  viewMode="row"
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
 
       {/* Floating Comparison Dock / Action Bar */}
       {comparedIds.length > 0 && (
@@ -311,15 +485,18 @@ export function ScholarshipCatalogueClient({
           </span>
           <div className="h-4 w-px bg-slate-600" />
           <button
+            type="button"
             onClick={() => router.push(`/scholarships/compare?ids=${comparedIds.join(',')}`)}
             className="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-full flex items-center gap-1.5 transition-colors shadow-xs"
           >
+            <Scale className="w-3.5 h-3.5" />
             <span>Compare Side-by-Side</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </button>
           <button
+            type="button"
             onClick={() => setComparedIds([])}
-            className="text-slate-400 hover:text-white text-xs"
+            className="text-slate-400 hover:text-white text-xs p-1"
             aria-label="Clear selected compare items"
           >
             <X className="w-4 h-4" />

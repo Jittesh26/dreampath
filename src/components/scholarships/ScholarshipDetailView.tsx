@@ -14,6 +14,7 @@ import {
   Loader2,
   Building2
 } from 'lucide-react';
+import { StatusBadge } from '@/components/design-system';
 import { ReportMistakeForm } from '@/components/ReportMistakeForm';
 
 interface DetailProps {
@@ -103,6 +104,16 @@ export function ScholarshipDetailView({
     setQaQuestion('');
     setQaLoading(true);
 
+    // Show initial question immediately
+    setQaHistory((prev) => [
+      ...prev,
+      {
+        q: currentQ,
+        a: '',
+        sources: ['Connecting to DreamPath AI...'],
+      },
+    ]);
+
     try {
       const res = await fetch('/api/ai/grounded-qa', {
         method: 'POST',
@@ -116,26 +127,87 @@ export function ScholarshipDetailView({
           openDate,
           closeDate,
           requirementsSummary: requirements.map((r) => r.name),
+          stream: true,
         }),
       });
-      const data = await res.json();
-      setQaHistory((prev) => [
-        ...prev,
-        {
-          q: currentQ,
-          a: data.answer || 'Information unavailable.',
-          sources: data.sourcesUsed || ['DreamPath Verified Database'],
-        },
-      ]);
+
+      if (res.headers.get('content-type')?.includes('text/event-stream') && res.body) {
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let accumulated = '';
+        let sources = ['DreamPath Verified Database'];
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          const textChunk = decoder.decode(value, { stream: true });
+          const lines = textChunk.split('\n');
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const parsed = JSON.parse(line.slice(6));
+                if (parsed.token) {
+                  accumulated += parsed.token;
+                  setQaHistory((prev) => {
+                    const copy = [...prev];
+                    const last = copy[copy.length - 1];
+                    if (last && last.q === currentQ) {
+                      last.a = accumulated;
+                    }
+                    return copy;
+                  });
+                }
+                if (parsed.status) {
+                  setQaHistory((prev) => {
+                    const copy = [...prev];
+                    const last = copy[copy.length - 1];
+                    if (last && last.q === currentQ && !accumulated) {
+                      last.sources = [parsed.status];
+                    }
+                    return copy;
+                  });
+                }
+                if (parsed.sources) {
+                  sources = parsed.sources;
+                }
+              } catch {
+                // Ignore partial JSON chunks
+              }
+            }
+          }
+        }
+
+        setQaHistory((prev) => {
+          const copy = [...prev];
+          const last = copy[copy.length - 1];
+          if (last && last.q === currentQ) {
+            last.a = accumulated || 'Information unavailable.';
+            last.sources = sources;
+          }
+          return copy;
+        });
+      } else {
+        const data = await res.json();
+        setQaHistory((prev) => {
+          const copy = [...prev];
+          const last = copy[copy.length - 1];
+          if (last && last.q === currentQ) {
+            last.a = data.answer || 'Information unavailable.';
+            last.sources = data.sourcesUsed || ['DreamPath Verified Database'];
+          }
+          return copy;
+        });
+      }
     } catch {
-      setQaHistory((prev) => [
-        ...prev,
-        {
-          q: currentQ,
-          a: 'Could not connect to the intelligence layer. Please consult the official portal directly.',
-          sources: ['Offline fallback'],
-        },
-      ]);
+      setQaHistory((prev) => {
+        const copy = [...prev];
+        const last = copy[copy.length - 1];
+        if (last && last.q === currentQ) {
+          last.a = 'Could not connect to the intelligence layer. Please consult the official portal directly.';
+          last.sources = ['Offline fallback'];
+        }
+        return copy;
+      });
     } finally {
       setQaLoading(false);
     }
@@ -224,15 +296,18 @@ export function ScholarshipDetailView({
         </h1>
 
         {/* Unboxed Metadata Row */}
-        <div className="flex flex-wrap items-center gap-y-2 gap-x-4 text-xs text-slate-600 font-medium pt-1">
-          <span className="inline-flex items-center gap-1 font-semibold text-emerald-800">
-            <span className="w-2 h-2 rounded-full bg-emerald-600 inline-block" />
-            Status: {status.toUpperCase()}
-          </span>
-          <span aria-hidden="true">·</span>
-          <span>Deadline: {closeDate}</span>
-          <span aria-hidden="true">·</span>
-          <span>Malaysian Standard Time (MYT)</span>
+        <div className="flex flex-wrap items-center gap-y-2 gap-x-3 text-xs text-slate-600 font-medium pt-1">
+          <StatusBadge status={status} size="sm" />
+          <span aria-hidden="true" className="text-slate-300">·</span>
+          <span>Deadline: <strong className="text-slate-900">{closeDate}</strong></span>
+          <span aria-hidden="true" className="text-slate-300">·</span>
+          <span className="text-slate-500">Official Malaysian Standard Time (MYT)</span>
+        </div>
+
+        {/* Independent Intelligence Notice */}
+        <div className="text-[11px] text-slate-600 bg-slate-100/70 border border-slate-200/80 px-4 py-2.5 rounded-xl flex items-start sm:items-center gap-2">
+          <span className="font-bold text-slate-800 uppercase tracking-wider shrink-0">Official Source Note:</span>
+          <span>DreamPath provides verified intelligence based on published intake documents. Application submissions and award determinations are administered exclusively by {providerName}.</span>
         </div>
       </div>
 

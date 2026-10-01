@@ -180,6 +180,7 @@ export const resumeVersions = pgTable('resume_versions', {
   resumeProfileId: uuid('resume_profile_id').references(() => resumeProfiles.id, { onDelete: 'cascade' }).notNull(),
   title: varchar('title', { length: 255 }).notNull().default('Untitled Resume'),
   content: jsonb('content').notNull().default('{}'), // Validated by ResumeContent Zod schema
+  interviewState: jsonb('interview_state').notNull().default('{}'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -188,11 +189,12 @@ export const resumeVersions = pgTable('resume_versions', {
 export const resumeFacts = pgTable('resume_facts', {
   id: uuid('id').primaryKey().defaultRandom(),
   resumeProfileId: uuid('resume_profile_id').references(() => resumeProfiles.id, { onDelete: 'cascade' }).notNull(),
+  resumeVersionId: uuid('resume_version_id').references(() => resumeVersions.id, { onDelete: 'cascade' }),
   category: varchar('category', { length: 50 }).notNull(), // 'project', 'experience', 'education'
   source: varchar('source', { length: 50 }).notNull(), // 'student', 'ai'
   originalAnswer: text('original_answer'), // Provenance: the exact student text
   content: jsonb('content').notNull(), // The extracted fact representation
-  isConfirmed: boolean('is_confirmed').notNull().default(false),
+  isConfirmed: boolean('is_confirmed').notNull().default(true),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -206,16 +208,21 @@ export const resumeProfilesRelations = relations(resumeProfiles, ({ one, many })
   facts: many(resumeFacts),
 }));
 
-export const resumeVersionsRelations = relations(resumeVersions, ({ one }) => ({
+export const resumeVersionsRelations = relations(resumeVersions, ({ one, many }) => ({
   profile: one(resumeProfiles, {
     fields: [resumeVersions.resumeProfileId],
     references: [resumeProfiles.id],
   }),
+  facts: many(resumeFacts),
 }));
 
 export const resumeFactsRelations = relations(resumeFacts, ({ one }) => ({
   profile: one(resumeProfiles, {
     fields: [resumeFacts.resumeProfileId],
     references: [resumeProfiles.id],
+  }),
+  version: one(resumeVersions, {
+    fields: [resumeFacts.resumeVersionId],
+    references: [resumeVersions.id],
   }),
 }));

@@ -4,6 +4,7 @@ import { eq, inArray, desc } from 'drizzle-orm';
 import { ScholarshipCatalogueClient } from '@/components/scholarships/ScholarshipCatalogueClient';
 import { SiteNav } from '@/components/home/SiteNav';
 import { Footer } from '@/components/home/Footer';
+import { PageHeader } from '@/components/design-system';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,20 +51,18 @@ export default async function ScholarshipsPage({
     <div className="min-h-screen bg-[#FAFAF9] flex flex-col">
       <SiteNav />
 
-      <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-10 max-w-7xl">
-        <div className="mb-8 space-y-2">
-          <div className="flex items-center gap-2 text-xs font-semibold text-amber-800 uppercase tracking-wider">
-            <span>Official Catalogue</span>
-            <span aria-hidden="true">·</span>
-            <span className="text-slate-500 font-normal">2026/2027 Academic Cycle</span>
-          </div>
-          <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl font-normal text-[#0B1B3D] tracking-tight">
-            Explore Verified Malaysian Scholarships
-          </h1>
-          <p className="font-sans text-slate-600 text-base sm:text-lg max-w-3xl">
-            Every scholarship here is extracted and confirmed against official provider portals. Use the filters to find opportunities matching your academic qualifications and background.
-          </p>
-        </div>
+      <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-10 max-w-7xl space-y-8">
+        <PageHeader
+          eyebrow={
+            <>
+              <span>Official Catalogue</span>
+              <span aria-hidden="true">·</span>
+              <span className="text-slate-500 font-normal">2026/2027 Academic Cycle</span>
+            </>
+          }
+          title="Explore Verified Malaysian Scholarships"
+          subtitle="Every scholarship here is extracted and confirmed against official provider portals. Filter opportunities matching your academic qualifications and background."
+        />
 
         <ScholarshipCatalogueClient
           allScholarships={displayItems}

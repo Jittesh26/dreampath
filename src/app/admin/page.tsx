@@ -3,7 +3,7 @@ import { providers, scholarships, intakes, dataReports } from '@/db/schema';
 import { count, eq, desc } from 'drizzle-orm';
 import Link from 'next/link';
 import { resolveDataReport } from '@/app/actions/admin';
-import { Building2, Award, Calendar, AlertTriangle } from 'lucide-react';
+import { Building2, Award, Calendar, AlertTriangle, ArrowRight } from 'lucide-react';
 import { AdminAiAssistantClient } from '@/components/admin/AdminAiAssistantClient';
 
 export default async function AdminDashboard() {
@@ -46,29 +46,31 @@ export default async function AdminDashboard() {
 
       {/* Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col justify-between">
+        <div className="bg-white border border-slate-200/90 rounded-xl p-5 shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between text-slate-500">
             <span className="text-xs font-bold uppercase tracking-wider">Providers</span>
             <Building2 className="w-4 h-4 text-slate-600" />
           </div>
           <p className="font-serif text-4xl font-bold text-[#0B1B3D] my-2">{providerCount.value}</p>
-          <Link href="/admin/providers" className="text-xs font-semibold text-amber-800 hover:underline">
-            Manage providers &rarr;
+          <Link href="/admin/providers" className="text-xs font-semibold text-amber-900 hover:text-amber-950 inline-flex items-center gap-1 transition-colors">
+            <span>Manage providers</span>
+            <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col justify-between">
+        <div className="bg-white border border-slate-200/90 rounded-xl p-5 shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between text-slate-500">
             <span className="text-xs font-bold uppercase tracking-wider">Scholarships</span>
-            <Award className="w-4 h-4 text-blue-600" />
+            <Award className="w-4 h-4 text-[#0B1B3D]" />
           </div>
           <p className="font-serif text-4xl font-bold text-[#0B1B3D] my-2">{scholarshipCount.value}</p>
-          <Link href="/admin/scholarships" className="text-xs font-semibold text-blue-800 hover:underline">
-            Manage scholarships &rarr;
+          <Link href="/admin/scholarships" className="text-xs font-semibold text-[#0B1B3D] hover:underline inline-flex items-center gap-1 transition-colors">
+            <span>Manage scholarships</span>
+            <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col justify-between">
+        <div className="bg-white border border-slate-200/90 rounded-xl p-5 shadow-xs flex flex-col justify-between">
           <div className="flex items-center justify-between text-slate-500">
             <span className="text-xs font-bold uppercase tracking-wider">Active Intakes</span>
             <Calendar className="w-4 h-4 text-emerald-600" />

@@ -102,4 +102,28 @@ export class MockResumeAIProvider implements ResumeAIProvider {
     
     return generated;
   }
+
+  async processInterviewTurn(params: {
+    history: ChatMessage[];
+    latestAnswer: string;
+  }): Promise<{
+    nextQuestion: string;
+    isComplete: boolean;
+    topic?: string;
+    extractedFacts: ExtractedFact[];
+  }> {
+    const studentCount = params.history.filter(m => m.role === 'student').length;
+    const extractedFacts = await this.extractFacts(params.history, params.latestAnswer);
+    const isComplete = studentCount >= 3;
+    const nextQuestion = isComplete
+      ? "Great — I have gathered sufficient information to build a standout resume for you!"
+      : await this.generateNextQuestion([...params.history, { id: crypto.randomUUID(), role: 'student', content: params.latestAnswer, timestamp: new Date() }]);
+
+    return {
+      nextQuestion,
+      isComplete,
+      topic: isComplete ? 'completion' : 'general',
+      extractedFacts,
+    };
+  }
 }

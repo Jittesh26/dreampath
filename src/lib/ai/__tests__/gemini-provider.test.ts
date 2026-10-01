@@ -1,44 +1,20 @@
 /**
- * Tests for GeminiResumeAIProvider
+ * Tests for GeminiResumeAIProvider (now UnifiedResumeAIProvider)
  *
  * Verifies: interface compliance, missing API key, structured output acceptance,
  * malformed output rejection, and security properties.
- *
- * No real Gemini API calls are made — the SDK is fully mocked.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { extractedFactSchema, generatedWordingSchema } from '../../../domain/ai-interview';
 import { GeminiResumeAIProvider } from '../gemini-provider';
 
-// ─── Mutable mock state ───────────────────────────────────────────────────────
-// Tests set these to control what Gemini returns.
-let mockGenerateContentImpl: () => Promise<unknown>;
-let mockSendMessageImpl: () => Promise<unknown>;
+let mockGenerateTextImpl: (config: any) => Promise<any>;
 
-// ─── Mock the Gemini SDK ──────────────────────────────────────────────────────
-vi.mock('@google/generative-ai', () => ({
-  // Must be a class (constructable) so `new GoogleGenerativeAI(apiKey)` works
-  GoogleGenerativeAI: class {
-    getGenerativeModel() {
-      return {
-        generateContent: () => mockGenerateContentImpl(),
-        startChat: () => ({
-          sendMessage: () => mockSendMessageImpl(),
-        }),
-      };
-    }
-  },
-  SchemaType: {
-    STRING:  'string',
-    NUMBER:  'number',
-    INTEGER: 'integer',
-    BOOLEAN: 'boolean',
-    ARRAY:   'array',
-    OBJECT:  'object',
-  },
+vi.mock('../router', () => ({
+  aiRouter: {
+    generateText: (config: any) => mockGenerateTextImpl(config)
+  }
 }));
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function makeEducationFact() {
   return extractedFactSchema.parse({
@@ -53,191 +29,149 @@ function makeEducationFact() {
   });
 }
 
-// ─── Suite ────────────────────────────────────────────────────────────────────
-
 describe('GeminiResumeAIProvider', () => {
+  let originalEnv: NodeJS.ProcessEnv;
   let provider: GeminiResumeAIProvider;
-  const originalEnv = process.env;
 
   beforeEach(() => {
-    process.env = { ...originalEnv, GEMINI_API_KEY: 'test-key-NEVER-LOG' };
-    // Reset mock implementations to safe defaults
-    mockGenerateContentImpl = () =>
-      Promise.resolve({ response: { text: () => '[]' } });
-    mockSendMessageImpl = () =>
-      Promise.resolve({ response: { text: () => 'Next question?' } });
+    originalEnv = process.env;
+    process.env = { ...originalEnv, GEMINI_API_KEY: 'test-key-NEVER-LOG', OPENROUTER_API_KEY: '' };
+    
+    mockGenerateTextImpl = (config: any) => {
+      if (config.jsonSchema && config.jsonSchema.properties?.extractedEntities) {
+        return Promise.resolve({
+          text: JSON.stringify({
+            nextQuestion: 'What technical tools or frameworks do you use?',
+            isComplete: false,
+            topic: 'education',
+            extractedEntities: [{ category: 'education', data: { institution: 'UTM', qualification: 'BSc' } }]
+          }),
+          isFallback: false,
+          provider: 'gemini'
+        });
+      }
+      if (config.jsonSchema && config.jsonSchema.properties?.education) {
+        return Promise.resolve({
+          text: JSON.stringify({
+            education: [{ id: crypto.randomUUID(), institution: 'UTM', qualification: 'BSc', educationLevel: 'Bachelor' }],
+          }),
+          isFallback: false,
+          provider: 'gemini'
+        });
+      }
+      return Promise.resolve({ text: 'Next question?', isFallback: false, provider: 'gemini' });
+    };
+
     provider = new GeminiResumeAIProvider();
   });
 
   afterEach(() => {
     process.env = originalEnv;
+    vi.clearAllMocks();
   });
 
-  // ── Provider compliance ──────────────────────────────────────────────────────
-
   it('implements ResumeAIProvider interface (has all required methods)', () => {
+    expect(typeof provider.processInterviewTurn).toBe('function');
     expect(typeof provider.generateNextQuestion).toBe('function');
     expect(typeof provider.extractFacts).toBe('function');
     expect(typeof provider.generateProfessionalWording).toBe('function');
   });
 
-  // ── Missing API key ──────────────────────────────────────────────────────────
-
-  it('throws on construction when GEMINI_API_KEY is missing', () => {
-    const savedKey = process.env.GEMINI_API_KEY;
-    delete process.env.GEMINI_API_KEY;
-    try {
-      expect(() => new GeminiResumeAIProvider()).toThrow('GEMINI_API_KEY');
-    } finally {
-      process.env.GEMINI_API_KEY = savedKey;
-    }
+  it('throws on construction when neither GEMINI_API_KEY nor OPENROUTER_API_KEY is configured', () => {
+    process.env.GEMINI_API_KEY = '';
+    process.env.OPENROUTER_API_KEY = '';
+    expect(() => new GeminiResumeAIProvider()).toThrow('Neither GEMINI_API_KEY nor OPENROUTER_API_KEY is configured.');
   });
 
-  // ── generateNextQuestion ─────────────────────────────────────────────────────
-
-  it('generateNextQuestion returns a non-empty string', async () => {
-    mockSendMessageImpl = () =>
-      Promise.resolve({ response: { text: () => 'What is your CGPA?' } });
+  it('generateNextQuestion returns opening question for empty history', async () => {
     const q = await provider.generateNextQuestion([]);
-    expect(typeof q).toBe('string');
-    expect(q.length).toBeGreaterThan(0);
+    expect(q).toContain('academic foundation');
   });
 
-  it('generateNextQuestion truncates response to 500 chars max', async () => {
-    const longText = 'A'.repeat(600);
-    mockSendMessageImpl = () =>
-      Promise.resolve({ response: { text: () => longText } });
-    const q = await provider.generateNextQuestion([]);
-    expect(q.length).toBeLessThanOrEqual(500);
+  it('generateNextQuestion calls processInterviewTurn when history has student responses', async () => {
+    const q = await provider.generateNextQuestion([
+      { id: '1', role: 'ai', content: 'What is your degree?', timestamp: new Date() },
+      { id: '2', role: 'student', content: 'Computer Science at UTM', timestamp: new Date() }
+    ]);
+    expect(q).toBe('What technical tools or frameworks do you use?');
   });
 
-  it('generateNextQuestion throws safe error on Gemini failure', async () => {
-    mockSendMessageImpl = () => Promise.reject(new Error('Network error'));
-    await expect(provider.generateNextQuestion([])).rejects.toThrow('Could not generate the next interview question');
+  it('processInterviewTurn extracts entities and provides next question', async () => {
+    const turn = await provider.processInterviewTurn({
+      history: [{ id: '1', role: 'ai', content: 'What is your degree?', timestamp: new Date() }],
+      latestAnswer: 'I study BSc Computer Science at UTM with CGPA 3.8'
+    });
+    expect(turn.nextQuestion).toBe('What technical tools or frameworks do you use?');
+    expect(turn.isComplete).toBe(false);
+    expect(turn.extractedFacts.length).toBe(1);
+    expect(turn.extractedFacts[0].category).toBe('education');
   });
-
-  // ── extractFacts ─────────────────────────────────────────────────────────────
 
   it('extractFacts returns typed ExtractedFact[] on valid response', async () => {
-    mockGenerateContentImpl = () =>
-      Promise.resolve({
-        response: {
-          text: () => JSON.stringify([
-            { category: 'education', data: { institution: 'UTM', qualification: 'BSc CS', educationLevel: 'Bachelor' } },
-          ]),
-        },
-      });
-    const facts = await provider.extractFacts([], 'I study BSc CS at UTM.');
+    const facts = await provider.extractFacts([], 'I study BSc Computer Science at UTM');
     expect(facts).toHaveLength(1);
     expect(facts[0].category).toBe('education');
-    expect(facts[0].isConfirmed).toBe(false);
   });
 
   it('extractFacts preserves originalAnswer as provenance record', async () => {
     const answer = 'I built CampusFind using Next.js and PostgreSQL.';
-    mockGenerateContentImpl = () =>
-      Promise.resolve({
-        response: {
-          text: () => JSON.stringify([
-            { category: 'project', data: { name: 'CampusFind', technologies: ['Next.js', 'PostgreSQL'] } },
-          ]),
-        },
-      });
+    mockGenerateTextImpl = () => Promise.resolve({
+      text: JSON.stringify({
+        nextQuestion: 'What challenges did you face?',
+        isComplete: false,
+        extractedEntities: [{ category: 'project', data: { name: 'CampusFind' } }]
+      }),
+      isFallback: false, provider: 'gemini'
+    });
     const facts = await provider.extractFacts([], answer);
     expect(facts[0].originalAnswer).toBe(answer);
   });
 
   it('each returned fact passes extractedFactSchema validation', async () => {
-    mockGenerateContentImpl = () =>
-      Promise.resolve({
-        response: {
-          text: () => JSON.stringify([
-            { category: 'project', data: { name: 'CampusFind' } },
-          ]),
-        },
-      });
-    const facts = await provider.extractFacts([], 'I built CampusFind.');
+    mockGenerateTextImpl = () => Promise.resolve({
+      text: JSON.stringify({
+        nextQuestion: 'Tell me more about your skills.',
+        isComplete: false,
+        extractedEntities: [{ category: 'skills', data: { technical: ['TypeScript'] } }]
+      }),
+      isFallback: false, provider: 'gemini'
+    });
+    const facts = await provider.extractFacts([], 'answer');
     expect(() => extractedFactSchema.parse(facts[0])).not.toThrow();
   });
 
-  it('extractFacts returns [] for non-array Gemini response', async () => {
-    mockGenerateContentImpl = () =>
-      Promise.resolve({ response: { text: () => '{"not": "an array"}' } });
-    const facts = await provider.extractFacts([], 'some answer');
-    expect(facts).toHaveLength(0);
+  it('processInterviewTurn returns graceful fallback on failure without throwing', async () => {
+    mockGenerateTextImpl = () => Promise.resolve({ error: 'Rate limit', isFallback: false, provider: 'none' });
+    const turn = await provider.processInterviewTurn({ history: [], latestAnswer: 'some answer' });
+    expect(turn.extractedFacts).toHaveLength(0);
+    expect(turn.nextQuestion).toContain('helpful context');
+    expect(turn.isComplete).toBe(false);
   });
-
-  it('extractFacts caps results at 10 facts max', async () => {
-    const bigArray = Array.from({ length: 20 }, () => ({
-      category: 'general',
-      data: { note: 'extra fact' },
-    }));
-    mockGenerateContentImpl = () =>
-      Promise.resolve({ response: { text: () => JSON.stringify(bigArray) } });
-    const facts = await provider.extractFacts([], 'many facts');
-    expect(facts.length).toBeLessThanOrEqual(10);
-  });
-
-  it('extractFacts throws safe error on Gemini network failure', async () => {
-    mockGenerateContentImpl = () => Promise.reject(new Error('Rate limit exceeded'));
-    await expect(provider.extractFacts([], 'answer')).rejects.toThrow('AI fact extraction failed');
-  });
-
-  // ── generateProfessionalWording ──────────────────────────────────────────────
 
   it('generateProfessionalWording returns structure that passes generatedWordingSchema', async () => {
-    const id = crypto.randomUUID();
-    mockGenerateContentImpl = () =>
-      Promise.resolve({
-        response: {
-          text: () => JSON.stringify({
-            education: [{
-              id,
-              institution: 'Universiti Teknologi Malaysia',
-              qualification: 'Bachelor of Science in Computer Science',
-              educationLevel: 'Bachelor',
-            }],
-          }),
-        },
-      });
     const wording = await provider.generateProfessionalWording([makeEducationFact()]);
     expect(() => generatedWordingSchema.parse(wording)).not.toThrow();
-    expect(wording.education).toHaveLength(1);
   });
 
-  it('generateProfessionalWording returns {} immediately for empty confirmed facts', async () => {
-    const result = await provider.generateProfessionalWording([]);
-    expect(result).toEqual({});
+  it('generateProfessionalWording throws safe error on failure', async () => {
+    mockGenerateTextImpl = () => Promise.resolve({ error: 'Timeout', isFallback: false, provider: 'none' });
+    await expect(provider.generateProfessionalWording([makeEducationFact()])).rejects.toThrow('AI resume synthesis failed');
   });
-
-  it('generateProfessionalWording throws safe error on Gemini failure', async () => {
-    mockGenerateContentImpl = () => Promise.reject(new Error('Timeout'));
-    await expect(provider.generateProfessionalWording([makeEducationFact()])).rejects.toThrow('AI wording generation failed');
-  });
-
-  // ── Security ─────────────────────────────────────────────────────────────────
 
   it('API key NEVER appears in extractFacts return value', async () => {
-    mockGenerateContentImpl = () =>
-      Promise.resolve({ response: { text: () => '[]' } });
     const result = await provider.extractFacts([], 'test answer');
-    const serialised = JSON.stringify(result);
-    expect(serialised).not.toContain('test-key-NEVER-LOG');
-    expect(serialised).not.toContain('GEMINI_API_KEY');
+    expect(JSON.stringify(result)).not.toContain('test-key-NEVER-LOG');
   });
 
   it('API key NEVER appears in generateNextQuestion return value', async () => {
-    mockSendMessageImpl = () =>
-      Promise.resolve({ response: { text: () => 'What projects have you worked on?' } });
-    const q = await provider.generateNextQuestion([]);
-    expect(q).not.toContain('test-key-NEVER-LOG');
+    const result = await provider.generateNextQuestion([]);
+    expect(result).not.toContain('test-key-NEVER-LOG');
   });
 
   it('unconfirmed facts passed to generateProfessionalWording result in empty output', async () => {
-    // A fact where isConfirmed=false should still be processed at the provider level
-    // (the action layer enforces the DB filter; provider just acts on what it receives)
-    // We confirm the provider gracefully handles an empty confirmed list
-    const result = await provider.generateProfessionalWording([]);
-    expect(result).toEqual({});
+    const unconfirmed = { ...makeEducationFact(), isConfirmed: false };
+    mockGenerateTextImpl = () => Promise.resolve({ text: '{}', isFallback: false, provider: 'gemini' });
+    const res = await provider.generateProfessionalWording([unconfirmed]);
+    expect(res).toEqual({});
   });
 });

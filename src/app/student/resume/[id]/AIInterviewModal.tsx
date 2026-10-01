@@ -2,321 +2,384 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { 
-  askQuestion, 
-  processStudentAnswer, 
-  getUnconfirmedFacts, 
-  confirmFact, 
-  rejectFact 
+  getInterviewSession, 
+  submitInterviewTurn, 
+  synthesizeAndSaveResume,
+  resetInterviewSession 
 } from '@/app/actions/ai-interview';
 import { ChatMessage, GeneratedWording } from '@/domain/ai-interview';
-
-import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { ResumeContent } from '@/domain/resume';
 import { Button } from '@/components/ui/button';
-import WordingReview from './WordingReview';
+import { Sparkles, Loader2, CheckCircle2, RotateCcw, X, ArrowRight, AlertCircle } from 'lucide-react';
 
-// Minimal shape of an unconfirmed fact row as returned by the DB action
-interface PendingFact {
-  id: string;
-  category: string;
-  content: unknown;
-  originalAnswer?: string | null;
+interface AIInterviewModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onApplyGeneratedContent: (content: GeneratedWording | ResumeContent) => void;
+  resumeId: string;
 }
 
-function FactReviewCard({
-  fact,
-  onConfirm,
-  onReject
-}: {
-  fact: PendingFact;
-  onConfirm: (id: string, content?: unknown) => Promise<void>;
-  onReject: (id: string) => Promise<void>;
-}) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedJson, setEditedJson] = useState(JSON.stringify(fact.content, null, 2));
-
-  return (
-    <Card className="p-4 mb-4 shadow-sm border-slate-200 bg-white flex flex-col gap-3">
-      <div className="flex justify-between items-center">
-        <h4 className="text-base font-serif font-bold text-primary capitalize">{fact.category}</h4>
-        <Badge variant="secondary">{fact.category}</Badge>
-      </div>
-      
-      <div className="text-sm font-jakarta space-y-3">
-        {fact.originalAnswer && (
-          <div className="bg-[#FAFAF9] p-3 rounded-md border border-slate-200 text-slate-700 text-sm">
-            <span className="font-semibold text-primary block mb-1">Source Text:</span>
-            &quot;{fact.originalAnswer}&quot;
-          </div>
-        )}
-        
-        {isEditing ? (
-          <textarea
-            className="w-full h-32 rounded-lg border border-slate-300 p-2 text-xs font-mono focus:outline-none focus:ring-2 focus:ring-primary/20"
-            value={editedJson}
-            onChange={e => setEditedJson(e.target.value)}
-          />
-        ) : (
-          <pre className="text-xs text-slate-800 whitespace-pre-wrap font-mono bg-[#FAFAF9] p-3 rounded-md border border-slate-200">
-            {JSON.stringify(fact.content, null, 2)}
-          </pre>
-        )}
-      </div>
-      
-      <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
-        <Button 
-          variant="ghost"
-          size="sm"
-          onClick={() => onReject(fact.id)}
-          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-        >
-          Reject
-        </Button>
-        {isEditing ? (
-          <Button 
-            variant="outline"
-            size="sm"
-            onClick={() => {
-              try {
-                const parsed = JSON.parse(editedJson);
-                onConfirm(fact.id, parsed);
-                setIsEditing(false);
-              } catch {
-                alert('Invalid JSON format');
-              }
-            }}
-          >
-            Save & Confirm
-          </Button>
-        ) : (
-          <Button 
-            variant="outline"
-            size="sm"
-            onClick={() => setIsEditing(true)}
-          >
-            Edit
-          </Button>
-        )}
-        {!isEditing && (
-          <Button 
-            size="sm"
-            onClick={() => onConfirm(fact.id, fact.content)}
-            className="bg-[#0B1B3D] text-[#FAFAF9] hover:bg-[#0B1B3D]/90"
-          >
-            Confirm
-          </Button>
-        )}
-      </div>
-    </Card>
-  );
-}
-
-export default function AIInterviewModal({ 
-  isOpen, 
+export default function AIInterviewModal({
+  isOpen,
   onClose,
   onApplyGeneratedContent,
-  initialView = 'interview'
-}: { 
-  isOpen: boolean; 
-  onClose: () => void;
-  onApplyGeneratedContent: (content: GeneratedWording) => void;
-  initialView?: 'interview' | 'review';
-}) {
-  const [view, setView] = useState<'interview' | 'review'>(initialView);
+  resumeId,
+}: AIInterviewModalProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [pendingFacts, setPendingFacts] = useState<PendingFact[]>([]);
+  const [isSynthesizing, setIsSynthesizing] = useState(false);
+  const [synthesisStage, setSynthesisStage] = useState(0);
+  const [synthesisSuccess, setSynthesisSuccess] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // Declared as const arrow + useCallback so it can be referenced before the useEffect
-  const initInterview = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const initialQuestion = await askQuestion([]);
-      setMessages([{ id: crypto.randomUUID(), role: 'ai', content: initialQuestion, timestamp: new Date() }]);
-    } catch {
-      setMessages([{ id: crypto.randomUUID(), role: 'ai', content: "Sorry, the AI is unavailable. You can still edit your resume manually.", timestamp: new Date() }]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (isOpen) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs active tab when modal is opened from parent
-      setView(initialView);
-    }
-  }, [isOpen, initialView]);
+    if (!isOpen || messages.length > 0) return;
 
-  useEffect(() => {
-    if (isOpen && messages.length === 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- initInterview is async; setState runs after await
-      void initInterview();
-    }
-  }, [isOpen, initInterview, messages.length]);
+    let isMounted = true;
+    const timer = setTimeout(() => {
+      if (isMounted) setIsLoading(true);
+    }, 0);
+
+    getInterviewSession(resumeId)
+      .then((session) => {
+        if (!isMounted) return;
+        if (session.messages.length > 0) {
+          setMessages(session.messages);
+        } else {
+          setMessages([
+            {
+              id: crypto.randomUUID(),
+              role: 'ai',
+              content: "Hello! I'm here to help you craft a standout resume. Let's start with your academic foundation: what degree or program are you studying, at which university or college, and what is your current year or CGPA?",
+              timestamp: new Date(),
+            },
+          ]);
+        }
+      })
+      .catch((err: any) => {
+        if (!isMounted) return;
+        console.error('Failed to load interview session:', err);
+        setMessages([
+          {
+            id: crypto.randomUUID(),
+            role: 'ai',
+            content: "Hello! Let's build your resume together. What are you currently studying and where?",
+            timestamp: new Date(),
+          },
+        ]);
+      })
+      .finally(() => {
+        if (isMounted) {
+          clearTimeout(timer);
+          setIsLoading(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, [isOpen, resumeId, messages.length]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, pendingFacts]);
+  }, [messages, isSynthesizing, synthesisSuccess]);
 
+  // Focus input on load
+  useEffect(() => {
+    if (isOpen && !isLoading && !isSynthesizing) {
+      inputRef.current?.focus();
+    }
+  }, [isOpen, isLoading, isSynthesizing]);
+
+  // Dynamic progressive feedback during batch synthesis
+  useEffect(() => {
+    if (!isSynthesizing) return;
+    const t1 = setTimeout(() => setSynthesisStage(1), 1800);
+    const t2 = setTimeout(() => setSynthesisStage(2), 4200);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [isSynthesizing]);
+
+  // Handle final automatic synthesis
+  const triggerSynthesis = useCallback(async () => {
+    setIsSynthesizing(true);
+    setSynthesisStage(0);
+    setErrorMsg(null);
+    try {
+      const result = await synthesizeAndSaveResume(resumeId);
+      if (result.success && result.content) {
+        onApplyGeneratedContent(result.content);
+        setSynthesisSuccess(true);
+      } else {
+        setErrorMsg('Synthesis finished, but no new content was generated.');
+      }
+    } catch (err: any) {
+      console.error('Synthesis failed:', err);
+      setErrorMsg('Resume synthesis encountered a temporary issue. Your answers are safely saved in our database.');
+    } finally {
+      setIsSynthesizing(false);
+      setSynthesisStage(0);
+    }
+  }, [resumeId, onApplyGeneratedContent]);
+
+  // Submits student turn in a single unified operation
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!input.trim() || isLoading || pendingFacts.length > 0) return;
+    if (!input.trim() || isLoading || isSynthesizing) return;
 
-    const userMessage: ChatMessage = {
+    const userText = input.trim();
+    const userMsg: ChatMessage = {
       id: crypto.randomUUID(),
       role: 'student',
-      content: input,
-      timestamp: new Date()
+      content: userText,
+      timestamp: new Date(),
     };
-    
-    const newHistory = [...messages, userMessage];
-    setMessages(newHistory);
+
+    const nextHistory = [...messages, userMsg];
+    setMessages(nextHistory);
     setInput('');
     setIsLoading(true);
+    setErrorMsg(null);
 
     try {
-      await processStudentAnswer(newHistory, userMessage.content);
-      const unconfirmed = await getUnconfirmedFacts();
-      
-      if (unconfirmed.length > 0) {
-        setPendingFacts(unconfirmed as PendingFact[]);
-      } else {
-        const nextQ = await askQuestion(newHistory);
-        setMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'ai', content: nextQ, timestamp: new Date() }]);
+      const result = await submitInterviewTurn({
+        resumeId,
+        history: messages,
+        answer: userText,
+      });
+
+      const aiMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'ai',
+        content: result.nextQuestion,
+        timestamp: new Date(),
+      };
+
+      setMessages([...nextHistory, aiMsg]);
+
+      // Detect completion protocol: automatically synthesize and update resume
+      if (result.isComplete) {
+        setTimeout(() => {
+          void triggerSynthesis();
+        }, 1200);
       }
-    } catch {
-      setMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'ai', content: "Sorry, an error occurred. Please try again.", timestamp: new Date() }]);
+    } catch (err: any) {
+      console.error('Turn submission error:', err);
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: crypto.randomUUID(),
+          role: 'ai',
+          content: "I understood that! Could you also share any specific achievements, key tools, or milestones from that experience?",
+          timestamp: new Date(),
+        },
+      ]);
     } finally {
       setIsLoading(false);
     }
   }
 
-  async function handleConfirmFact(factId: string, editedContent?: unknown) {
+  async function handleReset() {
+    if (!confirm('Start a fresh interview conversation for this resume?')) return;
     setIsLoading(true);
-    await confirmFact(factId, editedContent);
-    await refreshPendingFacts();
-  }
-
-  async function handleRejectFact(factId: string) {
-    setIsLoading(true);
-    await rejectFact(factId);
-    await refreshPendingFacts();
-  }
-
-  async function refreshPendingFacts() {
-    const unconfirmed = await getUnconfirmedFacts();
-    setPendingFacts(unconfirmed as PendingFact[]);
-    if (unconfirmed.length === 0) {
-      const nextQ = await askQuestion(messages);
-      setMessages(prev => [...prev, { id: crypto.randomUUID(), role: 'ai', content: nextQ, timestamp: new Date() }]);
+    try {
+      await resetInterviewSession(resumeId);
+      setMessages([
+        {
+          id: crypto.randomUUID(),
+          role: 'ai',
+          content: "Hello! Let's start fresh. What degree or qualification are you currently pursuing, and at which institution?",
+          timestamp: new Date(),
+        },
+      ]);
+      setSynthesisSuccess(false);
+      setErrorMsg(null);
+    } catch (err: any) {
+      console.error('Failed to reset session:', err);
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false);
   }
 
   if (!isOpen) return null;
 
-  if (view === 'review') {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-        <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl h-[85vh] flex flex-col overflow-hidden">
-          <WordingReview
-            onApplyProposal={onApplyGeneratedContent}
-            onClose={onClose}
-            onBackToInterview={() => setView('interview')}
-          />
-        </div>
-      </div>
-    );
-  }
+  const synthesisMessages = [
+    { title: 'Organising your background...', desc: 'Analyzing your answers and categorizing education, experiences, projects, and skills.' },
+    { title: 'Drafting professional resume sections...', desc: 'Crafting concise, high-impact phrasing with active verbs and verifiable metrics.' },
+    { title: 'Saving to your resume...', desc: 'Persisting verified updates directly to PostgreSQL and syncing your editor.' },
+  ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl h-[80vh] flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in duration-150">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl h-[82vh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="p-4 border-b border-gray-200 bg-surface flex justify-between items-center">
-          <div>
-            <h2 className="text-lg font-bold font-serif text-primary">Resume Interview</h2>
-            <p className="text-xs text-gray-500">I will extract facts, you confirm them, then I write.</p>
+        <div className="px-5 py-4 border-b border-slate-200 bg-white flex justify-between items-center shrink-0">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-amber-50 text-amber-800 flex items-center justify-center font-bold">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-base font-bold font-serif text-[#0B1B3D]">Resume AI Assistant</h2>
+              <p className="text-xs text-slate-500">Conversational resume builder. Just chat naturally.</p>
+            </div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">&times;</button>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleReset}
+              title="Reset conversation"
+              className="text-xs text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors flex items-center gap-1 cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Reset</span>
+            </button>
+            <button
+              onClick={onClose}
+              className="text-slate-400 hover:text-slate-600 p-1.5 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
+              aria-label="Close modal"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
-        {/* Chat Body */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-6 bg-[#FAFAF9]">
-          {messages.map(m => (
+        {/* Chat Stream Body */}
+        <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-4 bg-[#FAFAF9]">
+          {messages.map((m) => (
             <div key={m.id} className={`flex ${m.role === 'ai' ? 'justify-start' : 'justify-end'}`}>
-              <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${
-                m.role === 'ai' 
-                  ? 'bg-white border border-gray-200 text-gray-800 shadow-sm' 
-                  : 'bg-primary text-white shadow-md'
-              }`}>
-                <p className="text-sm whitespace-pre-wrap">{m.content}</p>
+              <div
+                className={`max-w-[85%] rounded-2xl px-4 py-3 text-xs sm:text-sm leading-relaxed ${
+                  m.role === 'ai'
+                    ? 'bg-white border border-slate-200 text-slate-800 shadow-xs'
+                    : 'bg-[#0B1B3D] text-[#FAFAF9] shadow-sm font-medium'
+                }`}
+              >
+                <p className="whitespace-pre-wrap">{m.content}</p>
               </div>
             </div>
           ))}
 
-          {/* Fact Confirmation UI */}
-          {pendingFacts.length > 0 && (
-            <div className="animate-in fade-in slide-in-from-bottom-2 mt-4">
-              <h3 className="text-base font-bold font-serif text-primary mb-3 flex items-center gap-2">
-                <span>🔍</span> I extracted the following facts. Please review and confirm:
-              </h3>
-              <div>
-                {pendingFacts.map(fact => (
-                  <FactReviewCard 
-                    key={fact.id} 
-                    fact={fact} 
-                    onConfirm={handleConfirmFact} 
-                    onReject={handleRejectFact} 
-                  />
-                ))}
+          {/* AI Thinking Indicator */}
+          {isLoading && (
+            <div className="flex justify-start">
+              <div className="bg-white border border-slate-200 rounded-2xl px-4 py-3 shadow-xs flex gap-1.5 items-center">
+                <span className="text-xs text-slate-500 font-medium mr-1">AI is thinking</span>
+                <div className="w-1.5 h-1.5 bg-amber-700 rounded-full animate-bounce"></div>
+                <div className="w-1.5 h-1.5 bg-amber-700 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                <div className="w-1.5 h-1.5 bg-amber-700 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
               </div>
             </div>
           )}
 
-          {isLoading && (
-            <div className="flex justify-start">
-              <div className="bg-white border border-gray-200 rounded-2xl px-4 py-3 shadow-sm flex gap-1 items-center">
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></div>
+          {/* Progressive Batch Synthesis State */}
+          {isSynthesizing && (
+            <div className="p-4 bg-amber-50/90 border border-amber-200 rounded-2xl flex items-center gap-3 animate-in fade-in transition-all">
+              <Loader2 className="w-5 h-5 animate-spin text-amber-800 shrink-0" />
+              <div>
+                <p className="text-xs font-bold text-amber-950">
+                  {synthesisMessages[synthesisStage]?.title || 'Synthesizing your resume...'}
+                </p>
+                <p className="text-[11px] text-amber-800">
+                  {synthesisMessages[synthesisStage]?.desc || 'Compiling education, experiences, projects, and skills into executive phrasing.'}
+                </p>
               </div>
             </div>
           )}
+
+          {/* Synthesis Success Banner */}
+          {synthesisSuccess && (
+            <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in fade-in">
+              <div className="flex items-center gap-2.5">
+                <CheckCircle2 className="w-5 h-5 text-emerald-700 shrink-0" />
+                <div>
+                  <p className="text-xs font-bold text-emerald-950">Your resume has been updated &amp; saved!</p>
+                  <p className="text-[11px] text-emerald-800">All sections were synthesized from your conversation and saved to PostgreSQL.</p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                onClick={onClose}
+                className="bg-[#0B1B3D] text-[#FAFAF9] hover:bg-[#0B1B3D]/90 text-xs shrink-0 inline-flex items-center gap-1.5"
+              >
+                <span>View in Editor</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Button>
+            </div>
+          )}
+
+          {/* Synthesis Failure with Direct Retry */}
+          {errorMsg && (
+            <div className="p-4 bg-red-50/90 border border-red-200 text-red-900 text-xs rounded-2xl space-y-2 animate-in fade-in">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="w-5 h-5 text-red-600 shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-red-950">Resume build encountered an issue</p>
+                  <p className="text-[11px] text-red-800 mt-0.5">{errorMsg}</p>
+                </div>
+              </div>
+              <div className="flex justify-end pt-1">
+                <button
+                  type="button"
+                  onClick={() => triggerSynthesis()}
+                  disabled={isSynthesizing}
+                  className="bg-white border border-red-300 text-red-800 hover:bg-red-50 text-xs font-semibold px-3 py-1.5 rounded-lg shadow-xs flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Retry Resume Synthesis</span>
+                </button>
+              </div>
+            </div>
+          )}
+
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input Area */}
-        <div className="p-4 bg-white border-t border-gray-200">
-          <form onSubmit={handleSubmit} className="flex gap-3">
-            <input 
-              type="text" 
+        {/* Input Bar */}
+        <div className="p-3 sm:p-4 bg-white border-t border-slate-200 shrink-0 space-y-2.5">
+          <form onSubmit={handleSubmit} className="flex gap-2">
+            <input
+              ref={inputRef}
+              type="text"
               value={input}
-              onChange={e => setInput(e.target.value)}
-              disabled={isLoading || pendingFacts.length > 0}
-              placeholder={pendingFacts.length > 0 ? "Please confirm facts above first..." : "Type your answer..."}
-              className="flex-1 rounded-full border-gray-300 shadow-sm focus:border-primary focus:ring-primary text-sm px-4"
+              onChange={(e) => setInput(e.target.value)}
+              disabled={isLoading || isSynthesizing}
+              placeholder={isLoading ? "Please wait..." : "Type your answer naturally..."}
+              className="flex-1 rounded-full border border-slate-300 bg-white shadow-xs focus:outline-none focus:ring-2 focus:ring-amber-700/20 focus:border-amber-700 text-xs sm:text-sm px-4 py-2 text-slate-800"
             />
-            <button 
+            <button
               type="submit"
-              disabled={!input.trim() || isLoading || pendingFacts.length > 0}
-              className="bg-primary text-white rounded-full px-6 py-2 text-sm font-medium disabled:opacity-50 hover:bg-primary/90 transition-colors"
+              disabled={!input.trim() || isLoading || isSynthesizing}
+              className="bg-[#0B1B3D] text-white rounded-full px-5 py-2 text-xs font-semibold disabled:opacity-50 hover:bg-[#0B1B3D]/90 transition-colors shadow-xs cursor-pointer"
             >
               Send
             </button>
           </form>
-          <div className="mt-3 flex justify-center">
-             <button
+
+          {/* Polished Bottom Toolbar: Natural tip & instant build button */}
+          <div className="flex items-center justify-between text-xs pt-1 px-1">
+            <span className="text-[11px] text-slate-400 flex items-center gap-1.5">
+              <Sparkles className="w-3 h-3 text-amber-600 shrink-0" />
+              <span>Share education, work, projects, or skills in your own words.</span>
+            </span>
+
+            {!synthesisSuccess && messages.filter((m) => m.role === 'student').length >= 1 && (
+              <button
                 type="button"
-                onClick={() => setView('review')}
-                disabled={isLoading}
-                className="text-xs font-medium text-indigo-600 hover:text-indigo-800 flex items-center gap-1.5 px-3 py-1.5 rounded-md hover:bg-indigo-50 transition-colors"
-             >
-                <span>📝</span> Review Professional Wording Proposals &rarr;
-             </button>
+                onClick={() => triggerSynthesis()}
+                disabled={isLoading || isSynthesizing}
+                className="text-[11px] font-bold text-amber-800 hover:text-amber-900 flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-50 ml-auto"
+              >
+                <span>Finish &amp; Build Resume Now &rarr;</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

@@ -3,9 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { buttonVariants } from '@/components/ui/button';
-import { NotificationCenter } from '@/components/NotificationCenter';
-import { Search } from 'lucide-react';
+import { GraduationCap, Menu, X } from 'lucide-react';
 
 export function SiteNav() {
   const [isOpen, setIsOpen] = useState(false);
@@ -36,45 +34,55 @@ export function SiteNav() {
 
   const navLinks = [
     { href: '/scholarships', label: 'Scholarships' },
-    { href: '/scholarships/compare', label: 'Compare' },
-    { href: '/about', label: 'How It Works' },
-    { href: '/student/resume', label: 'Resume AI' },
-    { href: '/student/applications', label: 'Tracker' },
+    { href: '/scholarships', label: 'Eligibility Engine' },
+    { href: '/student/applications', label: 'Tracker & Tools' },
+    { href: '/#architecture', label: 'How It Works' },
+    { href: '/about', label: 'About' },
   ];
-
-  const triggerCmdK = () => {
-    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }));
-  };
 
   return (
     <header
-      className={`px-4 sm:px-8 py-3.5 flex items-center justify-between sticky top-0 z-40 transition-all duration-200 ${
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-200 ${
         scrolled
-          ? 'bg-[#FAFAF9]/95 backdrop-blur-md border-b border-slate-200/80 shadow-xs'
-          : 'bg-[#FAFAF9] border-b border-slate-200'
+          ? 'bg-white/95 backdrop-blur-md border-b border-slate-200/90 shadow-[0_1px_6px_rgba(15,23,42,0.04)]'
+          : 'bg-white/90 backdrop-blur-md border-b border-slate-200/80 shadow-[0_1px_6px_rgba(15,23,42,0.02)]'
       }`}
     >
-      <div className="flex items-center gap-8">
+      <div className="h-20 max-w-[1280px] mx-auto px-4 md:px-8 flex items-center justify-between gap-4">
+        {/* Brand Logo & Authority Label */}
         <Link
           href="/"
           onClick={closeMenu}
-          className="group flex items-center gap-2 focus-visible:outline-2 focus-visible:outline-amber-600 rounded-md"
+          className="flex items-center gap-3.5 focus-visible:outline-2 focus-visible:outline-blue-600 rounded-lg group shrink-0"
         >
-          <span className="font-serif text-2xl md:text-3xl font-bold tracking-tight text-[#0B1B3D]">
-            Dream<span className="text-amber-700 italic">Path</span>
-          </span>
+          <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-[#0F172A] to-[#1E293B] border border-slate-700/60 flex items-center justify-center text-white shadow-sm shrink-0 group-hover:scale-105 transition-transform">
+            <GraduationCap className="w-6 h-6 text-white" />
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[21px] font-bold text-[#0F172A] tracking-tight leading-none mb-1 font-sans whitespace-nowrap">
+              DreamPath
+            </span>
+            <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-none whitespace-nowrap">
+              National Scholarship Intelligence
+            </span>
+          </div>
         </Link>
 
-        {/* Desktop Nav Links (Zero-pill text links with subtle hover) */}
-        <nav className="hidden lg:flex items-center gap-6" aria-label="Main Navigation">
-          {navLinks.map((link) => {
-            const isActive = pathname === link.href;
+        {/* Center Desktop Navigation - Strictly One Single Horizontal Line */}
+        <nav
+          className="hidden lg:flex items-center gap-4 xl:gap-7 flex-nowrap shrink-0"
+          aria-label="Main Navigation"
+        >
+          {navLinks.map((link, idx) => {
+            const isActive = pathname === link.href && !link.href.includes('#');
             return (
               <Link
-                key={link.href}
+                key={`${link.href}-${idx}`}
                 href={link.href}
-                className={`font-sans text-sm font-medium transition-colors hover:text-[#0B1B3D] focus-visible:outline-2 focus-visible:outline-amber-600 rounded ${
-                  isActive ? 'text-[#0B1B3D] font-semibold' : 'text-slate-600'
+                className={`text-[14px] font-semibold transition-colors rounded py-1 px-1.5 focus-visible:outline-2 focus-visible:outline-blue-600 whitespace-nowrap shrink-0 ${
+                  isActive
+                    ? 'text-blue-700 font-bold'
+                    : 'text-slate-600 hover:text-[#0F172A]'
                 }`}
               >
                 {link.label}
@@ -82,118 +90,67 @@ export function SiteNav() {
             );
           })}
         </nav>
-      </div>
 
-      {/* Right Actions */}
-      <div className="flex items-center gap-3">
-        {/* Quick Cmd+K Search Button */}
-        <button
-          onClick={triggerCmdK}
-          aria-label="Open command search (Cmd+K)"
-          className="hidden sm:flex items-center gap-2 px-3 py-1.5 text-xs text-slate-500 bg-white border border-slate-200 rounded-lg hover:border-slate-300 hover:text-slate-800 transition-colors shadow-2xs"
-        >
-          <Search className="w-3.5 h-3.5 text-slate-400" />
-          <span>Search</span>
-          <kbd className="font-mono text-[10px] text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200">
-            ⌘K
-          </kbd>
-        </button>
-
-        {/* In-App Notifications */}
-        <NotificationCenter />
-
-        {/* User Auth Buttons */}
-        <div className="hidden sm:flex items-center gap-2">
+        {/* Right Actions: Login & Sign Up ONLY (No notification icon, no search bar, no Student Portal) */}
+        <div className="flex items-center gap-2.5 sm:gap-3 shrink-0">
           <Link
             href="/login"
-            className="font-sans text-sm font-medium text-slate-700 hover:text-[#0B1B3D] px-3 py-2 rounded-md transition-colors"
+            className="hidden sm:inline-flex items-center justify-center font-sans text-[13px] font-semibold text-slate-700 hover:text-[#0F172A] px-3.5 py-2 rounded-xl transition-colors whitespace-nowrap min-h-[40px]"
           >
             Log in
           </Link>
           <Link
             href="/register"
-            className={buttonVariants({
-              variant: 'default',
-              size: 'sm',
-              className: 'bg-[#0B1B3D] hover:bg-[#132A5C] text-white shadow-xs',
-            })}
+            className="hidden sm:inline-flex items-center justify-center bg-[#0F172A] hover:bg-slate-800 text-white font-semibold text-[13px] px-5 py-2.5 rounded-full transition-all shadow-sm hover:shadow whitespace-nowrap min-h-[40px]"
           >
-            Get Started
+            Sign Up
           </Link>
-        </div>
 
-        {/* Mobile menu button */}
-        <button
-          ref={buttonRef}
-          className="lg:hidden p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-[#0B1B3D] rounded-lg hover:bg-slate-100"
-          aria-expanded={isOpen}
-          aria-controls="mobile-menu"
-          aria-label="Toggle navigation menu"
-          onClick={() => setIsOpen(!isOpen)}
-        >
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
+          {/* Mobile Menu Button */}
+          <button
+            ref={buttonRef}
+            className="lg:hidden p-2 min-w-[44px] min-h-[44px] flex items-center justify-center text-[#0F172A] rounded-lg hover:bg-slate-100 transition-colors"
+            aria-expanded={isOpen}
+            aria-controls="mobile-menu"
+            aria-label="Toggle navigation menu"
+            onClick={() => setIsOpen(!isOpen)}
           >
-            {isOpen ? <path d="M18 6L6 18M6 6l12 12" /> : <path d="M4 6h16M4 12h16M4 18h16" />}
-          </svg>
-        </button>
+            {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile Drawer Menu */}
       {isOpen && (
         <div
           id="mobile-menu"
-          className="absolute top-full left-0 right-0 bg-[#FAFAF9] border-b border-slate-200 p-5 flex flex-col gap-3 lg:hidden shadow-lg animate-in slide-in-from-top-2 duration-150"
+          className="absolute top-full left-0 right-0 bg-white border-b border-slate-200 p-5 flex flex-col gap-2.5 lg:hidden shadow-lg animate-in slide-in-from-top-2 duration-150"
         >
-          <button
-            onClick={() => {
-              closeMenu();
-              triggerCmdK();
-            }}
-            className="w-full flex items-center justify-between p-3 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-lg min-h-[44px]"
-          >
-            <span className="flex items-center gap-2">
-              <Search className="w-4 h-4 text-slate-400" />
-              Quick Command Palette
-            </span>
-            <kbd className="font-mono text-xs text-slate-400">⌘K</kbd>
-          </button>
-
-          {navLinks.map((link) => (
+          {navLinks.map((link, idx) => (
             <Link
-              key={link.href}
+              key={`m-${link.href}-${idx}`}
               href={link.href}
               onClick={closeMenu}
-              className="p-3 min-h-[44px] flex items-center font-sans text-base font-medium text-slate-700 hover:text-[#0B1B3D] hover:bg-slate-100 rounded-lg"
+              className="p-3 min-h-[44px] flex items-center text-[15px] font-semibold text-slate-700 hover:text-[#0F172A] hover:bg-slate-50 rounded-xl"
             >
               {link.label}
             </Link>
           ))}
 
-          <div className="pt-2 border-t border-slate-200 flex flex-col gap-2">
+          <div className="pt-3 border-t border-slate-200 flex flex-col gap-2">
             <Link
               href="/login"
               onClick={closeMenu}
-              className="p-3 min-h-[44px] flex items-center justify-center font-sans text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg"
+              className="p-3 min-h-[44px] flex items-center justify-center text-sm font-semibold text-slate-700 hover:bg-slate-100 rounded-xl"
             >
               Log in
             </Link>
             <Link
               href="/register"
               onClick={closeMenu}
-              className={buttonVariants({
-                variant: 'default',
-                className: 'w-full min-h-[44px] bg-[#0B1B3D] hover:bg-[#132A5C] text-white',
-              })}
+              className="p-3 min-h-[44px] flex items-center justify-center text-sm font-bold bg-[#0F172A] hover:bg-slate-800 text-white rounded-xl shadow-sm"
             >
-              Get Started
+              Sign Up
             </Link>
           </div>
         </div>

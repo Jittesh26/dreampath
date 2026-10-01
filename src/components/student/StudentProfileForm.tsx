@@ -65,9 +65,9 @@ export function StudentProfileForm({
   return (
     <div className="space-y-6">
       {/* Magic Autofill Trigger Card */}
-      <div className="bg-gradient-to-r from-amber-500/10 via-amber-600/5 to-transparent border border-amber-200/80 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-2xs">
+      <div className="bg-amber-50/70 border border-amber-200/90 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-2xs">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-amber-600 text-white rounded-xl shadow-xs shrink-0">
+          <div className="p-2.5 bg-amber-600 text-white rounded-lg shadow-xs shrink-0">
             <Sparkles className="w-5 h-5" />
           </div>
           <div>
@@ -75,7 +75,7 @@ export function StudentProfileForm({
               Magic Autofill from Transcript
             </h3>
             <p className="text-xs text-slate-600">
-              Paste or upload your SPM result slip / university transcript to extract your CGPA and grades automatically.
+              Paste or upload your SPM result slip or transcript to extract your CGPA and grades automatically.
             </p>
           </div>
         </div>
@@ -83,7 +83,7 @@ export function StudentProfileForm({
         <button
           type="button"
           onClick={() => setIsAutofillOpen(true)}
-          className="px-4 py-2 bg-[#0B1B3D] hover:bg-[#132A5C] text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors shrink-0 shadow-xs"
+          className="px-3.5 py-2 bg-[#0B1B3D] hover:bg-[#0B1B3D]/90 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shrink-0 shadow-xs cursor-pointer"
         >
           <Upload className="w-3.5 h-3.5" />
           <span>Launch Autofill</span>
@@ -91,10 +91,15 @@ export function StudentProfileForm({
       </div>
 
       {/* Main Profile Form */}
-      <form action={updateStudentProfile} className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-xs space-y-6">
-        <h3 className="font-serif text-xl font-bold text-[#0B1B3D] border-b border-slate-100 pb-3">
-          Academic Credentials & Demographics
-        </h3>
+      <form action={updateStudentProfile} className="bg-white border border-slate-200/90 rounded-xl p-6 sm:p-8 shadow-xs space-y-6">
+        <div className="border-b border-slate-100 pb-3">
+          <h3 className="font-serif text-xl font-bold text-[#0B1B3D]">
+            Academic Credentials &amp; Demographics
+          </h3>
+          <p className="text-xs text-slate-500 mt-0.5">
+            Confirmed profile fields used by the deterministic eligibility evaluation engine.
+          </p>
+        </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-xs">
           <div className="space-y-1.5">
@@ -230,7 +235,7 @@ export function StudentProfileForm({
         <div className="pt-4 border-t border-slate-100 flex justify-end">
           <button
             type="submit"
-            className="px-6 py-2.5 bg-[#0B1B3D] hover:bg-[#132A5C] text-white text-xs font-bold rounded-xl transition-colors shadow-xs"
+            className="px-5 py-2.5 bg-[#0B1B3D] hover:bg-[#0B1B3D]/90 text-white text-xs font-semibold rounded-lg transition-colors shadow-xs cursor-pointer"
           >
             Save Authoritative Profile
           </button>
@@ -242,19 +247,20 @@ export function StudentProfileForm({
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs"
         >
-          <div className="w-full max-w-lg bg-white border border-slate-200 rounded-2xl shadow-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+          <div className="w-full max-w-lg bg-white border border-slate-200 rounded-xl shadow-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-amber-700" />
+                <Sparkles className="w-4 h-4 text-amber-600" />
                 <h3 className="font-serif text-lg font-bold text-[#0B1B3D]">
                   Document Magic Autofill
                 </h3>
               </div>
               <button
+                type="button"
                 onClick={() => setIsAutofillOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1"
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-md hover:bg-slate-100 transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -268,20 +274,15 @@ export function StudentProfileForm({
               rows={6}
               value={transcriptText}
               onChange={(e) => setTranscriptText(e.target.value)}
-              placeholder="e.g. KEPUTUSAN PEPERIKSAAN SPM
-BAHASA MELAYU: A+
-BAHASA INGGERIS: A
-MATEMATIK: A+
-MATEMATIK TAMBAHAN: A-
-PNGK / CGPA: 3.82"
-              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-700/20 font-mono"
+              placeholder="e.g. KEPUTUSAN PEPERIKSAAN SPM&#10;BAHASA MELAYU: A+&#10;BAHASA INGGERIS: A&#10;MATEMATIK: A+&#10;MATEMATIK TAMBAHAN: A-&#10;PNGK / CGPA: 3.82"
+              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 font-mono resize-y"
             />
 
             {/* Extracted Review State */}
             {extractedReview && (
-              <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-xl space-y-3 text-xs">
+              <div className="p-4 bg-amber-50/70 border border-amber-200/90 rounded-xl space-y-3 text-xs">
                 <div className="flex items-center justify-between">
-                  <span className="font-bold text-amber-950">Extracted Credentials Review</span>
+                  <span className="font-semibold text-amber-950">Extracted Credentials Review</span>
                   <span className="text-[11px] font-mono font-semibold text-amber-900 bg-white px-2 py-0.5 rounded border border-amber-200">
                     Confidence: {(extractedReview.confidence * 100).toFixed(0)}%
                   </span>
@@ -305,17 +306,17 @@ PNGK / CGPA: 3.82"
                   )}
                 </div>
 
-                <p className="text-[11px] text-amber-800 italic">
-                  Inspect these fields carefully. Clicking &ldquo;Confirm & Apply&rdquo; will populate the profile form above for final review.
+                <p className="text-[11px] text-amber-900 italic">
+                  Inspect these fields carefully. Clicking &ldquo;Confirm &amp; Apply&rdquo; will populate the profile form above for final review.
                 </p>
               </div>
             )}
 
-            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100">
+            <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-100">
               <button
                 type="button"
                 onClick={() => setIsAutofillOpen(false)}
-                className="px-4 py-2 text-xs text-slate-600 hover:text-slate-900 font-semibold"
+                className="px-3.5 py-2 text-xs text-slate-600 hover:text-slate-900 font-medium rounded-lg hover:bg-slate-50 transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -325,7 +326,7 @@ PNGK / CGPA: 3.82"
                   type="button"
                   onClick={handleExtract}
                   disabled={isExtracting || !transcriptText.trim()}
-                  className="px-5 py-2 bg-[#0B1B3D] text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors disabled:opacity-50"
+                  className="px-4 py-2 bg-[#0B1B3D] hover:bg-[#0B1B3D]/90 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-50 cursor-pointer shadow-2xs"
                 >
                   {isExtracting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-400" />}
                   <span>{isExtracting ? 'Extracting Credentials...' : 'Parse Document Text'}</span>
@@ -334,10 +335,10 @@ PNGK / CGPA: 3.82"
                 <button
                   type="button"
                   onClick={handleApplyExtracted}
-                  className="px-5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors shadow-xs"
+                  className="px-4 py-2 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shadow-2xs cursor-pointer"
                 >
                   <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Confirm & Apply to Form</span>
+                  <span>Confirm &amp; Apply to Form</span>
                 </button>
               )}
             </div>

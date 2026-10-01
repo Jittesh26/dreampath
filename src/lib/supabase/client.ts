@@ -4,24 +4,9 @@ export function createClient() {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  if (supabaseUrl && supabaseKey && !supabaseUrl.includes('mock') && !supabaseUrl.includes('your-project')) {
-    try {
-      return createBrowserClient(supabaseUrl, supabaseKey);
-    } catch {}
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error('Missing Supabase environment variables');
   }
 
-  // Safe browser mock client
-  return {
-    auth: {
-      async getUser() {
-        return { data: { user: null }, error: null };
-      },
-      async getSession() {
-        return { data: { session: null }, error: null };
-      },
-      onAuthStateChange() {
-        return { data: { subscription: { unsubscribe: () => {} } } };
-      },
-    },
-  } as any;
+  return createBrowserClient(supabaseUrl, supabaseKey);
 }

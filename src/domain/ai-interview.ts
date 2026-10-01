@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { 
+  personalSchema,
   educationSchema, 
   experienceSchema, 
   projectSchema, 
@@ -9,7 +10,8 @@ import {
   leadershipSchema, 
   volunteeringSchema,
   scholarshipSchema,
-  customSectionSchema
+  customSectionSchema,
+  ResumeContent
 } from './resume';
 
 export const chatMessageSchema = z.object({
@@ -21,13 +23,14 @@ export const chatMessageSchema = z.object({
 export type ChatMessage = z.infer<typeof chatMessageSchema>;
 
 export const factCategorySchema = z.enum([
-  'education', 'experience', 'project', 'skills', 
+  'personal', 'education', 'experience', 'project', 'skills', 
   'certifications', 'awards', 'leadership', 'volunteering', 'scholarships', 'general'
 ]);
 export type FactCategory = z.infer<typeof factCategorySchema>;
 
 // Strict structured data based on category (Partial because facts are often incomplete)
 export const factDataSchema = z.discriminatedUnion("category", [
+  z.object({ category: z.literal("personal"), data: personalSchema.partial() }),
   z.object({ category: z.literal("education"), data: educationSchema.partial().omit({ id: true }) }),
   z.object({ category: z.literal("experience"), data: experienceSchema.partial().omit({ id: true }) }),
   z.object({ category: z.literal("project"), data: projectSchema.partial().omit({ id: true }) }),
@@ -46,12 +49,13 @@ export const extractedFactSchema = z.object({
   category: factCategorySchema,
   originalAnswer: z.string(),
   structuredData: factDataSchema,
-  isConfirmed: z.boolean().default(false),
+  isConfirmed: z.boolean().default(true),
 });
 export type ExtractedFact = z.infer<typeof extractedFactSchema>;
 
 // Strongly typed wording generation result
 export const generatedWordingSchema = z.object({
+  personal: personalSchema.partial().optional(),
   education: z.array(educationSchema).optional(),
   experience: z.array(experienceSchema).optional(),
   projects: z.array(projectSchema).optional(),
@@ -65,10 +69,24 @@ export const generatedWordingSchema = z.object({
 }).strict();
 export type GeneratedWording = z.infer<typeof generatedWordingSchema>;
 
+// Unified Interview Turn Output Schema
+export const interviewTurnResultSchema = z.object({
+  nextQuestion: z.string(),
+  isComplete: z.boolean().default(false),
+  topic: z.string().optional(),
+  extractedFacts: z.array(extractedFactSchema).default([]),
+});
+export type InterviewTurnResult = z.infer<typeof interviewTurnResultSchema>;
+
 // The interface for any Resume AI Provider (Mock or Gemini)
 export interface ResumeAIProvider {
   generateNextQuestion(history: ChatMessage[]): Promise<string>;
   extractFacts(history: ChatMessage[], latestAnswer: string): Promise<ExtractedFact[]>;
+  processInterviewTurn(params: {
+    history: ChatMessage[];
+    latestAnswer: string;
+    currentResume?: Partial<ResumeContent>;
+  }): Promise<InterviewTurnResult>;
   generateProfessionalWording(confirmedFacts: ExtractedFact[]): Promise<GeneratedWording>;
 }
 

@@ -1,17 +1,16 @@
 'use client';
 
 import React, { useState } from 'react';
-import Link from 'next/link';
 import {
-  Compass,
   Mic,
   MicOff,
   Send,
   Loader2,
   CheckCircle2,
   RotateCcw,
-  ArrowLeft
 } from 'lucide-react';
+
+import { PageHeader } from '@/components/design-system';
 
 interface Message {
   role: 'interviewer' | 'student';
@@ -142,31 +141,32 @@ export default function InterviewPracticePage() {
   };
 
   return (
-    <div className="space-y-8 max-w-4xl">
+    <div className="space-y-6 max-w-4xl">
       {/* Top Header */}
-      <div>
-        <Link
-          href="/student"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 mb-2"
-        >
-          <ArrowLeft className="w-3.5 h-3.5" /> Back to Dashboard
-        </Link>
-        <div className="flex items-center gap-2 text-xs font-semibold text-amber-800 uppercase tracking-wider">
-          <Compass className="w-4 h-4" />
-          <span>Scholarship Preparation Simulator</span>
-        </div>
-        <h1 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight text-[#0B1B3D]">
-          Scholarship Mock Interview Practice
-        </h1>
-        <p className="text-slate-500 text-sm mt-1">
-          Roleplay with an official interview panel simulator. Receive structured feedback on clarity, STAR method alignment, and communication.
-        </p>
-      </div>
+      <PageHeader
+        breadcrumbs={[
+          { label: 'Student Workspace', href: '/student' },
+          { label: 'Interview Simulator' },
+        ]}
+        eyebrow="Scholarship Preparation Simulator"
+        title="Mock Interview Practice"
+        subtitle="Roleplay with an AI scholarship interview panel. Get real-time feedback on clarity, STAR framework structure, and answer impact."
+        actions={
+          <button
+            type="button"
+            onClick={() => resetInterview()}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-2xs"
+          >
+            <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+            <span>Reset Session</span>
+          </button>
+        }
+      />
 
       {/* Target Scholarship Selection */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="bg-white border border-slate-200/90 rounded-xl p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <label className="text-xs font-bold text-slate-700 uppercase block mb-1">
+          <label className="text-xs font-semibold text-slate-700 block mb-1">
             Target Interview Panel:
           </label>
           <select
@@ -175,7 +175,7 @@ export default function InterviewPracticePage() {
               const matched = SCHOLARSHIPS.find((s) => s.name === e.target.value);
               if (matched) resetInterview(matched);
             }}
-            className="p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none"
+            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/20"
           >
             {SCHOLARSHIPS.map((s) => (
               <option key={s.name} value={s.name}>
@@ -185,22 +185,20 @@ export default function InterviewPracticePage() {
           </select>
         </div>
 
-        <button
-          onClick={() => resetInterview()}
-          className="text-xs font-semibold text-slate-500 hover:text-slate-900 flex items-center gap-1.5 border border-slate-200 px-3 py-1.5 rounded-lg"
-        >
-          <RotateCcw className="w-3.5 h-3.5" /> Reset Session
-        </button>
+        <div className="text-xs text-slate-500 flex items-center gap-2">
+          <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
+          <span>Panel active: {selectedScholarship.provider}</span>
+        </div>
       </div>
 
       {/* Interview Dialogue Box */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
+      <div className="bg-white border border-slate-200/90 rounded-xl p-6 shadow-xs space-y-4">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100 text-xs">
-          <span className="font-bold text-slate-800">
-            Panel: {selectedScholarship.provider}
+          <span className="font-semibold text-slate-800">
+            Interview Stream — {selectedScholarship.name}
           </span>
-          <span className="text-slate-400 font-mono">
-            Turns: {messages.filter((m) => m.role === 'student').length} answers given
+          <span className="text-slate-400 font-mono text-[11px]">
+            {messages.filter((m) => m.role === 'student').length} answers submitted
           </span>
         </div>
 
@@ -209,48 +207,48 @@ export default function InterviewPracticePage() {
           {messages.map((m, idx) => (
             <div
               key={idx}
-              className={`p-4 rounded-xl text-xs leading-relaxed ${
+              className={`p-4 rounded-xl text-xs leading-relaxed transition-all ${
                 m.role === 'interviewer'
-                  ? 'bg-slate-50 border border-slate-200/80 text-slate-900 font-medium'
-                  : 'bg-amber-50/70 border border-amber-200 text-slate-900 font-medium ml-6'
+                  ? 'bg-slate-50 border border-slate-200/90 text-slate-800'
+                  : 'bg-amber-50/60 border border-amber-200/90 text-slate-900 ml-4 sm:ml-8'
               }`}
             >
-              <div className="flex items-center justify-between font-bold mb-1 text-[11px] uppercase tracking-wider">
+              <div className="flex items-center justify-between mb-1.5 text-[11px] font-semibold tracking-wide">
                 <span className={m.role === 'interviewer' ? 'text-[#0B1B3D]' : 'text-amber-900'}>
-                  {m.role === 'interviewer' ? 'Official Panelist' : 'Your Answer'}
+                  {m.role === 'interviewer' ? 'Panel Question' : 'Your Response'}
                 </span>
               </div>
-              <p>{m.content}</p>
+              <p className="whitespace-pre-wrap">{m.content}</p>
             </div>
           ))}
 
           {isSubmitting && (
-            <div className="p-4 bg-slate-50 rounded-xl text-xs text-slate-500 flex items-center gap-2">
-              <Loader2 className="w-4 h-4 animate-spin text-amber-700" />
-              <span>Panel is evaluating your response and formulating the next question...</span>
+            <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-500 flex items-center gap-2">
+              <Loader2 className="w-4 h-4 animate-spin text-amber-600" />
+              <span>Evaluating your response against panel rubrics...</span>
             </div>
           )}
         </div>
 
         {/* Live Answer Feedback Card if present */}
         {feedback && (
-          <div className="p-4 bg-emerald-50/80 border border-emerald-200 rounded-xl space-y-2 text-xs animate-in fade-in duration-150">
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-emerald-950 flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+          <div className="p-4.5 bg-emerald-50/70 border border-emerald-200/90 rounded-xl space-y-2.5 text-xs animate-in fade-in duration-150">
+            <div className="flex items-center justify-between border-b border-emerald-200/60 pb-2">
+              <span className="font-semibold text-emerald-950 flex items-center gap-1.5">
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                 Panel Evaluation Feedback
               </span>
-              <div className="flex items-center gap-2 font-mono text-[11px] font-bold text-emerald-900">
+              <div className="flex items-center gap-3 font-mono text-[11px] font-semibold text-emerald-900">
                 <span>Clarity: {feedback.clarityScore}/10</span>
-                <span>·</span>
+                <span>•</span>
                 <span>Structure: {feedback.structureScore}/10</span>
               </div>
             </div>
 
             {feedback.strengths && feedback.strengths.length > 0 && (
               <div>
-                <strong className="text-emerald-900 block text-[11px] uppercase">Key Strengths:</strong>
-                <ul className="list-disc list-inside text-emerald-800 space-y-0.5">
+                <strong className="text-emerald-900 block text-[11px] uppercase tracking-wider mb-1">Key Strengths:</strong>
+                <ul className="list-disc list-inside text-emerald-900 space-y-0.5">
                   {feedback.strengths.map((s: string, i: number) => (
                     <li key={i}>{s}</li>
                   ))}
@@ -260,8 +258,8 @@ export default function InterviewPracticePage() {
 
             {feedback.improvements && feedback.improvements.length > 0 && (
               <div>
-                <strong className="text-amber-900 block text-[11px] uppercase">Areas to Refine:</strong>
-                <ul className="list-disc list-inside text-amber-800 space-y-0.5">
+                <strong className="text-amber-950 block text-[11px] uppercase tracking-wider mb-1">Refinement Opportunities:</strong>
+                <ul className="list-disc list-inside text-amber-900 space-y-0.5">
                   {feedback.improvements.map((imp: string, i: number) => (
                     <li key={i}>{imp}</li>
                   ))}
@@ -270,23 +268,23 @@ export default function InterviewPracticePage() {
             )}
 
             {feedback.sampleBetterAnswer && (
-              <div className="p-2.5 bg-white border border-emerald-200 rounded-lg text-slate-700">
-                <strong className="text-slate-900 block text-[11px] mb-0.5">Suggested Structure:</strong>
-                <p className="italic text-slate-600">{feedback.sampleBetterAnswer}</p>
+              <div className="p-3 bg-white border border-emerald-200/90 rounded-lg text-slate-700 mt-2">
+                <strong className="text-slate-900 block text-[11px] mb-1">Suggested Model Phrasing:</strong>
+                <p className="italic text-slate-600 text-xs leading-relaxed">{feedback.sampleBetterAnswer}</p>
               </div>
             )}
           </div>
         )}
 
         {/* Answer Input Bar */}
-        <form onSubmit={handleSendAnswer} className="space-y-2 pt-2 border-t border-slate-100">
-          <div className="relative">
+        <form onSubmit={handleSendAnswer} className="space-y-3 pt-3 border-t border-slate-100">
+          <div>
             <textarea
               rows={3}
               value={inputAnswer}
               onChange={(e) => setInputAnswer(e.target.value)}
-              placeholder="Type your answer here or click the microphone to speak..."
-              className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-700/20"
+              placeholder="Type your response using the STAR method (Situation, Task, Action, Result)..."
+              className="w-full p-3.5 bg-slate-50/80 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-slate-400 leading-relaxed resize-y"
             />
           </div>
 
@@ -294,10 +292,10 @@ export default function InterviewPracticePage() {
             <button
               type="button"
               onClick={toggleVoiceRecording}
-              className={`p-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors ${
+              className={`px-3 py-2 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
                 isRecording
                   ? 'bg-rose-50 border-rose-300 text-rose-700 animate-pulse'
-                  : 'bg-slate-50 border-slate-200 text-slate-600 hover:text-slate-900'
+                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-2xs'
               }`}
             >
               {isRecording ? <MicOff className="w-4 h-4 text-rose-600" /> : <Mic className="w-4 h-4 text-slate-500" />}
@@ -307,7 +305,7 @@ export default function InterviewPracticePage() {
             <button
               type="submit"
               disabled={isSubmitting || !inputAnswer.trim()}
-              className="px-6 py-2.5 bg-[#0B1B3D] hover:bg-[#132A5C] text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors disabled:opacity-50 shadow-xs"
+              className="px-5 py-2.5 bg-[#0B1B3D] hover:bg-[#0B1B3D]/90 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-50 shadow-xs cursor-pointer"
             >
               <Send className="w-3.5 h-3.5" />
               <span>Submit Answer</span>

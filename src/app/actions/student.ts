@@ -78,7 +78,7 @@ export async function saveScholarshipApplication(intakeId: string, status: strin
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) throw new Error('Unauthorized');
+  if (!user) return { success: false, reason: 'unauthorized' };
 
   // Check if already saved
   const [existing] = await db

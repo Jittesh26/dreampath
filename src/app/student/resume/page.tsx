@@ -1,7 +1,9 @@
 import { getResumes, createResume, deleteResume } from '@/app/actions/resume';
 import Link from 'next/link';
 import { redirect } from 'next/navigation';
-import { FileText, Plus, Trash2, ArrowRight, Sparkles, CheckCircle2 } from 'lucide-react';
+import { FileText, Plus, Trash2, ArrowRight, CheckCircle2 } from 'lucide-react';
+
+import { PageHeader } from '@/components/design-system';
 
 export const metadata = {
   title: 'Resume Builder | DreamPath',
@@ -25,30 +27,22 @@ export default async function ResumeDashboard() {
 
   return (
     <div className="space-y-8 max-w-5xl">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="space-y-1">
-          <div className="flex items-center gap-2 text-xs font-semibold text-amber-800 uppercase tracking-wider">
-            <Sparkles className="w-3.5 h-3.5 text-amber-700" />
-            <span>Fact-Grounded Resume Engine</span>
-          </div>
-          <h1 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight text-[#0B1B3D]">
-            Resume Workspace
-          </h1>
-          <p className="font-sans text-slate-500 text-sm max-w-xl">
-            Create tailored, ATS-verified resumes for scholarship committees. Every achievement is rooted in confirmed student facts with strict provenance.
-          </p>
-        </div>
-
-        <form action={handleCreate}>
-          <button 
-            type="submit" 
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#0B1B3D] text-white rounded-xl hover:bg-[#132A5C] text-xs font-bold transition-colors shadow-xs"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Create New Resume</span>
-          </button>
-        </form>
-      </div>
+      <PageHeader
+        eyebrow="Student Workspace · Document Creation"
+        title="Resume Workspace"
+        subtitle="Create tailored, ATS-verified resumes for scholarship committees. Every achievement is rooted in confirmed student facts with strict provenance."
+        actions={
+          <form action={handleCreate}>
+            <button
+              type="submit"
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#0B1B3D] text-white rounded-xl hover:bg-[#132A5C] text-xs font-bold transition-colors shadow-xs"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Create New Resume</span>
+            </button>
+          </form>
+        }
+      />
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden">
         <div className="p-6 border-b border-slate-100 flex items-center justify-between">

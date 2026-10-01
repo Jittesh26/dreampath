@@ -4,12 +4,16 @@ import React, { useState, useTransition } from 'react';
 import Link from 'next/link';
 import { updateApplicationStatus, deleteApplication } from '@/app/actions/student';
 import {
-  Kanban,
-  Table as TableIcon,
+  Compass,
   Calendar,
   Trash2,
-  Clock
+  ArrowRight,
+  CheckCircle2,
+  FileText,
+  Kanban,
+  Milestone,
 } from 'lucide-react';
+import { StatusBadge, EmptyState } from '@/components/design-system';
 
 export interface ApplicationItem {
   id: string;
@@ -22,14 +26,13 @@ export interface ApplicationItem {
   sourceUrl?: string;
 }
 
-const STAGES = [
-  { key: 'saved', label: 'Saved', color: 'bg-slate-100 text-slate-700' },
-  { key: 'planning', label: 'Planning', color: 'bg-blue-50 text-blue-700' },
-  { key: 'applying', label: 'In Progress', color: 'bg-amber-50 text-amber-800' },
-  { key: 'submitted', label: 'Submitted', color: 'bg-purple-50 text-purple-700' },
-  { key: 'interview', label: 'Interview', color: 'bg-indigo-50 text-indigo-700' },
-  { key: 'awarded', label: 'Awarded / Offer', color: 'bg-emerald-50 text-emerald-800' },
-  { key: 'rejected', label: 'Unsuccessful', color: 'bg-rose-50 text-rose-700' },
+// 5 Visual Journey Stages
+const JOURNEY_STAGES = [
+  { key: 'saved', label: '1. Saved', stageNum: 1, actionHint: 'Review eligibility & criteria' },
+  { key: 'planning', label: '2. Preparing', stageNum: 2, actionHint: 'Gather transcripts & draft statement' },
+  { key: 'applying', label: '3. Applying', stageNum: 3, actionHint: 'Complete provider portal application' },
+  { key: 'submitted', label: '4. Submitted', stageNum: 4, actionHint: 'Track interview calls & assessments' },
+  { key: 'awarded', label: '5. Completed', stageNum: 5, actionHint: 'Offer received & acceptance' },
 ];
 
 export function ApplicationTrackerClient({
@@ -38,7 +41,7 @@ export function ApplicationTrackerClient({
   initialApplications: ApplicationItem[];
 }) {
   const [apps, setApps] = useState<ApplicationItem[]>(initialApplications);
-  const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
+  const [viewMode, setViewMode] = useState<'journey' | 'kanban'>('journey');
   const [, startTransition] = useTransition();
 
   const handleStatusChange = (appId: string, newStatus: string) => {
@@ -52,6 +55,14 @@ export function ApplicationTrackerClient({
     });
   };
 
+  const advanceNextStage = (app: ApplicationItem) => {
+    const currentIndex = JOURNEY_STAGES.findIndex((s) => s.key === app.status);
+    if (currentIndex < JOURNEY_STAGES.length - 1) {
+      const nextKey = JOURNEY_STAGES[currentIndex + 1].key;
+      handleStatusChange(app.id, nextKey);
+    }
+  };
+
   const handleDelete = (appId: string) => {
     if (!confirm('Remove this scholarship from your application tracker?')) return;
     setApps((prev) => prev.filter((a) => a.id !== appId));
@@ -60,39 +71,56 @@ export function ApplicationTrackerClient({
     });
   };
 
+  const getStageIndex = (status: string) => {
+    if (status === 'interview') return 3; // group with submitted/interview
+    if (status === 'rejected') return 4;
+    const idx = JOURNEY_STAGES.findIndex((s) => s.key === status);
+    return idx >= 0 ? idx : 0;
+  };
+
   return (
     <div className="space-y-6">
-      {/* Control bar: Switch between Kanban and List view */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
-        <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">View:</span>
+      {/* Control bar: Switch between Journey View and Kanban Board */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-xs">
+        <div className="flex items-center gap-3">
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">
+            Layout:
+          </span>
           <div className="flex items-center bg-slate-100 p-1 rounded-xl">
             <button
+              type="button"
+              onClick={() => setViewMode('journey')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                viewMode === 'journey'
+                  ? 'bg-white text-slate-900 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Milestone className="w-3.5 h-3.5" />
+              <span>Application Journey</span>
+            </button>
+            <button
+              type="button"
               onClick={() => setViewMode('kanban')}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-                viewMode === 'kanban' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
+                viewMode === 'kanban'
+                  ? 'bg-white text-slate-900 shadow-2xs'
+                  : 'text-slate-600 hover:text-slate-900'
               }`}
             >
               <Kanban className="w-3.5 h-3.5" />
               <span>Kanban Board</span>
             </button>
-            <button
-              onClick={() => setViewMode('table')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
-                viewMode === 'table' ? 'bg-white text-slate-900 shadow-2xs' : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              <TableIcon className="w-3.5 h-3.5" />
-              <span>Table List</span>
-            </button>
           </div>
         </div>
 
         <div className="flex items-center gap-3 text-xs text-slate-500 font-medium">
-          <span>Tracking <strong className="text-slate-900">{apps.length}</strong> active scholarship pipelines</span>
+          <span>
+            Tracking <strong className="text-slate-900 font-bold">{apps.length}</strong> active pipelines
+          </span>
           <Link
             href="/scholarships"
-            className="px-3 py-1.5 bg-[#0B1B3D] hover:bg-[#132A5C] text-white rounded-lg font-bold transition-colors"
+            className="px-4 py-2 bg-[#0B1B3D] hover:bg-[#132A5C] text-white rounded-xl font-bold transition-colors shadow-xs"
           >
             + Add Scholarship
           </Link>
@@ -101,38 +129,206 @@ export function ApplicationTrackerClient({
 
       {/* Empty State */}
       {apps.length === 0 ? (
-        <div className="bg-white border border-slate-200 rounded-2xl p-12 text-center space-y-4 shadow-xs">
-          <Clock className="w-12 h-12 text-amber-700/60 mx-auto" />
-          <h3 className="font-serif text-2xl font-bold text-[#0B1B3D]">Your Application Pipeline is Empty</h3>
-          <p className="text-sm text-slate-500 max-w-md mx-auto">
-            Save scholarships from the catalogue or run an eligibility check to start tracking your deadlines and interview dates.
-          </p>
-          <Link
-            href="/scholarships"
-            className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#0B1B3D] text-white text-xs font-bold rounded-xl hover:bg-[#132A5C] transition-colors"
-          >
-            Browse Verified Opportunities &rarr;
-          </Link>
+        <EmptyState
+          icon={<Compass className="w-6 h-6 text-amber-800" />}
+          title="Your Application Pipeline is Empty"
+          description="Save opportunities directly from the scholarship catalogue or run a deterministic eligibility check to track deadlines, interview dates, and documents."
+          action={
+            <Link
+              href="/scholarships"
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#0B1B3D] text-white text-xs font-bold rounded-xl hover:bg-[#132A5C] transition-colors shadow-xs"
+            >
+              <span>Explore Verified Opportunities</span>
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          }
+        />
+      ) : viewMode === 'journey' ? (
+        /* Visual Journey Feed */
+        <div className="space-y-5">
+          {apps.map((app) => {
+            const currentStageIdx = getStageIndex(app.status);
+            const close = app.closeDate ? new Date(app.closeDate) : null;
+            const now = new Date();
+            const daysLeft = close ? Math.ceil((close.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)) : null;
+
+            return (
+              <div
+                key={app.id}
+                className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-7 shadow-xs space-y-6 hover:border-slate-300 transition-colors"
+              >
+                {/* Header Row: Title, Provider, Deadline, Actions */}
+                <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+                  <div className="space-y-1 max-w-2xl">
+                    <div className="flex items-center gap-2 text-xs">
+                      <span className="font-bold text-slate-500 uppercase tracking-wider text-[11px]">
+                        {app.providerName}
+                      </span>
+                      <span className="text-slate-300" aria-hidden="true">·</span>
+                      <StatusBadge status={app.status} size="sm" />
+                    </div>
+
+                    <Link
+                      href={`/scholarships/${app.scholarshipId}`}
+                      className="font-serif text-xl sm:text-2xl font-bold text-[#0B1B3D] hover:text-amber-800 transition-colors block leading-tight"
+                    >
+                      {app.scholarshipName}
+                    </Link>
+
+                    {close && (
+                      <div className="flex items-center gap-2 text-xs text-slate-500 pt-0.5">
+                        <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                        <span>Official Deadline: <strong className="text-slate-800">{close.toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}</strong></span>
+                        {daysLeft !== null && daysLeft > 0 && daysLeft <= 14 && (
+                          <span className="bg-amber-100 text-amber-900 font-bold px-2 py-0.5 rounded text-[11px]">
+                            {daysLeft} days left
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Top Right Quick Controls */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    <select
+                      value={app.status}
+                      onChange={(e) => handleStatusChange(app.id, e.target.value)}
+                      className="text-xs py-1.5 px-3 bg-slate-50 border border-slate-200 rounded-xl text-slate-800 font-bold focus:outline-none"
+                    >
+                      {JOURNEY_STAGES.map((s) => (
+                        <option key={s.key} value={s.key}>
+                          Stage: {s.label}
+                        </option>
+                      ))}
+                      <option value="interview">Stage: Interview</option>
+                      <option value="rejected">Stage: Unsuccessful</option>
+                    </select>
+
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(app.id)}
+                      aria-label="Remove from tracker"
+                      className="p-2 text-slate-400 hover:text-rose-600 rounded-xl hover:bg-slate-50 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Visual Journey Progression Track */}
+                <div className="pt-2">
+                  <div className="relative">
+                    {/* Connecting progress bar */}
+                    <div className="hidden sm:block absolute top-1/2 left-0 right-0 -translate-y-1/2 h-1 bg-slate-100 rounded-full z-0">
+                      <div
+                        className="h-full bg-amber-600 rounded-full transition-all duration-300"
+                        style={{
+                          width: `${(currentStageIdx / (JOURNEY_STAGES.length - 1)) * 100}%`,
+                        }}
+                      />
+                    </div>
+
+                    {/* Step nodes */}
+                    <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 relative z-10">
+                      {JOURNEY_STAGES.map((stage, idx) => {
+                        const isPast = idx < currentStageIdx;
+                        const isCurrent = idx === currentStageIdx;
+
+                        return (
+                          <button
+                            key={stage.key}
+                            type="button"
+                            onClick={() => handleStatusChange(app.id, stage.key)}
+                            className={`p-3 rounded-xl border text-left transition-all ${
+                              isCurrent
+                                ? 'bg-white border-amber-600 shadow-sm ring-2 ring-amber-600/10'
+                                : isPast
+                                ? 'bg-amber-50/40 border-amber-200 text-slate-700'
+                                : 'bg-slate-50/70 border-slate-200 text-slate-400'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span
+                                className={`text-[10px] font-bold uppercase tracking-wider ${
+                                  isCurrent
+                                    ? 'text-amber-800'
+                                    : isPast
+                                    ? 'text-emerald-700'
+                                    : 'text-slate-400'
+                                }`}
+                              >
+                                Step {idx + 1}
+                              </span>
+                              {isPast && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />}
+                              {isCurrent && <span className="w-2 h-2 rounded-full bg-amber-600 animate-pulse" />}
+                            </div>
+                            <span className="font-bold text-xs text-slate-900 block truncate">
+                              {stage.label.replace(/^\d+\.\s*/, '')}
+                            </span>
+                            <span className="text-[10px] text-slate-500 block line-clamp-1 mt-0.5">
+                              {stage.actionHint}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Bottom Action Row: Direct Links & Stage Advancer */}
+                <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 text-xs">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <Link
+                      href={`/scholarships/${app.scholarshipId}/check`}
+                      className="text-slate-600 hover:text-slate-900 font-semibold inline-flex items-center gap-1.5"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Review Eligibility Rules</span>
+                    </Link>
+
+                    <Link
+                      href="/student/resume"
+                      className="text-slate-600 hover:text-slate-900 font-semibold inline-flex items-center gap-1.5"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-blue-600" />
+                      <span>Prepare Tailored Resume</span>
+                    </Link>
+                  </div>
+
+                  {currentStageIdx < JOURNEY_STAGES.length - 1 && (
+                    <button
+                      type="button"
+                      onClick={() => advanceNextStage(app)}
+                      className="px-4 py-2 bg-amber-800 hover:bg-amber-900 text-white font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors shadow-xs"
+                    >
+                      <span>Advance to {JOURNEY_STAGES[currentStageIdx + 1].label.replace(/^\d+\.\s*/, '')}</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
         </div>
-      ) : viewMode === 'kanban' ? (
+      ) : (
         /* Kanban Board View */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 overflow-x-auto pb-4">
-          {STAGES.map((col) => {
+          {JOURNEY_STAGES.map((col) => {
             const colApps = apps.filter((a) => a.status === col.key);
             return (
               <div
                 key={col.key}
                 className="bg-slate-50/70 border border-slate-200/80 rounded-2xl p-4 flex flex-col min-h-[480px] space-y-3"
               >
-                {/* Column Header */}
                 <div className="flex items-center justify-between pb-2 border-b border-slate-200">
-                  <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${col.color}`}>
+                  <span className="text-xs font-bold text-slate-800">
                     {col.label}
                   </span>
-                  <span className="text-xs font-bold text-slate-400">{colApps.length}</span>
+                  <span className="text-xs font-bold text-slate-400 bg-white px-2 py-0.5 rounded-full border border-slate-200">
+                    {colApps.length}
+                  </span>
                 </div>
 
-                {/* Cards Container */}
                 <div className="flex-1 space-y-3">
                   {colApps.map((app) => (
                     <div
@@ -154,18 +350,23 @@ export function ApplicationTrackerClient({
                       {app.closeDate && (
                         <div className="flex items-center gap-1.5 text-[11px] text-slate-500 font-medium">
                           <Calendar className="w-3 h-3 text-slate-400" />
-                          <span>Deadline: {new Date(app.closeDate).toLocaleDateString('en-MY', { day: 'numeric', month: 'short' })}</span>
+                          <span>
+                            Deadline:{' '}
+                            {new Date(app.closeDate).toLocaleDateString('en-MY', {
+                              day: 'numeric',
+                              month: 'short',
+                            })}
+                          </span>
                         </div>
                       )}
 
-                      {/* Stage Selector Dropdown */}
                       <div className="pt-2 border-t border-slate-100 flex items-center justify-between gap-2">
                         <select
                           value={app.status}
                           onChange={(e) => handleStatusChange(app.id, e.target.value)}
                           className="text-[11px] p-1 bg-slate-50 border border-slate-200 rounded text-slate-700 font-semibold focus:outline-none"
                         >
-                          {STAGES.map((s) => (
+                          {JOURNEY_STAGES.map((s) => (
                             <option key={s.key} value={s.key}>
                               Move: {s.label}
                             </option>
@@ -173,6 +374,7 @@ export function ApplicationTrackerClient({
                         </select>
 
                         <button
+                          type="button"
                           onClick={() => handleDelete(app.id)}
                           aria-label="Delete application"
                           className="text-slate-400 hover:text-rose-600 p-1"
@@ -186,69 +388,6 @@ export function ApplicationTrackerClient({
               </div>
             );
           })}
-        </div>
-      ) : (
-        /* Table View */
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-xs overflow-hidden">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead>
-              <tr className="bg-slate-50/70 border-b border-slate-200 text-slate-500 font-semibold uppercase text-[11px]">
-                <th className="p-4">Scholarship</th>
-                <th className="p-4">Provider</th>
-                <th className="p-4">Pipeline Stage</th>
-                <th className="p-4">Deadline (MYT)</th>
-                <th className="p-4 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-slate-800 font-medium">
-              {apps.map((app) => (
-                <tr key={app.id} className="hover:bg-slate-50/60 transition-colors">
-                  <td className="p-4 font-bold text-slate-900">
-                    <Link href={`/scholarships/${app.scholarshipId}`} className="hover:text-amber-800">
-                      {app.scholarshipName}
-                    </Link>
-                  </td>
-                  <td className="p-4 text-slate-600">{app.providerName}</td>
-                  <td className="p-4">
-                    <select
-                      value={app.status}
-                      onChange={(e) => handleStatusChange(app.id, e.target.value)}
-                      className="text-xs p-1.5 bg-slate-50 border border-slate-200 rounded-lg text-slate-900 font-semibold"
-                    >
-                      {STAGES.map((s) => (
-                        <option key={s.key} value={s.key}>{s.label}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td className="p-4">
-                    {app.closeDate
-                      ? new Date(app.closeDate).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })
-                      : 'TBA'}
-                  </td>
-                  <td className="p-4 text-right">
-                    <div className="inline-flex items-center gap-2">
-                      {app.closeDate && (
-                        <Link
-                          href={`/api/scholarships/export-ics?name=${encodeURIComponent(app.scholarshipName)}&provider=${encodeURIComponent(app.providerName)}&closeDate=${encodeURIComponent(app.closeDate)}`}
-                          title="Export deadline to calendar"
-                          className="p-1.5 text-slate-500 hover:text-slate-900 border border-slate-200 rounded-md"
-                        >
-                          <Calendar className="w-3.5 h-3.5" />
-                        </Link>
-                      )}
-                      <button
-                        onClick={() => handleDelete(app.id)}
-                        title="Remove"
-                        className="p-1.5 text-slate-400 hover:text-rose-600"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       )}
     </div>

@@ -81,7 +81,7 @@ describe('Gemini Intelligence Service', () => {
       ]);
 
       expect(res.summary).toBeDefined();
-      expect(res.tableHighlights.length).toBeGreaterThan(0);
+      expect(res.tableHighlights?.length ?? 0).toBeGreaterThan(0);
     });
   });
 

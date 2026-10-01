@@ -123,3 +123,13 @@ export const resumeContentSchema = z.object({
 });
 
 export type ResumeContent = z.infer<typeof resumeContentSchema>;
+export type Personal = z.infer<typeof personalSchema>;
+export type Education = z.infer<typeof educationSchema>;
+export type Experience = z.infer<typeof experienceSchema>;
+export type Project = z.infer<typeof projectSchema>;
+export type Skills = z.infer<typeof skillsSchema>;
+export type Certification = z.infer<typeof certificationSchema>;
+export type Award = z.infer<typeof awardSchema>;
+export type Leadership = z.infer<typeof leadershipSchema>;
+export type Volunteering = z.infer<typeof volunteeringSchema>;
+export type Scholarship = z.infer<typeof scholarshipSchema>;
