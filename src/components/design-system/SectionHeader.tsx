@@ -17,15 +17,15 @@ export function SectionHeader({
 }: SectionHeaderProps) {
   return (
     <div className={`flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${className}`}>
-      <div className="space-y-0.5">
+      <div className="space-y-1">
         <div className="flex items-center gap-2.5">
-          <h2 className="font-serif text-xl sm:text-2xl font-bold text-[#0B1B3D] tracking-tight">
+          <h2 className="text-xl sm:text-2xl font-bold text-[#0F172A] tracking-tight font-sans">
             {title}
           </h2>
           {badge}
         </div>
         {subtitle && (
-          <p className="font-sans text-xs sm:text-sm text-slate-500">
+          <p className="font-sans text-xs sm:text-sm text-slate-500 leading-relaxed">
             {subtitle}
           </p>
         )}
@@ -35,3 +35,4 @@ export function SectionHeader({
     </div>
   );
 }
+

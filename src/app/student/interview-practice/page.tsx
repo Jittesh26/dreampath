@@ -164,9 +164,9 @@ export default function InterviewPracticePage() {
       />
 
       {/* Target Scholarship Selection */}
-      <div className="bg-white border border-slate-200/90 rounded-xl p-5 shadow-xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+      <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <label className="text-xs font-semibold text-slate-700 block mb-1">
+          <label className="text-xs font-bold text-slate-700 block mb-1">
             Target Interview Panel:
           </label>
           <select
@@ -175,7 +175,7 @@ export default function InterviewPracticePage() {
               const matched = SCHOLARSHIPS.find((s) => s.name === e.target.value);
               if (matched) resetInterview(matched);
             }}
-            className="px-3 py-2 bg-slate-50 border border-slate-200 rounded-lg text-xs font-semibold text-slate-900 focus:outline-none focus:ring-2 focus:ring-primary/20"
+            className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600"
           >
             {SCHOLARSHIPS.map((s) => (
               <option key={s.name} value={s.name}>
@@ -185,19 +185,19 @@ export default function InterviewPracticePage() {
           </select>
         </div>
 
-        <div className="text-xs text-slate-500 flex items-center gap-2">
-          <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
-          <span>Panel active: {selectedScholarship.provider}</span>
+        <div className="text-xs text-slate-500 font-medium flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200/60">
+          <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          <span>Panel active: <strong className="text-slate-900">{selectedScholarship.provider}</strong></span>
         </div>
       </div>
 
       {/* Interview Dialogue Box */}
-      <div className="bg-white border border-slate-200/90 rounded-xl p-6 shadow-xs space-y-4">
+      <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100 text-xs">
-          <span className="font-semibold text-slate-800">
+          <span className="font-bold text-slate-900">
             Interview Stream — {selectedScholarship.name}
           </span>
-          <span className="text-slate-400 font-mono text-[11px]">
+          <span className="text-slate-400 font-mono text-[11px] font-semibold">
             {messages.filter((m) => m.role === 'student').length} answers submitted
           </span>
         </div>
@@ -210,12 +210,12 @@ export default function InterviewPracticePage() {
               className={`p-4 rounded-xl text-xs leading-relaxed transition-all ${
                 m.role === 'interviewer'
                   ? 'bg-slate-50 border border-slate-200/90 text-slate-800'
-                  : 'bg-amber-50/60 border border-amber-200/90 text-slate-900 ml-4 sm:ml-8'
+                  : 'bg-blue-50/60 border border-blue-200/90 text-slate-900 ml-4 sm:ml-8'
               }`}
             >
-              <div className="flex items-center justify-between mb-1.5 text-[11px] font-semibold tracking-wide">
-                <span className={m.role === 'interviewer' ? 'text-[#0B1B3D]' : 'text-amber-900'}>
-                  {m.role === 'interviewer' ? 'Panel Question' : 'Your Response'}
+              <div className="flex items-center justify-between mb-1.5 text-[11px] font-bold tracking-wide">
+                <span className={m.role === 'interviewer' ? 'text-slate-900 uppercase text-[10px] tracking-wider' : 'text-blue-700 uppercase text-[10px] tracking-wider'}>
+                  {m.role === 'interviewer' ? 'Official Panel Question' : 'Your Response'}
                 </span>
               </div>
               <p className="whitespace-pre-wrap">{m.content}</p>
@@ -224,7 +224,7 @@ export default function InterviewPracticePage() {
 
           {isSubmitting && (
             <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-500 flex items-center gap-2">
-              <Loader2 className="w-4 h-4 animate-spin text-amber-600" />
+              <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
               <span>Evaluating your response against panel rubrics...</span>
             </div>
           )}
@@ -234,11 +234,11 @@ export default function InterviewPracticePage() {
         {feedback && (
           <div className="p-4.5 bg-emerald-50/70 border border-emerald-200/90 rounded-xl space-y-2.5 text-xs animate-in fade-in duration-150">
             <div className="flex items-center justify-between border-b border-emerald-200/60 pb-2">
-              <span className="font-semibold text-emerald-950 flex items-center gap-1.5">
+              <span className="font-bold text-emerald-950 flex items-center gap-1.5">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                 Panel Evaluation Feedback
               </span>
-              <div className="flex items-center gap-3 font-mono text-[11px] font-semibold text-emerald-900">
+              <div className="flex items-center gap-3 font-mono text-[11px] font-bold text-emerald-900">
                 <span>Clarity: {feedback.clarityScore}/10</span>
                 <span>•</span>
                 <span>Structure: {feedback.structureScore}/10</span>
@@ -247,8 +247,8 @@ export default function InterviewPracticePage() {
 
             {feedback.strengths && feedback.strengths.length > 0 && (
               <div>
-                <strong className="text-emerald-900 block text-[11px] uppercase tracking-wider mb-1">Key Strengths:</strong>
-                <ul className="list-disc list-inside text-emerald-900 space-y-0.5">
+                <strong className="text-emerald-900 block text-[11px] uppercase tracking-wider mb-1 font-bold">Key Strengths:</strong>
+                <ul className="list-disc list-inside text-emerald-900 space-y-0.5 font-medium">
                   {feedback.strengths.map((s: string, i: number) => (
                     <li key={i}>{s}</li>
                   ))}
@@ -258,8 +258,8 @@ export default function InterviewPracticePage() {
 
             {feedback.improvements && feedback.improvements.length > 0 && (
               <div>
-                <strong className="text-amber-950 block text-[11px] uppercase tracking-wider mb-1">Refinement Opportunities:</strong>
-                <ul className="list-disc list-inside text-amber-900 space-y-0.5">
+                <strong className="text-amber-950 block text-[11px] uppercase tracking-wider mb-1 font-bold">Refinement Opportunities:</strong>
+                <ul className="list-disc list-inside text-amber-900 space-y-0.5 font-medium">
                   {feedback.improvements.map((imp: string, i: number) => (
                     <li key={i}>{imp}</li>
                   ))}
@@ -269,7 +269,7 @@ export default function InterviewPracticePage() {
 
             {feedback.sampleBetterAnswer && (
               <div className="p-3 bg-white border border-emerald-200/90 rounded-lg text-slate-700 mt-2">
-                <strong className="text-slate-900 block text-[11px] mb-1">Suggested Model Phrasing:</strong>
+                <strong className="text-slate-900 block text-[11px] mb-1 font-bold">Suggested Model Phrasing:</strong>
                 <p className="italic text-slate-600 text-xs leading-relaxed">{feedback.sampleBetterAnswer}</p>
               </div>
             )}
@@ -284,7 +284,7 @@ export default function InterviewPracticePage() {
               value={inputAnswer}
               onChange={(e) => setInputAnswer(e.target.value)}
               placeholder="Type your response using the STAR method (Situation, Task, Action, Result)..."
-              className="w-full p-3.5 bg-slate-50/80 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 placeholder:text-slate-400 leading-relaxed resize-y"
+              className="w-full p-3.5 bg-slate-50/80 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 placeholder:text-slate-400 leading-relaxed resize-y font-normal"
             />
           </div>
 
@@ -292,7 +292,7 @@ export default function InterviewPracticePage() {
             <button
               type="button"
               onClick={toggleVoiceRecording}
-              className={`px-3 py-2 rounded-lg border text-xs font-medium flex items-center gap-1.5 transition-colors cursor-pointer ${
+              className={`px-3 py-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
                 isRecording
                   ? 'bg-rose-50 border-rose-300 text-rose-700 animate-pulse'
                   : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-2xs'
@@ -305,7 +305,7 @@ export default function InterviewPracticePage() {
             <button
               type="submit"
               disabled={isSubmitting || !inputAnswer.trim()}
-              className="px-5 py-2.5 bg-[#0B1B3D] hover:bg-[#0B1B3D]/90 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors disabled:opacity-50 shadow-xs cursor-pointer"
+              className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all disabled:opacity-50 shadow-xs cursor-pointer"
             >
               <Send className="w-3.5 h-3.5" />
               <span>Submit Answer</span>

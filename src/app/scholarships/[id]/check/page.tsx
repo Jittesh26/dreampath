@@ -72,23 +72,26 @@ export default async function EligibilityCheckPage({
   }
 
   return (
-    <div className="min-h-screen bg-[#FAFAF9] flex flex-col">
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans">
       <SiteNav />
 
-      <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-10 max-w-4xl">
-        <div className="mb-6">
+      {/* Top ambient background strip */}
+      <div className="pt-24 pb-8 bg-gradient-to-b from-[#f8f9ff] via-[#f1f5fd] to-[#F8FAFC] border-b border-slate-200/80">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6">
           <Link
             href={`/scholarships/${id}`}
-            className="text-xs font-semibold text-slate-500 hover:text-slate-900 transition-colors inline-flex items-center gap-1"
+            className="text-xs font-semibold text-slate-500 hover:text-[#0F172A] transition-colors inline-flex items-center gap-1.5 mb-3"
           >
-            &larr; Back to {scholarshipData.name}
+            &larr; Back to {scholarshipData.name} Dossier
           </Link>
+          <div className="flex items-center gap-2 text-[11px] font-bold text-blue-700 uppercase tracking-wider">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+            <span>DETERMINISTIC EVALUATION ENGINE</span>
+          </div>
         </div>
+      </div>
 
-        {/* 
-          Pass the cleanly decoupled JSONB AST down to the Client Component 
-          for interactive extraction and deterministic evaluation. 
-        */}
+      <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-8">
         <CheckerWizard 
           scholarshipId={scholarshipData.id}
           scholarshipName={scholarshipData.name}
@@ -99,4 +102,5 @@ export default async function EligibilityCheckPage({
       <Footer />
     </div>
   );
+
 }

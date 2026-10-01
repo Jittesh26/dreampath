@@ -11,7 +11,7 @@ import { GoogleGenAI } from '@google/genai';
 
 function getAIClient(): GoogleGenAI | null {
   const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) return null;
+  if (!apiKey || process.env.NODE_ENV === 'test' || process.env.VITEST) return null;
   return new GoogleGenAI({
     apiKey,
     httpOptions: {
@@ -471,6 +471,8 @@ export async function aiCompareScholarships(scholarships: Array<{
   const fallback = buildDeterministicComparisonFallback(scholarships);
 
   if (!scholarships || scholarships.length === 0) return fallback;
+  const ai = getAIClient();
+  if (!ai) return fallback;
 
   try {
     const prompt = `You are the DreamPath Objective Scholarship Comparative Intelligence Engine.

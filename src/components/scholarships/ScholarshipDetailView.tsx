@@ -12,10 +12,11 @@ import {
   Sparkles,
   Send,
   Loader2,
-  Building2
+  FileCheck,
 } from 'lucide-react';
 import { StatusBadge } from '@/components/design-system';
 import { ReportMistakeForm } from '@/components/ReportMistakeForm';
+import { extractScholarshipAttributes } from '@/domain/scholarship-attributes';
 
 interface DetailProps {
   id: string;
@@ -66,10 +67,20 @@ export function ScholarshipDetailView({
   const [qaHistory, setQaHistory] = useState<Array<{ q: string; a: string; sources: string[] }>>([
     {
       q: 'What is covered by this scholarship?',
-      a: `${name} covers full undergraduate tuition fees, monthly living allowances, book grants, and structured leadership training. All figures are based on the ${year} intake guidelines.`,
+      a: `${name} covers tuition fees, living allowances, book grants, and structured developmental opportunities according to official ${year} intake guidelines.`,
       sources: [`Official Source: ${sourceUrl || providerUrl}`, 'DreamPath Verified Dataset'],
     },
   ]);
+
+  const attrs = extractScholarshipAttributes(
+    name,
+    description,
+    evidenceNotes,
+    closeDate,
+    openDate,
+    status,
+    providerName
+  );
 
   const toggleSave = () => {
     try {
@@ -104,7 +115,6 @@ export function ScholarshipDetailView({
     setQaQuestion('');
     setQaLoading(true);
 
-    // Show initial question immediately
     setQaHistory((prev) => [
       ...prev,
       {
@@ -215,55 +225,55 @@ export function ScholarshipDetailView({
 
   // Structured Preparation Checklist
   const prepChecklist = [
-    { item: 'Academic Transcripts', desc: 'Certified copies of SPM, STPM, Foundation or Matriculation results' },
-    { item: 'Identity & Citizenship Verification', desc: 'Malaysian NRIC (MyKad) and Birth Certificate' },
-    { item: 'Curriculum Vitae / Resume', desc: 'ATS-formatted resume highlighting leadership and STEM projects' },
-    { item: 'Household Income Proof', desc: 'Parents latest EA form, salary slips, or LHDN tax assessment (for B40/M40 grants)' },
-    { item: 'Personal Statement / Essay', desc: 'Statement of purpose aligning with the provider mission' },
-    { item: 'Letters of Recommendation', desc: 'Academic or co-curricular teacher reference letter' },
+    { item: 'Certified Academic Transcripts', desc: 'Certified copies of SPM, STPM, Foundation, Matriculation, or A-Levels results' },
+    { item: 'Identity Verification & Citizenship', desc: 'Malaysian NRIC (MyKad) and Birth Certificate' },
+    { item: 'ATS-Formatted Resume', desc: 'Professional resume highlighting leadership, extracurriculars, and technical projects' },
+    { item: 'Household Income Documentation', desc: 'Latest EA form, salary slips, or official LHDN tax assessment statements' },
+    { item: 'Personal Statement / Essay', desc: 'Structured statement of purpose aligned with the scholarship provider mandate' },
+    { item: 'Academic References', desc: 'Official recommendation letter from principal, counselor, or lecturer' },
   ];
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8 font-sans">
       {/* Top Breadcrumb & Trust Banner */}
       <div className="space-y-4">
         <div className="flex items-center justify-between text-xs text-slate-500 font-medium">
-          <Link href="/scholarships" className="hover:text-slate-900 transition-colors">
-            &larr; Back to Catalogue
+          <Link href="/scholarships" className="hover:text-[#0F172A] transition-colors inline-flex items-center gap-1.5 font-semibold">
+            &larr; Back to Scholarship Directory
           </Link>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2.5">
             <button
               onClick={handleShare}
-              className="inline-flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-900 px-2.5 py-1 rounded-md border border-slate-200 bg-white"
+              className="inline-flex items-center gap-1.5 text-xs text-slate-700 hover:text-slate-900 px-3 py-1.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
             >
-              <Share2 className="w-3.5 h-3.5" />
-              <span>{isCopied ? 'Link Copied!' : 'Share'}</span>
+              <Share2 className="w-3.5 h-3.5 text-slate-500" />
+              <span>{isCopied ? 'Link Copied!' : 'Share Dossier'}</span>
             </button>
             <button
               onClick={toggleSave}
-              className={`inline-flex items-center gap-1.5 text-xs px-3 py-1 rounded-md border font-semibold transition-colors ${
+              className={`inline-flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-xl border font-semibold transition-colors cursor-pointer shadow-2xs ${
                 isSaved
                   ? 'bg-amber-50 border-amber-300 text-amber-800'
                   : 'bg-white border-slate-200 text-slate-700 hover:text-slate-900'
               }`}
             >
               <Bookmark className="w-3.5 h-3.5 fill-current" />
-              <span>{isSaved ? 'Saved' : 'Save'}</span>
+              <span>{isSaved ? 'Saved to Tracker' : 'Save'}</span>
             </button>
           </div>
         </div>
 
         {/* Verification Ribbon */}
-        <div className="w-full bg-emerald-50 border border-emerald-200 text-emerald-900 px-5 py-3.5 rounded-xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
+        <div className="w-full bg-emerald-50/90 border border-emerald-200/90 text-emerald-950 px-5 py-4 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs">
           <div className="space-y-0.5">
             <div className="flex items-center gap-2.5">
               <ShieldCheck className="w-5 h-5 text-emerald-700 shrink-0" />
-              <span className="text-xs sm:text-sm font-medium">
-                Verified against official guidelines on <strong className="font-bold">{verificationDate}</strong>.
+              <span className="text-xs sm:text-sm font-semibold text-emerald-950">
+                Verified against official published guidelines on <strong className="font-bold">{verificationDate}</strong>.
               </span>
             </div>
             {evidenceNotes && (
-              <p className="text-[11px] text-emerald-800/90 pl-7.5 leading-normal">
+              <p className="text-[12px] text-emerald-800/90 pl-7.5 leading-normal">
                 Evidence: {evidenceNotes}
               </p>
             )}
@@ -275,87 +285,141 @@ export function ScholarshipDetailView({
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1.5 text-xs font-bold text-emerald-800 hover:text-emerald-950 underline underline-offset-4 shrink-0"
             >
-              <span>Official Provider Source</span>
+              <span>View Official Provider Notice</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </a>
           )}
         </div>
       </div>
 
-      {/* Main Header Block */}
-      <div className="space-y-4">
-        <div className="flex items-center gap-2 text-xs font-semibold text-slate-500 uppercase tracking-wider">
-          <Building2 className="w-4 h-4 text-slate-400" />
-          <span>{providerName}</span>
-          <span aria-hidden="true">·</span>
-          <span>Cycle: {year}</span>
+      {/* Main Header Hero Block */}
+      <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-5">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div
+              className={`w-12 h-12 rounded-xl ${attrs.providerMonogram.bgClass} text-white font-bold text-base flex items-center justify-center shadow-xs shrink-0`}
+            >
+              {attrs.providerMonogram.text}
+            </div>
+            <div>
+              <div className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase tracking-wider">
+                <span>{providerName}</span>
+                <span aria-hidden="true">·</span>
+                <span className="text-blue-700">{attrs.providerMonogram.tierTag}</span>
+              </div>
+              <span className="text-xs text-slate-400 font-medium">Cycle: {year} Intake</span>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <StatusBadge status={status} size="md" />
+            <span
+              className={`px-3 py-1 rounded-full text-xs font-bold border ${attrs.deadlineUrgency.badgeClass}`}
+            >
+              {attrs.deadlineUrgency.label}
+            </span>
+          </div>
         </div>
 
-        <h1 className="font-serif text-3xl sm:text-4xl md:text-5xl font-bold text-[#0B1B3D] tracking-tight leading-tight">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-[#0F172A] tracking-tight leading-[1.15] font-sans">
           {name}
         </h1>
 
-        {/* Unboxed Metadata Row */}
-        <div className="flex flex-wrap items-center gap-y-2 gap-x-3 text-xs text-slate-600 font-medium pt-1">
-          <StatusBadge status={status} size="sm" />
-          <span aria-hidden="true" className="text-slate-300">·</span>
-          <span>Deadline: <strong className="text-slate-900">{closeDate}</strong></span>
-          <span aria-hidden="true" className="text-slate-300">·</span>
-          <span className="text-slate-500">Official Malaysian Standard Time (MYT)</span>
+        {/* High-Impact Monetary & Discipline Matrix */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
+          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+              Funding Coverage
+            </span>
+            <span className="text-[24px] font-extrabold text-[#0B1727] tracking-tight block">
+              {attrs.awardText}
+            </span>
+            <span className="text-xs text-slate-500 block">
+              {attrs.awardType}
+            </span>
+          </div>
+
+          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+              Study Level & Fields
+            </span>
+            <span className="text-base font-bold text-[#0F172A] block mt-1">
+              {attrs.studyLevel}
+            </span>
+            <span className="text-xs text-slate-500 block truncate">
+              {attrs.eligibleFields}
+            </span>
+          </div>
+
+          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 space-y-1">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
+              Intake Closing Date
+            </span>
+            <span className="text-base font-bold text-[#0F172A] block mt-1">
+              {closeDate}
+            </span>
+            <span className="text-xs text-slate-500 block">
+              Opens: {openDate} (MYT)
+            </span>
+          </div>
         </div>
 
         {/* Independent Intelligence Notice */}
-        <div className="text-[11px] text-slate-600 bg-slate-100/70 border border-slate-200/80 px-4 py-2.5 rounded-xl flex items-start sm:items-center gap-2">
-          <span className="font-bold text-slate-800 uppercase tracking-wider shrink-0">Official Source Note:</span>
-          <span>DreamPath provides verified intelligence based on published intake documents. Application submissions and award determinations are administered exclusively by {providerName}.</span>
+        <div className="text-[12px] text-slate-600 bg-slate-50 border border-slate-200/80 px-4 py-3 rounded-xl flex items-start sm:items-center gap-2">
+          <FileCheck className="w-4 h-4 text-blue-700 shrink-0 mt-0.5 sm:mt-0" />
+          <span>
+            <strong className="font-semibold text-slate-800">Authoritative Provenance Notice:</strong> DreamPath provides verified intelligence based on published provider circulars. Application submissions and award determinations are administered exclusively by {providerName}.
+          </span>
         </div>
       </div>
 
-      {/* Primary 2-Column Layout */}
+      {/* Primary 2-Column Dossier Content */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         
-        {/* Left Column (8 cols): Overview, Rules, Prep, AI Q&A */}
-        <div className="lg:col-span-8 space-y-10">
+        {/* Left Column (8 cols): Overview, AST Criteria, Timeline, Prep, AI Q&A */}
+        <div className="lg:col-span-8 space-y-8">
           
-          {/* Overview & Benefits */}
-          <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
-            <h2 className="font-serif text-2xl font-bold text-[#0B1B3D]">Program Overview</h2>
-            <p className="font-sans text-slate-700 leading-relaxed text-base">
+          {/* Program Overview */}
+          <section className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-4">
+            <h2 className="text-2xl font-bold text-[#0F172A] font-sans tracking-tight">
+              Program Overview
+            </h2>
+            <p className="font-sans text-slate-700 leading-relaxed text-[15px] font-normal">
               {description}
             </p>
 
             <div className="pt-4 border-t border-slate-100 grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-              <div className="p-3.5 bg-slate-50 border border-slate-200/70 rounded-xl">
-                <span className="font-bold text-slate-500 uppercase block mb-1">Financial Award</span>
-                <span className="text-sm font-bold text-[#0B1B3D]">Full Tuition + Monthly Stipend</span>
-                <p className="text-slate-500 mt-1">Covers 100% university tuition fees, allowances, and academic allowances.</p>
+              <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-xl space-y-1">
+                <span className="font-bold text-slate-500 uppercase tracking-wider block">Financial Package</span>
+                <span className="text-sm font-bold text-[#0F172A] block">Full Tuition + Allowances</span>
+                <p className="text-slate-500 mt-1 leading-relaxed">Includes tuition fee waiver, monthly subsistence stipend, and academic grants.</p>
               </div>
-              <div className="p-3.5 bg-slate-50 border border-slate-200/70 rounded-xl">
-                <span className="font-bold text-slate-500 uppercase block mb-1">Career & Employment Bond</span>
-                <span className="text-sm font-bold text-[#0B1B3D]">Internship & Direct Employment</span>
-                <p className="text-slate-500 mt-1">Direct development pathways with official mentorship program upon graduation.</p>
+              <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-xl space-y-1">
+                <span className="font-bold text-slate-500 uppercase tracking-wider block">Service Obligation / Bond</span>
+                <span className="text-sm font-bold text-[#0F172A] block">Corporate Development Track</span>
+                <p className="text-slate-500 mt-1 leading-relaxed">Direct mentorship and structured career placement track upon graduation.</p>
               </div>
             </div>
           </section>
 
           {/* Machine-Checkable Eligibility Criteria */}
-          <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-5">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+          <section className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-5">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div>
-                <h2 className="font-serif text-2xl font-bold text-[#0B1B3D]">
+                <h2 className="text-2xl font-bold text-[#0F172A] font-sans tracking-tight">
                   Verified Eligibility Criteria
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Parsed directly into DreamPath deterministic AST rules.
+                  Parsed directly into DreamPath deterministic boolean decision rules.
                 </p>
               </div>
 
               <Link
                 href={`/scholarships/${id}/check`}
-                className="px-5 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors shadow-xs shrink-0"
+                className="px-5 py-2.5 bg-[#0F172A] hover:bg-slate-800 text-white text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-colors shadow-xs shrink-0 cursor-pointer min-h-[40px]"
               >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Check Your Eligibility</span>
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>Run Eligibility Engine</span>
               </Link>
             </div>
 
@@ -368,9 +432,9 @@ export function ScholarshipDetailView({
                 requirements.map((req, idx) => (
                   <div
                     key={req.id}
-                    className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/50 flex items-start gap-3"
+                    className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/60 flex items-start gap-3.5"
                   >
-                    <div className="w-6 h-6 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                    <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
                       {idx + 1}
                     </div>
                     <div className="flex-1">
@@ -385,43 +449,47 @@ export function ScholarshipDetailView({
             </div>
           </section>
 
-          {/* Application Timeline */}
-          <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-5">
-            <h2 className="font-serif text-2xl font-bold text-[#0B1B3D]">Scholarship Timeline</h2>
+          {/* Scholarship Intake Timeline */}
+          <section className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-5">
+            <h2 className="text-2xl font-bold text-[#0F172A] font-sans tracking-tight">
+              Intake Cycle Timeline
+            </h2>
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                <span className="text-[11px] font-bold text-slate-400 uppercase block">Phase 1</span>
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Phase 1</span>
                 <span className="text-xs font-bold text-slate-900 block mt-1">Application Opens</span>
                 <span className="text-xs text-slate-500 block mt-1">{openDate}</span>
               </div>
-              <div className="p-3 bg-amber-50/80 border border-amber-200 rounded-xl">
-                <span className="text-[11px] font-bold text-amber-800 uppercase block">Phase 2</span>
-                <span className="text-xs font-bold text-amber-950 block mt-1">Deadline</span>
-                <span className="text-xs text-amber-900 font-semibold block mt-1">{closeDate}</span>
+              <div className="p-3.5 bg-blue-50/80 border border-blue-200 rounded-xl">
+                <span className="text-[11px] font-bold text-blue-700 uppercase tracking-wider block">Phase 2</span>
+                <span className="text-xs font-bold text-blue-950 block mt-1">Submission Deadline</span>
+                <span className="text-xs text-blue-900 font-semibold block mt-1">{closeDate}</span>
               </div>
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                <span className="text-[11px] font-bold text-slate-400 uppercase block">Phase 3</span>
-                <span className="text-xs font-bold text-slate-900 block mt-1">Assessment & Interview</span>
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Phase 3</span>
+                <span className="text-xs font-bold text-slate-900 block mt-1">Assessment & Panel</span>
                 <span className="text-xs text-slate-500 block mt-1">1-2 months after close</span>
               </div>
-              <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl">
-                <span className="text-[11px] font-bold text-slate-400 uppercase block">Phase 4</span>
-                <span className="text-xs font-bold text-slate-900 block mt-1">Final Award Offer</span>
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
+                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">Phase 4</span>
+                <span className="text-xs font-bold text-slate-900 block mt-1">Award Confirmation</span>
                 <span className="text-xs text-slate-500 block mt-1">Pre-semester start</span>
               </div>
             </div>
           </section>
 
-          {/* What You Need to Prepare Checklist */}
-          <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
-            <h2 className="font-serif text-2xl font-bold text-[#0B1B3D]">What You Need to Prepare</h2>
+          {/* Preparation Checklist */}
+          <section className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-4">
+            <h2 className="text-2xl font-bold text-[#0F172A] font-sans tracking-tight">
+              Required Application Documents
+            </h2>
             <div className="divide-y divide-slate-100">
               {prepChecklist.map((c, i) => (
-                <div key={i} className="py-3 flex items-start gap-3 text-xs">
+                <div key={i} className="py-3.5 flex items-start gap-3.5 text-xs">
                   <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
                   <div>
                     <strong className="text-slate-900 text-sm font-semibold block">{c.item}</strong>
-                    <span className="text-slate-500 text-xs">{c.desc}</span>
+                    <span className="text-slate-500 text-xs leading-relaxed">{c.desc}</span>
                   </div>
                 </div>
               ))}
@@ -429,15 +497,17 @@ export function ScholarshipDetailView({
           </section>
 
           {/* Grounded AI Q&A Drawer */}
-          <section className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-amber-600" />
+          <section className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-blue-50 border border-blue-100 flex items-center justify-center text-blue-700 shadow-2xs">
+                <Sparkles className="w-5 h-5" />
+              </div>
               <div>
-                <h2 className="font-serif text-xl font-bold text-[#0B1B3D]">
-                  Ask DreamPath AI about this Scholarship
+                <h2 className="text-xl font-bold text-[#0F172A] font-sans tracking-tight">
+                  Grounded Scholarship Intelligence
                 </h2>
                 <p className="text-xs text-slate-500">
-                  Answers are grounded exclusively in verified official guidelines.
+                  Ask factual questions about bond terms, allowances, and qualifications. Grounded exclusively in verified guidelines.
                 </p>
               </div>
             </div>
@@ -449,12 +519,12 @@ export function ScholarshipDetailView({
                   <div className="p-3 bg-slate-50 rounded-xl text-slate-800 font-medium">
                     <strong className="text-slate-900 block text-xs mb-1">Student:</strong> {item.q}
                   </div>
-                  <div className="p-3.5 bg-amber-50/50 border border-amber-200/60 rounded-xl space-y-2">
-                    <p className="text-slate-800 leading-relaxed">{item.a}</p>
-                    <div className="pt-2 border-t border-amber-200/50 flex flex-wrap items-center gap-1.5 text-[11px] text-amber-900">
-                      <span className="font-bold">Sources used:</span>
+                  <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-xl space-y-2">
+                    <p className="text-slate-800 leading-relaxed font-normal">{item.a}</p>
+                    <div className="pt-2 border-t border-blue-100 flex flex-wrap items-center gap-1.5 text-[11px] text-blue-900">
+                      <span className="font-semibold">Sources used:</span>
                       {item.sources.map((s, si) => (
-                        <span key={si} className="bg-white px-2 py-0.5 rounded border border-amber-200 text-amber-950">
+                        <span key={si} className="bg-white px-2 py-0.5 rounded border border-blue-200 text-blue-950 font-medium">
                           {s}
                         </span>
                       ))}
@@ -465,18 +535,18 @@ export function ScholarshipDetailView({
             </div>
 
             {/* Question Input */}
-            <form onSubmit={handleAskQuestion} className="flex gap-2 pt-2">
+            <form onSubmit={handleAskQuestion} className="flex gap-2.5 pt-2">
               <input
                 type="text"
                 value={qaQuestion}
                 onChange={(e) => setQaQuestion(e.target.value)}
                 placeholder="Ask about bond terms, allowances, or qualification requirements..."
-                className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-700/20 focus:border-amber-700"
+                className="flex-1 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/30 font-medium"
               />
               <button
                 type="submit"
                 disabled={qaLoading || !qaQuestion.trim()}
-                className="px-4 py-2.5 bg-[#0B1B3D] text-white rounded-xl text-xs font-bold hover:bg-[#132A5C] transition-colors disabled:opacity-50 flex items-center gap-1 shrink-0"
+                className="px-5 py-2.5 bg-[#0F172A] text-white rounded-xl text-xs font-semibold hover:bg-slate-800 transition-colors disabled:opacity-50 flex items-center gap-1.5 shrink-0 cursor-pointer shadow-xs"
               >
                 {qaLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
                 <span>Ask</span>
@@ -490,88 +560,90 @@ export function ScholarshipDetailView({
         <div className="lg:col-span-4 space-y-6">
           
           {/* Key Dates & Actions Card */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-5">
-            <h3 className="font-serif text-lg font-bold text-[#0B1B3D]">Key Dates & Submission</h3>
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-5 sticky top-24">
+            <h3 className="text-lg font-bold text-[#0F172A] font-sans">Key Dates &amp; Submission</h3>
             
             <div className="space-y-3 text-xs">
-              <div className="p-3 bg-slate-50 rounded-xl flex items-center justify-between">
-                <span className="text-slate-500 font-semibold">Opening Date</span>
+              <div className="p-3.5 bg-slate-50 rounded-xl flex items-center justify-between border border-slate-200/80">
+                <span className="text-slate-600 font-medium">Opening Date</span>
                 <span className="font-bold text-slate-900">{openDate}</span>
               </div>
-              <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl flex items-center justify-between">
-                <span className="text-amber-900 font-bold">Closing Deadline</span>
-                <span className="font-bold text-amber-950">{closeDate}</span>
+              <div className="p-3.5 bg-blue-50/80 border border-blue-200 rounded-xl flex items-center justify-between">
+                <span className="text-blue-900 font-bold">Closing Deadline</span>
+                <span className="font-bold text-blue-950">{closeDate}</span>
               </div>
             </div>
 
             <div className="space-y-2.5 pt-2">
               <Link
                 href={`/scholarships/${id}/check`}
-                className="w-full py-3 bg-emerald-700 hover:bg-emerald-800 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors shadow-xs"
+                className="w-full py-3 bg-[#0F172A] hover:bg-slate-800 text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-all shadow-md min-h-[44px]"
               >
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Check Eligibility (AST Engine)</span>
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                <span>Evaluate My Eligibility</span>
               </Link>
 
               <Link
                 href={`/api/scholarships/export-ics?name=${encodeURIComponent(name)}&provider=${encodeURIComponent(providerName)}&closeDate=${encodeURIComponent(closeDate)}&sourceUrl=${encodeURIComponent(sourceUrl)}`}
-                className="w-full py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors"
+                className="w-full py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors min-h-[40px]"
               >
                 <Calendar className="w-3.5 h-3.5 text-slate-500" />
                 <span>Add Deadline to Calendar (.ics)</span>
               </Link>
 
               <Link
-                href={`/student/applications`}
-                className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors"
+                href="/student/applications"
+                className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-800 text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5 transition-colors min-h-[40px]"
               >
                 <span>Add to My Application Tracker</span>
               </Link>
             </div>
-          </div>
 
-          {/* Provider Overview Card */}
-          <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-3">
-            <h3 className="font-serif text-base font-bold text-[#0B1B3D]">About {providerName}</h3>
-            <p className="text-xs text-slate-600 leading-relaxed">
-              {providerDesc}
-            </p>
-            {providerUrl && (
-              <a
-                href={providerUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 text-xs font-semibold text-amber-800 hover:underline pt-1"
-              >
-                <span>Official Provider Portal</span>
-                <ExternalLink className="w-3 h-3" />
-              </a>
-            )}
-          </div>
-
-          {/* Similar Scholarships */}
-          {similarScholarships.length > 0 && (
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-3">
-              <h3 className="font-serif text-base font-bold text-[#0B1B3D]">Similar Verified Opportunities</h3>
-              <div className="divide-y divide-slate-100">
-                {similarScholarships.map((sim) => (
-                  <Link
-                    key={sim.id}
-                    href={`/scholarships/${sim.id}`}
-                    className="py-2.5 block group"
-                  >
-                    <p className="text-[11px] text-slate-400 font-semibold uppercase">{sim.providerName}</p>
-                    <p className="text-xs font-bold text-slate-900 group-hover:text-amber-800 transition-colors line-clamp-1">
-                      {sim.name}
-                    </p>
-                  </Link>
-                ))}
-              </div>
+            {/* Provider Overview inside sidebar */}
+            <div className="pt-4 border-t border-slate-100 space-y-2 text-xs">
+              <span className="font-bold text-[#0F172A] block">About {providerName}</span>
+              <p className="text-slate-600 leading-relaxed">
+                {providerDesc}
+              </p>
+              {providerUrl && (
+                <a
+                  href={providerUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 font-semibold text-blue-700 hover:underline pt-1"
+                >
+                  <span>Official Provider Portal</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              )}
             </div>
-          )}
 
-          {/* Report Mistake Form */}
-          <ReportMistakeForm scholarshipId={id} />
+            {/* Similar Scholarships */}
+            {similarScholarships.length > 0 && (
+              <div className="pt-4 border-t border-slate-100 space-y-3">
+                <span className="font-bold text-[#0F172A] block text-xs">Similar Verified Opportunities</span>
+                <div className="divide-y divide-slate-100">
+                  {similarScholarships.map((sim) => (
+                    <Link
+                      key={sim.id}
+                      href={`/scholarships/${sim.id}`}
+                      className="py-2.5 block group"
+                    >
+                      <p className="text-[11px] text-slate-400 font-semibold uppercase">{sim.providerName}</p>
+                      <p className="text-xs font-bold text-slate-900 group-hover:text-blue-700 transition-colors line-clamp-1 font-sans">
+                        {sim.name}
+                      </p>
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Report Mistake Form */}
+            <div className="pt-2">
+              <ReportMistakeForm scholarshipId={id} />
+            </div>
+          </div>
 
         </div>
 
@@ -579,3 +651,4 @@ export function ScholarshipDetailView({
     </div>
   );
 }
+

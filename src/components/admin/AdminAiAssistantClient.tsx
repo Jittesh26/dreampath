@@ -35,14 +35,14 @@ export function AdminAiAssistantClient() {
   };
 
   return (
-    <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-xs space-y-4">
+    <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4">
       <div className="flex items-center gap-2">
-        <Sparkles className="w-5 h-5 text-amber-700" />
+        <Sparkles className="w-5 h-5 text-amber-500" />
         <div>
-          <h2 className="font-serif text-lg font-bold text-[#0B1B3D]">
+          <h2 className="font-sans text-base font-bold text-slate-950">
             Admin Extraction Assistant
           </h2>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-500 font-normal">
             Paste raw guideline text to draft structured AST criteria.
           </p>
         </div>
@@ -54,17 +54,17 @@ export function AdminAiAssistantClient() {
           value={inputText}
           onChange={(e) => setInputText(e.target.value)}
           placeholder="Paste official portal text (e.g. 'Eligibility: Open to Malaysian citizens aged under 25, CGPA at least 3.50 or STPM 3A, household income B40/M40')..."
-          className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-700/20 font-mono"
+          className="w-full p-3.5 bg-slate-50 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 font-mono"
         />
 
         <div className="flex items-center justify-between">
-          <span className="text-[10px] text-slate-400">
+          <span className="text-[10px] text-slate-400 font-medium">
             AI suggestions never auto-publish.
           </span>
           <button
             type="submit"
             disabled={isProcessing || !inputText.trim()}
-            className="px-4 py-2 bg-[#0B1B3D] text-white text-xs font-bold rounded-xl flex items-center gap-1.5 hover:bg-[#132A5C] transition-colors disabled:opacity-50"
+            className="px-4 py-2 bg-slate-900 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 hover:bg-slate-800 transition-all disabled:opacity-50 shadow-xs cursor-pointer"
           >
             {isProcessing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5 text-amber-400" />}
             <span>Draft AST Rules</span>
@@ -73,9 +73,9 @@ export function AdminAiAssistantClient() {
       </form>
 
       {extractedRules && (
-        <div className="p-4 bg-amber-50/70 border border-amber-200 rounded-xl space-y-2.5 text-xs animate-in fade-in duration-150">
-          <div className="flex items-center gap-2 text-amber-950 font-bold">
-            <CheckCircle2 className="w-4 h-4 text-emerald-700" />
+        <div className="p-4 bg-blue-50/60 border border-blue-200/80 rounded-xl space-y-2.5 text-xs animate-in fade-in duration-150">
+          <div className="flex items-center gap-2 text-blue-950 font-bold">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
             <span>Draft Structured Criteria (For Verifier Confirmation)</span>
           </div>
 
@@ -85,7 +85,7 @@ export function AdminAiAssistantClient() {
             <p><strong>Rule 3:</strong> Income Band IN [&apos;B40&apos;, &apos;M40&apos;] (IN_ARRAY)</p>
           </div>
 
-          <p className="text-[10px] text-amber-900 italic pt-1 border-t border-amber-200/60">
+          <p className="text-[10px] text-blue-900/90 italic pt-1 border-t border-blue-200/60 font-medium">
             {extractedRules.notes}
           </p>
         </div>

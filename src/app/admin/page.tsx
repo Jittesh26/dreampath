@@ -33,59 +33,67 @@ export default async function AdminDashboard() {
   return (
     <div className="space-y-8 max-w-6xl">
       <div>
-        <div className="text-xs font-semibold text-amber-800 uppercase tracking-wider mb-1">
-          Trust &amp; Verification Infrastructure
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold tracking-wider uppercase bg-blue-50 text-blue-700 border border-blue-200/60 mb-2">
+          <span>Trust &amp; Verification Infrastructure</span>
         </div>
-        <h1 className="font-serif text-3xl sm:text-4xl font-bold tracking-tight text-[#0B1B3D]">
-          Administrator Console
+        <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-950 font-sans">
+          Administrator <span className="font-serif italic font-normal text-blue-900">Console</span>
         </h1>
-        <p className="font-sans text-slate-500 text-sm mt-1">
+        <p className="font-sans text-slate-600 text-sm mt-1 max-w-2xl font-normal">
           Monitor authoritative scholarship datasets, review reported factual corrections, and verify provider guidelines.
         </p>
       </div>
 
       {/* Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white border border-slate-200/90 rounded-xl p-5 shadow-xs flex flex-col justify-between">
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex flex-col justify-between hover:shadow-xs transition-all">
           <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-bold uppercase tracking-wider">Providers</span>
-            <Building2 className="w-4 h-4 text-slate-600" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Providers</span>
+            <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-slate-700">
+              <Building2 className="w-4 h-4" />
+            </div>
           </div>
-          <p className="font-serif text-4xl font-bold text-[#0B1B3D] my-2">{providerCount.value}</p>
-          <Link href="/admin/providers" className="text-xs font-semibold text-amber-900 hover:text-amber-950 inline-flex items-center gap-1 transition-colors">
+          <p className="font-sans text-4xl font-black text-slate-950 my-2">{providerCount.value}</p>
+          <Link href="/admin/providers" className="text-xs font-bold text-blue-700 hover:text-blue-800 inline-flex items-center gap-1 transition-colors">
             <span>Manage providers</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
 
-        <div className="bg-white border border-slate-200/90 rounded-xl p-5 shadow-xs flex flex-col justify-between">
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex flex-col justify-between hover:shadow-xs transition-all">
           <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-bold uppercase tracking-wider">Scholarships</span>
-            <Award className="w-4 h-4 text-[#0B1B3D]" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Scholarships</span>
+            <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-700 border border-blue-200/60">
+              <Award className="w-4 h-4" />
+            </div>
           </div>
-          <p className="font-serif text-4xl font-bold text-[#0B1B3D] my-2">{scholarshipCount.value}</p>
-          <Link href="/admin/scholarships" className="text-xs font-semibold text-[#0B1B3D] hover:underline inline-flex items-center gap-1 transition-colors">
+          <p className="font-sans text-4xl font-black text-slate-950 my-2">{scholarshipCount.value}</p>
+          <Link href="/admin/scholarships" className="text-xs font-bold text-blue-700 hover:text-blue-800 inline-flex items-center gap-1 transition-colors">
             <span>Manage scholarships</span>
             <ArrowRight className="w-3.5 h-3.5" />
           </Link>
         </div>
 
-        <div className="bg-white border border-slate-200/90 rounded-xl p-5 shadow-xs flex flex-col justify-between">
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex flex-col justify-between hover:shadow-xs transition-all">
           <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-bold uppercase tracking-wider">Active Intakes</span>
-            <Calendar className="w-4 h-4 text-emerald-600" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Active Intakes</span>
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 flex items-center justify-center text-emerald-700 border border-emerald-200/60">
+              <Calendar className="w-4 h-4" />
+            </div>
           </div>
-          <p className="font-serif text-4xl font-bold text-[#0B1B3D] my-2">{intakeCount.value}</p>
-          <span className="text-[11px] text-slate-400">Published or In Review</span>
+          <p className="font-sans text-4xl font-black text-slate-950 my-2">{intakeCount.value}</p>
+          <span className="text-[11px] text-slate-400 font-medium">Published or In Review</span>
         </div>
 
-        <div className="bg-white border border-slate-200 rounded-2xl p-5 shadow-xs flex flex-col justify-between">
+        <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs flex flex-col justify-between hover:shadow-xs transition-all">
           <div className="flex items-center justify-between text-slate-500">
-            <span className="text-xs font-bold uppercase tracking-wider">Correction Reports</span>
-            <AlertTriangle className="w-4 h-4 text-amber-600" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Correction Reports</span>
+            <div className="w-8 h-8 rounded-lg bg-amber-50 flex items-center justify-center text-amber-700 border border-amber-200/60">
+              <AlertTriangle className="w-4 h-4" />
+            </div>
           </div>
-          <p className="font-serif text-4xl font-bold text-amber-900 my-2">{pendingReports.length}</p>
-          <span className="text-[11px] text-slate-400">User-reported mistake queue</span>
+          <p className="font-sans text-4xl font-black text-amber-900 my-2">{pendingReports.length}</p>
+          <span className="text-[11px] text-slate-400 font-medium">User-reported mistake queue</span>
         </div>
       </div>
 

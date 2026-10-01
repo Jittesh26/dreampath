@@ -31,7 +31,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       lang="en"
       className={`${instrumentSerif.variable} ${plusJakarta.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col font-sans bg-[#FAFAF9] text-slate-900">
+      <body className="min-h-full flex flex-col font-sans bg-[#F8FAFC] text-slate-900">
         <CommandPalette />
         {children}
       </body>

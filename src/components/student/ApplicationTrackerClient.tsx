@@ -120,9 +120,9 @@ export function ApplicationTrackerClient({
           </span>
           <Link
             href="/scholarships"
-            className="px-4 py-2 bg-[#0B1B3D] hover:bg-[#132A5C] text-white rounded-xl font-bold transition-colors shadow-xs"
+            className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold transition-all shadow-xs text-xs inline-flex items-center gap-1.5"
           >
-            + Add Scholarship
+            <span>+ Add Scholarship</span>
           </Link>
         </div>
       </div>
@@ -130,13 +130,13 @@ export function ApplicationTrackerClient({
       {/* Empty State */}
       {apps.length === 0 ? (
         <EmptyState
-          icon={<Compass className="w-6 h-6 text-amber-800" />}
+          icon={<Compass className="w-6 h-6 text-blue-700" />}
           title="Your Application Pipeline is Empty"
           description="Save opportunities directly from the scholarship catalogue or run a deterministic eligibility check to track deadlines, interview dates, and documents."
           action={
             <Link
               href="/scholarships"
-              className="inline-flex items-center gap-2 px-6 py-2.5 bg-[#0B1B3D] text-white text-xs font-bold rounded-xl hover:bg-[#132A5C] transition-colors shadow-xs"
+              className="inline-flex items-center gap-2 px-6 py-2.5 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 transition-colors shadow-xs"
             >
               <span>Explore Verified Opportunities</span>
               <ArrowRight className="w-4 h-4" />
@@ -155,7 +155,7 @@ export function ApplicationTrackerClient({
             return (
               <div
                 key={app.id}
-                className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-7 shadow-xs space-y-6 hover:border-slate-300 transition-colors"
+                className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-7 shadow-2xs space-y-6 hover:border-slate-300 transition-colors"
               >
                 {/* Header Row: Title, Provider, Deadline, Actions */}
                 <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
@@ -170,13 +170,13 @@ export function ApplicationTrackerClient({
 
                     <Link
                       href={`/scholarships/${app.scholarshipId}`}
-                      className="font-serif text-xl sm:text-2xl font-bold text-[#0B1B3D] hover:text-amber-800 transition-colors block leading-tight"
+                      className="font-sans text-xl sm:text-2xl font-bold text-slate-900 hover:text-blue-700 transition-colors block leading-tight"
                     >
                       {app.scholarshipName}
                     </Link>
 
                     {close && (
-                      <div className="flex items-center gap-2 text-xs text-slate-500 pt-0.5">
+                      <div className="flex items-center gap-2 text-xs text-slate-500 pt-0.5 font-medium">
                         <Calendar className="w-3.5 h-3.5 text-slate-400" />
                         <span>Official Deadline: <strong className="text-slate-800">{close.toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })}</strong></span>
                         {daysLeft !== null && daysLeft > 0 && daysLeft <= 14 && (
@@ -221,7 +221,7 @@ export function ApplicationTrackerClient({
                     {/* Connecting progress bar */}
                     <div className="hidden sm:block absolute top-1/2 left-0 right-0 -translate-y-1/2 h-1 bg-slate-100 rounded-full z-0">
                       <div
-                        className="h-full bg-amber-600 rounded-full transition-all duration-300"
+                        className="h-full bg-blue-600 rounded-full transition-all duration-300"
                         style={{
                           width: `${(currentStageIdx / (JOURNEY_STAGES.length - 1)) * 100}%`,
                         }}
@@ -241,9 +241,9 @@ export function ApplicationTrackerClient({
                             onClick={() => handleStatusChange(app.id, stage.key)}
                             className={`p-3 rounded-xl border text-left transition-all ${
                               isCurrent
-                                ? 'bg-white border-amber-600 shadow-sm ring-2 ring-amber-600/10'
+                                ? 'bg-white border-blue-600 shadow-sm ring-2 ring-blue-600/10'
                                 : isPast
-                                ? 'bg-amber-50/40 border-amber-200 text-slate-700'
+                                ? 'bg-emerald-50/50 border-emerald-200 text-slate-700'
                                 : 'bg-slate-50/70 border-slate-200 text-slate-400'
                             }`}
                           >
@@ -251,7 +251,7 @@ export function ApplicationTrackerClient({
                               <span
                                 className={`text-[10px] font-bold uppercase tracking-wider ${
                                   isCurrent
-                                    ? 'text-amber-800'
+                                    ? 'text-blue-700'
                                     : isPast
                                     ? 'text-emerald-700'
                                     : 'text-slate-400'
@@ -260,7 +260,7 @@ export function ApplicationTrackerClient({
                                 Step {idx + 1}
                               </span>
                               {isPast && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />}
-                              {isCurrent && <span className="w-2 h-2 rounded-full bg-amber-600 animate-pulse" />}
+                              {isCurrent && <span className="w-2 h-2 rounded-full bg-blue-600 animate-pulse" />}
                             </div>
                             <span className="font-bold text-xs text-slate-900 block truncate">
                               {stage.label.replace(/^\d+\.\s*/, '')}
@@ -299,7 +299,7 @@ export function ApplicationTrackerClient({
                     <button
                       type="button"
                       onClick={() => advanceNextStage(app)}
-                      className="px-4 py-2 bg-amber-800 hover:bg-amber-900 text-white font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors shadow-xs"
+                      className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl flex items-center justify-center gap-1.5 transition-colors shadow-2xs"
                     >
                       <span>Advance to {JOURNEY_STAGES[currentStageIdx + 1].label.replace(/^\d+\.\s*/, '')}</span>
                       <ArrowRight className="w-3.5 h-3.5" />
@@ -333,7 +333,7 @@ export function ApplicationTrackerClient({
                   {colApps.map((app) => (
                     <div
                       key={app.id}
-                      className="bg-white border border-slate-200 rounded-xl p-4 shadow-2xs hover:shadow-md transition-all space-y-3"
+                      className="bg-white border border-slate-200/90 rounded-xl p-4 shadow-2xs hover:shadow-xs transition-all space-y-3"
                     >
                       <div>
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
@@ -341,7 +341,7 @@ export function ApplicationTrackerClient({
                         </span>
                         <Link
                           href={`/scholarships/${app.scholarshipId}`}
-                          className="font-serif text-sm font-bold text-[#0B1B3D] hover:text-amber-800 line-clamp-2"
+                          className="font-sans text-sm font-bold text-slate-900 hover:text-blue-700 line-clamp-2 transition-colors"
                         >
                           {app.scholarshipName}
                         </Link>

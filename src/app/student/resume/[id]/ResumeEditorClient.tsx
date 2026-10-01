@@ -187,13 +187,13 @@ export default function ResumeEditorClient({
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] bg-[#FAFAF9] w-full pb-16">
+    <div className="min-h-[calc(100vh-4rem)] bg-[#F8FAFC] w-full pb-16 font-sans">
       {/* STEP 1: FIX HEADER & TOOLBAR LAYOUT */}
-      <header className="w-full flex flex-col md:flex-row md:items-center justify-between gap-4 px-6 py-3.5 bg-white border-b border-slate-200 sticky top-0 z-20 shadow-xs">
+      <header className="w-full flex flex-col md:flex-row md:items-center justify-between gap-4 px-6 py-3.5 bg-white border-b border-slate-200/90 sticky top-0 z-20 shadow-2xs">
         <div className="flex items-center gap-3 min-w-0">
           <Link
             href="/student/resume"
-            className="text-slate-500 hover:text-[#0B1B3D] text-sm font-medium transition-colors shrink-0 flex items-center gap-1.5"
+            className="text-slate-500 hover:text-slate-900 text-xs font-bold transition-colors shrink-0 flex items-center gap-1.5"
           >
             <ArrowLeft className="w-4 h-4" />
             <span>Resumes</span>
@@ -203,7 +203,7 @@ export default function ResumeEditorClient({
             type="text"
             value={title}
             onChange={e => setTitle(e.target.value)}
-            className="font-serif text-lg sm:text-xl font-bold border-none outline-none focus:ring-0 p-0 text-[#0B1B3D] bg-transparent truncate max-w-xs sm:max-w-md"
+            className="font-sans text-base sm:text-lg font-black border-none outline-none focus:ring-0 p-0 text-slate-950 bg-transparent truncate max-w-xs sm:max-w-md"
             placeholder="Untitled Resume"
           />
         </div>
@@ -211,16 +211,16 @@ export default function ResumeEditorClient({
         <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap shrink-0">
           <button
             type="button"
-            className="h-9 px-3.5 text-xs font-semibold border border-amber-300/80 bg-amber-50/80 text-amber-950 hover:bg-amber-100 rounded-lg shadow-xs flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
+            className="h-9 px-3.5 text-xs font-bold border border-blue-200/80 bg-blue-50/80 text-blue-900 hover:bg-blue-100 rounded-xl shadow-2xs flex items-center gap-1.5 transition-all whitespace-nowrap shrink-0 cursor-pointer"
             onClick={() => setIsAIModalOpen(true)}
           >
-            <Sparkles className="w-3.5 h-3.5 text-amber-600" />
+            <Sparkles className="w-3.5 h-3.5 text-amber-500" />
             <span>AI Career Assistant</span>
           </button>
 
           <button
             type="button"
-            className="h-9 px-3 text-xs font-medium border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 rounded-lg shadow-xs flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0"
+            className="h-9 px-3 text-xs font-bold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 rounded-xl shadow-2xs flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             onClick={() => setIsATSModalOpen(true)}
           >
             <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
@@ -229,7 +229,7 @@ export default function ResumeEditorClient({
 
           <button
             type="button"
-            className="h-9 px-3 text-xs font-medium border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 rounded-lg shadow-xs flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0"
+            className="h-9 px-3 text-xs font-bold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 rounded-xl shadow-2xs flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             onClick={() => setIsTailorModalOpen(true)}
           >
             <Target className="w-3.5 h-3.5 text-amber-600" />
@@ -238,7 +238,7 @@ export default function ResumeEditorClient({
 
           <button
             type="button"
-            className="h-9 px-3 text-xs font-medium border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 rounded-lg shadow-xs flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0"
+            className="h-9 px-3 text-xs font-bold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 rounded-xl shadow-2xs flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             onClick={() => setIsShareModalOpen(true)}
           >
             <Share2 className="w-3.5 h-3.5 text-slate-500" />
@@ -247,7 +247,7 @@ export default function ResumeEditorClient({
 
           <button
             type="button"
-            className="h-9 px-3.5 text-xs font-medium border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 rounded-lg shadow-xs flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0"
+            className="h-9 px-3.5 text-xs font-bold border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 rounded-xl shadow-2xs flex items-center gap-1.5 transition-colors whitespace-nowrap shrink-0 cursor-pointer"
             onClick={() => setIsPDFModalOpen(true)}
           >
             <FileDown className="w-3.5 h-3.5 text-slate-500" />
@@ -258,7 +258,7 @@ export default function ResumeEditorClient({
             type="button"
             onClick={handleSave}
             disabled={isPending}
-            className="h-9 px-4 bg-[#0B1B3D] text-white text-xs font-medium rounded-lg hover:bg-[#0B1B3D]/90 disabled:opacity-50 shadow-xs transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5"
+            className="h-9 px-4 bg-slate-900 text-white text-xs font-bold rounded-xl hover:bg-slate-800 disabled:opacity-50 shadow-2xs transition-all whitespace-nowrap shrink-0 flex items-center gap-1.5 cursor-pointer"
           >
             {isPending ? (
               <span>Saving...</span>

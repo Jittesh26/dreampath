@@ -18,7 +18,7 @@ import { resumeContentSchema, ResumeContent } from '../../domain/resume';
 import { mergeResumeContent } from '../../domain/resume-merge';
 
 function getProvider(): ResumeAIProvider {
-  if (process.env.GEMINI_API_KEY || process.env.OPENROUTER_API_KEY) {
+  if (!process.env.VITEST && process.env.NODE_ENV !== 'test' && (process.env.GEMINI_API_KEY || process.env.OPENROUTER_API_KEY)) {
     try {
       return new GeminiResumeAIProvider();
     } catch (err: any) {

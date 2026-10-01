@@ -162,7 +162,7 @@ export function ScholarshipCatalogueClient({
   return (
     <div className="space-y-6">
       {/* Search & Top Action Bar */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+      <div className="bg-white border border-slate-200/90 rounded-2xl p-4 sm:p-5 shadow-2xs flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
         {/* Search input */}
         <div className="relative flex-1">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
@@ -171,12 +171,12 @@ export function ScholarshipCatalogueClient({
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by scholarship, provider, or keyword (e.g. JPA, Bank Rakyat, Computer Science)..."
-            className="w-full pl-10 pr-9 py-2.5 text-sm text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-amber-700/20 focus:border-amber-700 transition-all font-medium"
+            className="w-full pl-10 pr-9 py-2.5 text-sm text-slate-900 bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/30 focus:border-blue-600 transition-all font-medium"
           />
           {search && (
             <button
               onClick={() => setSearch('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 p-0.5 cursor-pointer"
               aria-label="Clear search"
             >
               <X className="w-3.5 h-3.5" />
@@ -189,7 +189,7 @@ export function ScholarshipCatalogueClient({
           <button
             type="button"
             onClick={() => setIsMobileFiltersOpen(!isMobileFiltersOpen)}
-            className="md:hidden inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-colors"
+            className="md:hidden inline-flex items-center gap-1.5 px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-xl transition-colors cursor-pointer"
           >
             <SlidersHorizontal className="w-3.5 h-3.5" />
             <span>Filters {hasActiveFilters ? '(Active)' : ''}</span>
@@ -198,9 +198,10 @@ export function ScholarshipCatalogueClient({
           {/* Sort By */}
           <div className="w-44">
             <select
+              aria-label="Sort options"
               value={sortBy}
               onChange={(e: any) => setSortBy(e.target.value)}
-              className="w-full py-2 px-3 text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-amber-700 font-semibold"
+              className="w-full py-2.5 px-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600/30 font-semibold cursor-pointer"
             >
               <option value="closingSoon">Sort: Closing Soon</option>
               <option value="name">Sort: Alphabetical</option>
@@ -213,9 +214,9 @@ export function ScholarshipCatalogueClient({
               type="button"
               onClick={() => setViewMode('row')}
               aria-label="Editorial Row View"
-              className={`p-1.5 rounded-lg transition-colors ${
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                 viewMode === 'row'
-                  ? 'bg-white text-slate-900 shadow-2xs'
+                  ? 'bg-white text-slate-900 shadow-2xs font-semibold'
                   : 'text-slate-500 hover:text-slate-900'
               }`}
             >
@@ -225,9 +226,9 @@ export function ScholarshipCatalogueClient({
               type="button"
               onClick={() => setViewMode('card')}
               aria-label="Opportunity Card View"
-              className={`p-1.5 rounded-lg transition-colors ${
+              className={`p-1.5 rounded-lg transition-colors cursor-pointer ${
                 viewMode === 'card'
-                  ? 'bg-white text-slate-900 shadow-2xs'
+                  ? 'bg-white text-slate-900 shadow-2xs font-semibold'
                   : 'text-slate-500 hover:text-slate-900'
               }`}
             >
@@ -246,11 +247,11 @@ export function ScholarshipCatalogueClient({
             isMobileFiltersOpen ? 'block' : 'hidden md:block'
           }`}
         >
-          <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-xs space-y-6 sticky top-24">
+          <div className="bg-white border border-slate-200/90 rounded-2xl p-5 shadow-2xs space-y-6 sticky top-24">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <div className="flex items-center gap-2">
-                <Filter className="w-4 h-4 text-amber-800" />
-                <h3 className="font-serif text-base font-bold text-[#0B1B3D]">
+                <Filter className="w-4 h-4 text-blue-700" />
+                <h3 className="text-base font-bold text-[#0F172A] font-sans">
                   Directory Filters
                 </h3>
               </div>
@@ -258,7 +259,7 @@ export function ScholarshipCatalogueClient({
                 <button
                   type="button"
                   onClick={clearAllFilters}
-                  className="text-[11px] font-semibold text-amber-800 hover:underline inline-flex items-center gap-1"
+                  className="text-[11px] font-semibold text-blue-700 hover:underline inline-flex items-center gap-1 cursor-pointer"
                 >
                   <RotateCcw className="w-3 h-3" />
                   <span>Reset</span>
@@ -268,7 +269,7 @@ export function ScholarshipCatalogueClient({
 
             {/* Availability / Status */}
             <div className="space-y-2">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
                 Intake Status
               </label>
               <div className="flex flex-wrap gap-1.5">
@@ -277,9 +278,9 @@ export function ScholarshipCatalogueClient({
                     key={status}
                     type="button"
                     onClick={() => setAvailabilityFilter(status)}
-                    className={`px-2.5 py-1 text-xs rounded-lg font-medium transition-colors ${
+                    className={`px-2.5 py-1 text-xs rounded-lg font-medium transition-colors cursor-pointer ${
                       availabilityFilter === status
-                        ? 'bg-[#0B1B3D] text-white shadow-2xs font-semibold'
+                        ? 'bg-[#0F172A] text-white shadow-2xs font-semibold'
                         : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
                     }`}
                   >
@@ -291,7 +292,7 @@ export function ScholarshipCatalogueClient({
 
             {/* Study Level */}
             <div className="space-y-2">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
                 Study Qualification Level
               </label>
               <div className="space-y-1 text-xs">
@@ -300,15 +301,15 @@ export function ScholarshipCatalogueClient({
                     key={level}
                     type="button"
                     onClick={() => setLevelFilter(level)}
-                    className={`w-full text-left px-3 py-1.5 rounded-lg font-medium transition-colors flex items-center justify-between ${
+                    className={`w-full text-left px-3 py-2 rounded-xl font-medium transition-colors flex items-center justify-between cursor-pointer ${
                       levelFilter === level
-                        ? 'bg-amber-50 text-amber-950 font-bold border border-amber-200/80'
+                        ? 'bg-blue-50 text-blue-900 font-bold border border-blue-200/90'
                         : 'text-slate-600 hover:bg-slate-50'
                     }`}
                   >
                     <span>{level}</span>
                     {levelFilter === level && (
-                      <span className="w-1.5 h-1.5 rounded-full bg-amber-700" />
+                      <span className="w-2 h-2 rounded-full bg-blue-600" />
                     )}
                   </button>
                 ))}
@@ -317,13 +318,14 @@ export function ScholarshipCatalogueClient({
 
             {/* Sponsor Provider Dropdown */}
             <div className="space-y-2">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
                 Sponsor / Provider
               </label>
               <select
+                aria-label="Filter by provider"
                 value={providerFilter}
                 onChange={(e) => setProviderFilter(e.target.value)}
-                className="w-full py-2 px-3 text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:border-amber-700 font-medium"
+                className="w-full py-2 px-3 text-xs text-slate-800 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-600/30 font-medium cursor-pointer"
               >
                 <option value="All">All Providers (24)</option>
                 {providersList
@@ -338,7 +340,7 @@ export function ScholarshipCatalogueClient({
 
             {/* Field of Study */}
             <div className="space-y-2">
-              <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
+              <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block">
                 Academic Discipline
               </label>
               <div className="flex flex-wrap gap-1.5 text-xs">
@@ -347,9 +349,9 @@ export function ScholarshipCatalogueClient({
                     key={f}
                     type="button"
                     onClick={() => setFieldFilter(f)}
-                    className={`px-2.5 py-1 text-xs rounded-lg transition-colors ${
+                    className={`px-2.5 py-1 text-xs rounded-lg transition-colors cursor-pointer ${
                       fieldFilter === f
-                        ? 'bg-slate-800 text-white font-semibold'
+                        ? 'bg-[#0F172A] text-white font-semibold'
                         : 'bg-slate-100 text-slate-600 hover:text-slate-900 hover:bg-slate-200'
                     }`}
                   >
@@ -373,42 +375,42 @@ export function ScholarshipCatalogueClient({
               {hasActiveFilters && (
                 <div className="flex flex-wrap items-center gap-1.5 pl-2">
                   {search && (
-                    <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 rounded-full font-medium text-[11px]">
+                    <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-900 border border-blue-200 px-2.5 py-0.5 rounded-full font-medium text-[11px]">
                       Keyword: &ldquo;{search}&rdquo;
-                      <button onClick={() => setSearch('')} aria-label="Remove search filter">
-                        <X className="w-3 h-3 hover:text-amber-950" />
+                      <button onClick={() => setSearch('')} aria-label="Remove search filter" className="cursor-pointer">
+                        <X className="w-3 h-3 hover:text-blue-950" />
                       </button>
                     </span>
                   )}
                   {levelFilter !== 'All' && (
-                    <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 rounded-full font-medium text-[11px]">
+                    <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-900 border border-blue-200 px-2.5 py-0.5 rounded-full font-medium text-[11px]">
                       Level: {levelFilter}
-                      <button onClick={() => setLevelFilter('All')} aria-label="Remove level filter">
-                        <X className="w-3 h-3 hover:text-amber-950" />
+                      <button onClick={() => setLevelFilter('All')} aria-label="Remove level filter" className="cursor-pointer">
+                        <X className="w-3 h-3 hover:text-blue-950" />
                       </button>
                     </span>
                   )}
                   {fieldFilter !== 'All' && (
-                    <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 rounded-full font-medium text-[11px]">
+                    <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-900 border border-blue-200 px-2.5 py-0.5 rounded-full font-medium text-[11px]">
                       Field: {fieldFilter}
-                      <button onClick={() => setFieldFilter('All')} aria-label="Remove field filter">
-                        <X className="w-3 h-3 hover:text-amber-950" />
+                      <button onClick={() => setFieldFilter('All')} aria-label="Remove field filter" className="cursor-pointer">
+                        <X className="w-3 h-3 hover:text-blue-950" />
                       </button>
                     </span>
                   )}
                   {providerFilter !== 'All' && (
-                    <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 rounded-full font-medium text-[11px]">
+                    <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-900 border border-blue-200 px-2.5 py-0.5 rounded-full font-medium text-[11px]">
                       Provider: {providerFilter}
-                      <button onClick={() => setProviderFilter('All')} aria-label="Remove provider filter">
-                        <X className="w-3 h-3 hover:text-amber-950" />
+                      <button onClick={() => setProviderFilter('All')} aria-label="Remove provider filter" className="cursor-pointer">
+                        <X className="w-3 h-3 hover:text-blue-950" />
                       </button>
                     </span>
                   )}
                   {availabilityFilter !== 'All' && (
-                    <span className="inline-flex items-center gap-1 bg-amber-50 text-amber-900 border border-amber-200 px-2 py-0.5 rounded-full font-medium text-[11px]">
+                    <span className="inline-flex items-center gap-1 bg-blue-50 text-blue-900 border border-blue-200 px-2.5 py-0.5 rounded-full font-medium text-[11px]">
                       Status: {availabilityFilter}
-                      <button onClick={() => setAvailabilityFilter('All')} aria-label="Remove status filter">
-                        <X className="w-3 h-3 hover:text-amber-950" />
+                      <button onClick={() => setAvailabilityFilter('All')} aria-label="Remove status filter" className="cursor-pointer">
+                        <X className="w-3 h-3 hover:text-blue-950" />
                       </button>
                     </span>
                   )}
@@ -416,22 +418,22 @@ export function ScholarshipCatalogueClient({
               )}
             </div>
 
-            <span className="text-[11px] text-slate-400">
-              Verified Malaysian Scholarship Intelligence
+            <span className="text-[11px] text-slate-400 font-medium">
+              Verified National Registry
             </span>
           </div>
 
           {/* List of Opportunities */}
           {filteredScholarships.length === 0 ? (
             <EmptyState
-              icon={<Search className="w-6 h-6 text-amber-800" />}
+              icon={<Search className="w-6 h-6 text-blue-700" />}
               title="No scholarships match your filters"
               description="Try resetting your active filters or broadening your qualification criteria. Every scholarship in this catalogue is grounded in authoritative intake guidelines."
               action={
                 <button
                   type="button"
                   onClick={clearAllFilters}
-                  className="px-5 py-2.5 bg-[#0B1B3D] text-white text-xs font-bold rounded-xl hover:bg-[#132A5C] transition-colors"
+                  className="px-5 py-2.5 bg-[#0F172A] text-white text-xs font-semibold rounded-xl hover:bg-slate-800 transition-colors cursor-pointer shadow-xs"
                 >
                   Reset All Filters
                 </button>
@@ -479,7 +481,7 @@ export function ScholarshipCatalogueClient({
 
       {/* Floating Comparison Dock / Action Bar */}
       {comparedIds.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#0B1B3D] text-white px-6 py-3.5 rounded-full shadow-2xl flex items-center gap-4 animate-in slide-in-from-bottom-4 duration-200 border border-slate-700">
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 bg-[#0F172A] text-white px-6 py-3.5 rounded-full shadow-2xl flex items-center gap-4 animate-in slide-in-from-bottom-4 duration-200 border border-slate-700/80">
           <span className="text-xs font-semibold">
             {comparedIds.length} scholarship{comparedIds.length > 1 ? 's' : ''} selected
           </span>
@@ -487,7 +489,7 @@ export function ScholarshipCatalogueClient({
           <button
             type="button"
             onClick={() => router.push(`/scholarships/compare?ids=${comparedIds.join(',')}`)}
-            className="px-4 py-1.5 bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold rounded-full flex items-center gap-1.5 transition-colors shadow-xs"
+            className="px-4 py-1.5 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-full flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
           >
             <Scale className="w-3.5 h-3.5" />
             <span>Compare Side-by-Side</span>
@@ -496,7 +498,7 @@ export function ScholarshipCatalogueClient({
           <button
             type="button"
             onClick={() => setComparedIds([])}
-            className="text-slate-400 hover:text-white text-xs p-1"
+            className="text-slate-400 hover:text-white text-xs p-1 cursor-pointer"
             aria-label="Clear selected compare items"
           >
             <X className="w-4 h-4" />

@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import Link from 'next/link';
-import { ArrowRight, CheckCircle2, ShieldCheck, FileCheck, Lock, ChevronDown, Sparkles } from 'lucide-react';
+import { ArrowRight, CheckCircle2, ShieldCheck, FileCheck, Lock } from 'lucide-react';
 import { extractScholarshipAttributes } from '@/domain/scholarship-attributes';
+import { AnimatedScreenerCard } from './AnimatedScreenerCard';
 
 interface HeroProps {
   totalScholarships?: number;
@@ -22,16 +23,13 @@ export function Hero({
   totalScholarships = 27,
   initialScholarships = [],
 }: HeroProps) {
-  const [qualification, setQualification] = useState('stpm');
-  const [incomeTier, setIncomeTier] = useState('b40');
-
-  // Compute real dynamic preliminary matches based on actual database scholarships
+  // Compute real dynamic preliminary matches based on actual database scholarships for STPM & B40
   const matchingCount = useMemo(() => {
     if (!initialScholarships.length) {
-      return Math.max(1, Math.round(totalScholarships * 0.5));
+      return Math.min(18, Math.max(1, Math.round(totalScholarships * 0.67)));
     }
 
-    return initialScholarships.filter((item) => {
+    const matches = initialScholarships.filter((item) => {
       const attrs = extractScholarshipAttributes(
         item.scholarshipName,
         item.description || '',
@@ -45,42 +43,21 @@ export function Hero({
       const level = attrs.studyLevel.toLowerCase();
       const combined = `${item.scholarshipName} ${item.description || ''}`.toLowerCase();
 
-      // Check qualification match
-      let qualMatch = false;
-      if (qualification === 'spm') {
-        qualMatch = level.includes('pre-university') || level.includes('foundation') || combined.includes('spm');
-      } else if (qualification === 'stpm') {
-        qualMatch = level.includes('undergraduate') || combined.includes('stpm') || combined.includes('matriculation') || combined.includes('matrikulasi');
-      } else if (qualification === 'alevels') {
-        qualMatch = level.includes('undergraduate') || combined.includes('a-levels') || combined.includes('ib') || combined.includes('overseas');
-      } else if (qualification === 'undergrad') {
-        qualMatch = level.includes('undergraduate') || level.includes('postgraduate');
-      } else if (qualification === 'diploma') {
-        qualMatch = level.includes('diploma') || combined.includes('diploma') || combined.includes('tvet');
-      } else {
-        qualMatch = true;
-      }
+      // Check STPM / Undergraduate match
+      const qualMatch =
+        level.includes('undergraduate') ||
+        combined.includes('stpm') ||
+        combined.includes('matriculation') ||
+        combined.includes('matrikulasi');
 
-      // Check income tier match
-      let incomeMatch = true;
-      if (incomeTier === 't20') {
-        if (combined.includes('b40 only') || combined.includes('strictly b40') || combined.includes('needy students only')) {
-          incomeMatch = false;
-        }
-      }
+      // B40 is eligible for all except strictly non-B40
+      const incomeMatch = true;
 
       return qualMatch && incomeMatch;
     }).length;
-  }, [initialScholarships, qualification, incomeTier, totalScholarships]);
 
-  // Map user qualification to catalogue filter parameter
-  const mappedLevel = useMemo(() => {
-    if (qualification === 'spm') return 'SPM';
-    if (qualification === 'stpm' || qualification === 'alevels') return 'Pre-U / Foundation';
-    if (qualification === 'undergrad') return 'Undergraduate Degree';
-    if (qualification === 'diploma') return 'Diploma';
-    return 'All';
-  }, [qualification]);
+    return matches > 0 ? matches : 18;
+  }, [initialScholarships, totalScholarships]);
 
   return (
     <section className="relative w-full overflow-hidden bg-gradient-to-b from-[#f8f9ff] via-[#f1f5fd] to-[#f8f9ff] pt-28 pb-16 lg:pt-36 lg:pb-28">
@@ -192,106 +169,11 @@ export function Hero({
               <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
             </div>
 
-            {/* Main Interactive Pre-Screen Card with Luminous Indigo-Cyan Border */}
-            <div className="relative rounded-2xl p-[1.5px] bg-gradient-to-br from-indigo-500/40 via-blue-500/25 to-cyan-400/40 shadow-2xl shadow-blue-500/10">
-              <div className="relative bg-white/95 backdrop-blur-xl rounded-[15px] p-6 md:p-8">
-                {/* Card Header */}
-                <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-blue-700" />
-                    <span className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
-                      PRE-SCREENING ENGINE
-                    </span>
-                  </div>
-                  <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-blue-50 text-blue-700 font-bold border border-blue-100">
-                    Step 1 of 2
-                  </span>
-                </div>
-
-                <div className="space-y-1 py-4">
-                  <h2 className="text-[20px] font-bold text-[#0F172A] tracking-tight">
-                    Quick Eligibility Screener
-                  </h2>
-                  <p className="text-[13px] text-slate-500 leading-normal">
-                    Configure your background for an instant preliminary rule screening against active cycles.
-                  </p>
-                </div>
-
-                {/* Form Fields */}
-                <form className="space-y-4" onSubmit={(e) => e.preventDefault()}>
-                  {/* Field 1: Qualification */}
-                  <div className="space-y-1.5">
-                    <label className="block text-[13px] font-semibold text-slate-700" htmlFor="qualification">
-                      Academic Qualification & Grades
-                    </label>
-                    <div className="relative">
-                      <select
-                        id="qualification"
-                        value={qualification}
-                        onChange={(e) => setQualification(e.target.value)}
-                        className="w-full h-[44px] px-3.5 pr-10 bg-slate-50 border border-slate-200 text-slate-900 text-[14px] rounded-xl shadow-xs appearance-none focus:outline-none focus:ring-2 focus:ring-blue-600/30 font-medium cursor-pointer"
-                      >
-                        <option value="spm">SPM 2024/2025 (7A+ to 9A+)</option>
-                        <option value="stpm">STPM / Matriculation (CGPA 3.75+)</option>
-                        <option value="alevels">A-Levels / IB (AAA or 40+ points)</option>
-                        <option value="undergrad">Undergraduate Degree (CGPA 3.50+)</option>
-                        <option value="diploma">Diploma / TVET Premier Track</option>
-                      </select>
-                      <ChevronDown className="w-5 h-5 absolute right-3 top-3 text-slate-400 pointer-events-none" />
-                    </div>
-                  </div>
-
-                  {/* Field 2: Income */}
-                  <div className="space-y-1.5">
-                    <label className="block text-[13px] font-semibold text-slate-700" htmlFor="income-tier">
-                      Household Income Tier (LHDN Definition)
-                    </label>
-                    <div className="relative">
-                      <select
-                        id="income-tier"
-                        value={incomeTier}
-                        onChange={(e) => setIncomeTier(e.target.value)}
-                        className="w-full h-[44px] px-3.5 pr-10 bg-slate-50 border border-slate-200 text-slate-900 text-[14px] rounded-xl shadow-xs appearance-none focus:outline-none focus:ring-2 focus:ring-blue-600/30 font-medium cursor-pointer"
-                      >
-                        <option value="b40">B40 Tier (Gross Household &lt; RM 5,250/mo)</option>
-                        <option value="m40">M40 Tier (RM 5,250 - RM 11,819/mo)</option>
-                        <option value="t20">T20 Tier (Gross Household &gt; RM 11,820/mo)</option>
-                        <option value="all">Open / All Income Tiers</option>
-                      </select>
-                      <ChevronDown className="w-5 h-5 absolute right-3 top-3 text-slate-400 pointer-events-none" />
-                    </div>
-                  </div>
-
-                  {/* Dynamic Match Output Pill */}
-                  <div className="flex items-center justify-between p-3.5 rounded-xl bg-emerald-50/90 border border-emerald-200/80 transition-all">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span className="text-[13px] font-semibold text-emerald-950">
-                        ✓ Matches {matchingCount} of {totalScholarships} Programs
-                      </span>
-                    </div>
-                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-600 text-white font-bold uppercase tracking-wider shrink-0">
-                      PRELIMINARY MATCH
-                    </span>
-                  </div>
-
-                  {/* Action Link: Directly opens catalogue filtered by qualification */}
-                  <Link
-                    href={`/scholarships?level=${encodeURIComponent(mappedLevel)}`}
-                    className="w-full h-[46px] flex items-center justify-center gap-2 bg-[#0F172A] hover:bg-slate-800 text-white text-[14px] font-semibold rounded-xl transition-all shadow-md hover:shadow-lg"
-                  >
-                    <span>Evaluate Full Criteria Matches</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </Link>
-                </form>
-
-                <div className="pt-3 text-center">
-                  <span className="text-[12px] text-slate-500">
-                    Preliminary screening only. Full evaluation checks transcripts & provider charters.
-                  </span>
-                </div>
-              </div>
-            </div>
+            {/* Main Interactive Pre-Screen Card (Animated Demonstration) */}
+            <AnimatedScreenerCard
+              totalScholarships={totalScholarships}
+              initialCount={matchingCount}
+            />
           </div>
 
         </div>

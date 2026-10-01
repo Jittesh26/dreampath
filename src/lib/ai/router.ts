@@ -68,14 +68,12 @@ const FEATURE_DEFAULTS: Record<AIFeature, { timeoutMs: number; thinkingBudget: n
 };
 
 const OPENROUTER_URL = 'https://openrouter.ai/api/v1/chat/completions';
-const PRIMARY_GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
+const PRIMARY_GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.5-flash';
 const GEMINI_CASCADES = [
   PRIMARY_GEMINI_MODEL,
-  'gemini-3.6-flash',
-  'gemini-3.1-flash-lite',
-  'gemini-3-flash-preview',
-  'gemini-flash-lite-latest',
-  'gemini-3.5-flash',
+  'gemini-2.5-flash',
+  'gemini-2.0-flash',
+  'gemini-1.5-flash',
 ];
 const OPENROUTER_MODELS = [
   process.env.OPENROUTER_MODEL || 'meta-llama/llama-3.1-8b-instruct',
@@ -152,7 +150,7 @@ export class AIRouter {
           responseMimeType,
         };
 
-        if (config.jsonSchema) {
+        if (config.jsonSchema && typeof config.jsonSchema === 'object') {
           genConfig.responseSchema = config.jsonSchema;
         }
 

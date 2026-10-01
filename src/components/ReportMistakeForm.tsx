@@ -38,23 +38,27 @@ export function ReportMistakeForm({ scholarshipId }: { scholarshipId: string }) 
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3 p-4 bg-card border border-border rounded-lg">
-      <h4 className="font-bold text-foreground">See outdated information?</h4>
-      <p className="text-sm text-muted-foreground">Help us keep DreamPath trustworthy. Report any discrepancies.</p>
-      <div className="flex gap-2">
+    <form onSubmit={handleSubmit} className="space-y-3 p-5 bg-white border border-slate-200/90 rounded-2xl shadow-2xs font-sans">
+      <h4 className="font-bold text-slate-950 text-sm">See outdated information?</h4>
+      <p className="text-xs text-slate-500 font-normal">Help us keep DreamPath trustworthy. Report discrepancies directly against official sources.</p>
+      <div className="flex flex-col sm:flex-row gap-2">
         <Input 
           name="message" 
           placeholder="What's wrong? (e.g. Deadline changed to Aug 15)" 
           required 
           maxLength={500}
           disabled={loading}
-          className="flex-1 bg-background"
+          className="flex-1 bg-slate-50 border-slate-200 rounded-xl text-xs"
         />
-        <Button type="submit" variant="secondary" disabled={loading}>
-          {loading ? 'Sending...' : 'Report'}
+        <Button 
+          type="submit" 
+          disabled={loading}
+          className="bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold px-4 py-2 cursor-pointer"
+        >
+          {loading ? 'Sending...' : 'Report Discrepancy'}
         </Button>
       </div>
-      {error && <p className="text-sm text-destructive">{error}</p>}
+      {error && <p className="text-xs text-rose-600 font-medium">{error}</p>}
     </form>
   );
 }

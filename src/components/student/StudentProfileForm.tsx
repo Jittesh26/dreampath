@@ -65,16 +65,16 @@ export function StudentProfileForm({
   return (
     <div className="space-y-6">
       {/* Magic Autofill Trigger Card */}
-      <div className="bg-amber-50/70 border border-amber-200/90 rounded-xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-2xs">
+      <div className="bg-blue-50/60 border border-blue-200/80 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-2xs">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-amber-600 text-white rounded-lg shadow-xs shrink-0">
-            <Sparkles className="w-5 h-5" />
+          <div className="p-2.5 bg-blue-600 text-white rounded-xl shadow-xs shrink-0">
+            <Sparkles className="w-5 h-5 text-amber-300" />
           </div>
           <div>
-            <h3 className="font-serif text-lg font-bold text-[#0B1B3D]">
+            <h3 className="font-sans text-base font-bold text-slate-900">
               Magic Autofill from Transcript
             </h3>
-            <p className="text-xs text-slate-600">
+            <p className="text-xs text-slate-600 font-normal">
               Paste or upload your SPM result slip or transcript to extract your CGPA and grades automatically.
             </p>
           </div>
@@ -83,7 +83,7 @@ export function StudentProfileForm({
         <button
           type="button"
           onClick={() => setIsAutofillOpen(true)}
-          className="px-3.5 py-2 bg-[#0B1B3D] hover:bg-[#0B1B3D]/90 text-white text-xs font-semibold rounded-lg flex items-center gap-1.5 transition-colors shrink-0 shadow-xs cursor-pointer"
+          className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all shrink-0 shadow-2xs cursor-pointer"
         >
           <Upload className="w-3.5 h-3.5" />
           <span>Launch Autofill</span>
@@ -91,24 +91,24 @@ export function StudentProfileForm({
       </div>
 
       {/* Main Profile Form */}
-      <form action={updateStudentProfile} className="bg-white border border-slate-200/90 rounded-xl p-6 sm:p-8 shadow-xs space-y-6">
-        <div className="border-b border-slate-100 pb-3">
-          <h3 className="font-serif text-xl font-bold text-[#0B1B3D]">
+      <form action={updateStudentProfile} className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-6">
+        <div className="border-b border-slate-100 pb-4">
+          <h3 className="font-sans text-xl font-black text-slate-950 tracking-tight">
             Academic Credentials &amp; Demographics
           </h3>
-          <p className="text-xs text-slate-500 mt-0.5">
+          <p className="text-xs text-slate-500 mt-1 font-normal">
             Confirmed profile fields used by the deterministic eligibility evaluation engine.
           </p>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-xs">
           <div className="space-y-1.5">
-            <label className="font-semibold text-slate-700 block">Citizenship Status</label>
+            <label className="font-bold text-slate-700 block">Citizenship Status</label>
             <select
               name="citizenship"
               value={citizenship}
               onChange={(e) => setCitizenship(e.target.value)}
-              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-medium"
+              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600"
             >
               <option value="Malaysian">Malaysian (Warganegara)</option>
               <option value="Permanent Resident">Permanent Resident (PR)</option>
@@ -117,12 +117,12 @@ export function StudentProfileForm({
           </div>
 
           <div className="space-y-1.5">
-            <label className="font-semibold text-slate-700 block">Bumiputera Status</label>
+            <label className="font-bold text-slate-700 block">Bumiputera Status</label>
             <select
               name="bumiputeraStatus"
               value={bumiputeraStatus}
               onChange={(e) => setBumiputeraStatus(e.target.value)}
-              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-medium"
+              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600"
             >
               <option value="true">Yes (Bumiputera)</option>
               <option value="false">No (Non-Bumiputera)</option>
@@ -130,12 +130,12 @@ export function StudentProfileForm({
           </div>
 
           <div className="space-y-1.5">
-            <label className="font-semibold text-slate-700 block">Household Income Band</label>
+            <label className="font-bold text-slate-700 block">Household Income Band</label>
             <select
               name="incomeBand"
               value={incomeBand}
               onChange={(e) => setIncomeBand(e.target.value)}
-              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-medium"
+              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600"
             >
               <option value="B40">B40 (Below RM 5,250)</option>
               <option value="M40">M40 (RM 5,250 - RM 11,819)</option>
@@ -144,7 +144,7 @@ export function StudentProfileForm({
           </div>
 
           <div className="space-y-1.5">
-            <label className="font-semibold text-slate-700 block">Current Tertiary CGPA (PNGK)</label>
+            <label className="font-bold text-slate-700 block">Current Tertiary CGPA (PNGK)</label>
             <input
               name="cgpa"
               type="number"
@@ -154,7 +154,7 @@ export function StudentProfileForm({
               value={cgpa}
               onChange={(e) => setCgpa(e.target.value)}
               placeholder="e.g. 3.75"
-              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-medium focus:bg-white"
+              className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-semibold focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600"
             />
           </div>
         </div>
@@ -162,20 +162,20 @@ export function StudentProfileForm({
         {/* SPM Subjects */}
         <div className="pt-4 border-t border-slate-100 space-y-4">
           <div className="flex items-center justify-between">
-            <h4 className="font-serif text-lg font-bold text-[#0B1B3D]">
+            <h4 className="font-sans text-base font-bold text-slate-900">
               Verified SPM Subject Grades
             </h4>
-            <span className="text-xs text-slate-400">Used for deterministic matching</span>
+            <span className="text-xs text-slate-400 font-medium">Used for deterministic matching</span>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
             <div className="space-y-1.5">
-              <label className="font-semibold text-slate-700 block">Bahasa Melayu</label>
+              <label className="font-bold text-slate-700 block">Bahasa Melayu</label>
               <select
                 name="spm_bm"
                 value={spmBm}
                 onChange={(e) => setSpmBm(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold"
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600"
               >
                 <option value="">Select Grade</option>
                 {SPM_GRADES.map((g) => (
@@ -185,12 +185,12 @@ export function StudentProfileForm({
             </div>
 
             <div className="space-y-1.5">
-              <label className="font-semibold text-slate-700 block">English</label>
+              <label className="font-bold text-slate-700 block">English</label>
               <select
                 name="spm_eng"
                 value={spmEng}
                 onChange={(e) => setSpmEng(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold"
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600"
               >
                 <option value="">Select Grade</option>
                 {SPM_GRADES.map((g) => (
@@ -200,12 +200,12 @@ export function StudentProfileForm({
             </div>
 
             <div className="space-y-1.5">
-              <label className="font-semibold text-slate-700 block">Mathematics</label>
+              <label className="font-bold text-slate-700 block">Mathematics</label>
               <select
                 name="spm_math"
                 value={spmMath}
                 onChange={(e) => setSpmMath(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold"
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600"
               >
                 <option value="">Select Grade</option>
                 {SPM_GRADES.map((g) => (
@@ -215,12 +215,12 @@ export function StudentProfileForm({
             </div>
 
             <div className="space-y-1.5">
-              <label className="font-semibold text-slate-700 block">Additional Mathematics</label>
+              <label className="font-bold text-slate-700 block">Additional Mathematics</label>
               <select
                 name="spm_addmath"
                 value={spmAddMath}
                 onChange={(e) => setSpmAddMath(e.target.value)}
-                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold"
+                className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-slate-900 font-bold focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600"
               >
                 <option value="">Select Grade</option>
                 {SPM_GRADES.map((g) => (
@@ -235,7 +235,7 @@ export function StudentProfileForm({
         <div className="pt-4 border-t border-slate-100 flex justify-end">
           <button
             type="submit"
-            className="px-5 py-2.5 bg-[#0B1B3D] hover:bg-[#0B1B3D]/90 text-white text-xs font-semibold rounded-lg transition-colors shadow-xs cursor-pointer"
+            className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-all shadow-sm cursor-pointer"
           >
             Save Authoritative Profile
           </button>

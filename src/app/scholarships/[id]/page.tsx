@@ -80,10 +80,20 @@ export default async function ScholarshipDetailPage({
   const sourceUrl = latestVersion?.sourceUrl || scholarshipData.providers.url || 'https://esilav2.jpa.gov.my';
 
   return (
-    <div className="min-h-screen bg-[#FAFAF9] flex flex-col">
+    <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans">
       <SiteNav />
 
-      <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-10 max-w-6xl">
+      {/* Top ambient background strip */}
+      <div className="pt-24 pb-8 bg-gradient-to-b from-[#f8f9ff] via-[#f1f5fd] to-[#F8FAFC] border-b border-slate-200/80">
+        <div className="max-w-[1280px] mx-auto px-4 md:px-8">
+          <div className="flex items-center gap-2 text-[11px] font-bold text-blue-700 uppercase tracking-wider mb-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />
+            <span>AUTHORITATIVE SCHOLARSHIP DOSSIER</span>
+          </div>
+        </div>
+      </div>
+
+      <main className="flex-1 max-w-[1280px] w-full mx-auto px-4 md:px-8 py-8 space-y-8">
         <ScholarshipDetailView
           id={scholarshipData.scholarships.id}
           name={scholarshipData.scholarships.name}
@@ -106,4 +116,5 @@ export default async function ScholarshipDetailPage({
       <Footer />
     </div>
   );
+
 }

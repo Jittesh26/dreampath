@@ -155,11 +155,11 @@ export function CommandPalette() {
       role="dialog"
       aria-modal="true"
       aria-label="Command Palette"
-      className="fixed inset-0 z-50 flex items-start justify-center pt-20 p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-150"
+      className="fixed inset-0 z-50 flex items-start justify-center pt-20 p-4 bg-slate-950/50 backdrop-blur-sm animate-in fade-in duration-150"
       onClick={() => setIsOpen(false)}
     >
       <div
-        className="w-full max-w-xl bg-white border border-slate-200 rounded-xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
+        className="w-full max-w-xl bg-white border border-slate-200/90 rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh] font-sans"
         onClick={(e) => e.stopPropagation()}
         onKeyDown={onKeyDown}
       >
@@ -177,7 +177,7 @@ export function CommandPalette() {
             placeholder="Type a command or search scholarships (e.g. JPA, Gamuda, CGPA)..."
             className="w-full text-sm text-slate-900 placeholder:text-slate-400 bg-transparent outline-none font-medium"
           />
-          <kbd className="hidden sm:inline-block px-2 py-0.5 text-[11px] font-mono font-medium text-slate-400 bg-slate-100 rounded border border-slate-200">
+          <kbd className="hidden sm:inline-block px-2 py-0.5 text-[11px] font-mono font-bold text-slate-400 bg-slate-100 rounded-md border border-slate-200">
             ESC
           </kbd>
         </div>
@@ -189,7 +189,7 @@ export function CommandPalette() {
               <p className="text-sm text-slate-500 font-medium">No direct matching commands.</p>
               <button
                 onClick={() => handleSelect(`/scholarships?q=${encodeURIComponent(query)}`)}
-                className="mt-3 text-xs font-semibold text-amber-700 hover:underline inline-flex items-center gap-1"
+                className="mt-3 text-xs font-bold text-blue-700 hover:text-blue-900 hover:underline inline-flex items-center gap-1 cursor-pointer"
               >
                 Search scholarships catalogue for &ldquo;{query}&rdquo; &rarr;
               </button>
@@ -200,20 +200,20 @@ export function CommandPalette() {
                 key={action.id}
                 onClick={() => handleSelect(action.href)}
                 onMouseEnter={() => setSelectedIndex(idx)}
-                className={`w-full text-left px-3 py-2.5 rounded-lg flex items-center justify-between gap-3 transition-colors ${
-                  idx === selectedIndex ? 'bg-amber-50/70 text-slate-900' : 'hover:bg-slate-50 text-slate-700'
+                className={`w-full text-left px-3 py-2.5 rounded-xl flex items-center justify-between gap-3 transition-colors cursor-pointer ${
+                  idx === selectedIndex ? 'bg-blue-50/70 text-slate-950' : 'hover:bg-slate-50 text-slate-700'
                 }`}
               >
                 <div className="flex items-center gap-3 min-w-0">
-                  <div className="p-1.5 rounded-md bg-white border border-slate-100 shadow-xs shrink-0">
+                  <div className="p-1.5 rounded-lg bg-white border border-slate-100 shadow-2xs shrink-0">
                     {action.icon}
                   </div>
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-900 truncate">{action.title}</p>
+                    <p className="text-sm font-bold text-slate-950 truncate">{action.title}</p>
                     <p className="text-xs text-slate-500 truncate">{action.description}</p>
                   </div>
                 </div>
-                <span className="text-[11px] text-slate-400 shrink-0 font-medium">
+                <span className="text-[11px] text-slate-400 shrink-0 font-semibold uppercase tracking-wider">
                   {action.category}
                 </span>
               </button>
@@ -222,7 +222,7 @@ export function CommandPalette() {
         </div>
 
         {/* Footer shortcuts */}
-        <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
+        <div className="px-4 py-2.5 bg-slate-50/70 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-500">
           <div className="flex items-center gap-3">
             <span>
               <kbd className="px-1.5 py-0.5 bg-white border border-slate-200 rounded font-mono text-[10px]">↑</kbd>{' '}
@@ -232,7 +232,7 @@ export function CommandPalette() {
               <kbd className="px-1.5 py-0.5 bg-white border border-slate-200 rounded font-mono text-[10px]">↵</kbd> to select
             </span>
           </div>
-          <span className="font-serif italic text-amber-900 font-semibold">DreamPath Intelligence</span>
+          <span className="font-serif italic text-blue-900 font-semibold">DreamPath Intelligence</span>
         </div>
       </div>
     </div>
