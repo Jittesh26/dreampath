@@ -40,7 +40,7 @@ function parseAstRequirements(nodes: RequirementNode[]): {
   summary: string[];
 } {
   let minCgpa = 'None specified';
-  let citizenship = 'Malaysian Citizen';
+  let citizenship = 'Not specified';
   let maxAge = 'None specified';
   let incomeCriteria = 'Open to all income brackets';
   const summary: string[] = [];
@@ -96,62 +96,78 @@ function parseAstRequirements(nodes: RequirementNode[]): {
 function extractVerifiedAttributes(name: string, description: string, evidenceNotes: string) {
   const text = `${name} ${description} ${evidenceNotes}`.toLowerCase();
 
-  // Study Level
-  let studyLevel = 'Undergraduate Degree';
-  if (text.includes('postgraduate') || text.includes('masters') || text.includes('phd')) {
+  // Study Level — do NOT default unknown to 'Undergraduate Degree'
+  let studyLevel = 'All Study Levels';
+  if (/\b(postgraduate|masters|phd)\b/i.test(text)) {
     studyLevel = 'Postgraduate (Masters/PhD)';
-  } else if (text.includes('diploma')) {
+  } else if (/\bdiploma\b/i.test(text)) {
     studyLevel = 'Diploma';
-  } else if (text.includes('pre-university') || text.includes('a-levels') || text.includes('foundation') || text.includes('spm')) {
+  } else if (/\b(pre-university|a-levels|foundation|spm)\b/i.test(text)) {
     studyLevel = 'Pre-University / Foundation';
+  } else if (/\b(undergraduate|degree|bachelor)\b/i.test(text)) {
+    studyLevel = 'Undergraduate Degree';
   }
 
-  // Award Type
-  let award = 'Full Scholarship (Tuition + Allowances)';
-  if (text.includes('convertible') || text.includes('pembiayaan boleh ubah') || text.includes('ppbu')) {
-    award = 'Convertible Loan (100% waiver based on CGPA)';
-  } else if (text.includes('grant') || text.includes('study award') || text.includes('financial aid')) {
+  // Award Type — do NOT default to 'Full Scholarship'
+  let award = 'See Official Details';
+  if (/\b(convertible|pembiayaan boleh ubah|ppbu)\b/i.test(text)) {
+    award = 'Convertible Loan (waiver based on CGPA)';
+  } else if (/\b(grant|study award|financial aid)\b/i.test(text)) {
     award = 'Direct Educational Grant / Financial Aid';
-  } else if (text.includes('partial')) {
+  } else if (/\bpartial\b/i.test(text)) {
     award = 'Partial Tuition Sponsorship';
+  } else if (/\bfull tuition\b/i.test(text) || /\bfull scholarship\b/i.test(text)) {
+    award = 'Full Scholarship (Tuition Covered)';
   }
 
   // Duration
-  const duration = studyLevel.includes('Pre-University') ? '1 - 2 Years' : studyLevel.includes('Diploma') ? '2 - 3 Years' : '3 - 4 Years (Full Degree Duration)';
+  const duration = studyLevel.includes('Pre-University')
+    ? '1 - 2 Years'
+    : studyLevel.includes('Diploma')
+    ? '2 - 3 Years'
+    : studyLevel.includes('Undergraduate')
+    ? '3 - 4 Years'
+    : 'Program Dependent';
 
   // Eligible Fields
   let eligibleFields = 'All Accredited Academic Disciplines';
   if (text.includes('stem') && text.includes('accountancy')) {
     eligibleFields = 'STEM Disciplines, Accountancy & Commercial';
-  } else if (text.includes('engineering') || text.includes('built environment') || text.includes('software')) {
-    eligibleFields = 'Engineering, Built Environment, IT & Software, Business';
-  } else if (text.includes('actuarial') || text.includes('data analytics') || text.includes('digital')) {
-    eligibleFields = 'Actuarial Science, Data Analytics, Digital Tech & Finance';
-  } else if (text.includes('geosciences') || text.includes('petronas')) {
-    eligibleFields = 'Engineering, Geosciences, Business Analytics';
-  } else if (text.includes('economics') || text.includes('central bank')) {
-    eligibleFields = 'Economics, Finance, Actuarial Science, Data Science';
+  } else if (/\b(engineering|built environment)\b/i.test(text)) {
+    eligibleFields = 'Engineering & Built Environment';
+  } else if (/\b(actuarial|data analytics)\b/i.test(text)) {
+    eligibleFields = 'Actuarial Science & Data Analytics';
+  } else if (/\b(geosciences)\b/i.test(text)) {
+    eligibleFields = 'Engineering & Geosciences';
+  } else if (/\b(economics|finance)\b/i.test(text)) {
+    eligibleFields = 'Economics & Finance';
   }
 
-  // Tuition & Allowances
-  const tuitionCoverage = text.includes('full tuition') || text.includes('100%') || text.includes('all tuition') ? '100% Tuition & Institutional Fees Covered' : 'Full / Subsidized Tuition Coverage';
+  // Tuition & Allowances — unknown must remain unknown
+  const tuitionCoverage = /\b(full tuition|100%|all tuition)\b/i.test(text)
+    ? '100% Tuition & Institutional Fees Covered'
+    : /\b(partial|subsidized)\b/i.test(text)
+    ? 'Partial / Subsidized Tuition Coverage'
+    : 'See Official Announcement';
 
-  const livingAllowance = text.includes('living allowance') || text.includes('monthly stipend') || text.includes('allowances') ? 'Monthly Living Allowance Included' : 'Incidental & Book Allowances';
+  const livingAllowance = /\b(living allowance|monthly stipend|stipend)\b/i.test(text)
+    ? 'Monthly Living Allowance Included'
+    : 'Not Specified / None';
 
-  const accommodation = text.includes('accommodation') || text.includes('hostel') || text.includes('global') ? 'Campus Accommodation / Housing Allowance Included' : 'Subject to Institution / Self-arranged';
+  const accommodation = /\b(accommodation|hostel)\b/i.test(text)
+    ? 'Campus Accommodation / Housing Allowance Included'
+    : 'Self-arranged / Not Specified';
 
-  // Bond / Service Obligation
-  let bond = 'No Service Bond (Work Free)';
+  // Bond / Service Obligation — do NOT claim 'No Service Bond' or 'Guaranteed Corporate Placement'
+  let bond = 'See Official Terms';
   if (text.includes('khazanah employment bond') || text.includes('khazanah bond')) {
-    claim: bond = 'Executive Service Bond with Khazanah Group';
+    bond = 'Executive Service Bond with Khazanah Group';
   } else if (text.includes('petronas')) {
     bond = 'Service Bond with PETRONAS Group';
   } else if (text.includes('penang') || text.includes('pff') || text.includes('work commitment')) {
     bond = 'Penang Industrial Work Commitment';
-  } else if (text.includes('federal service') || text.includes('jpa') || text.includes('perkhidmatan awam')) {
+  } else if (text.includes('federal service') || text.includes('perkhidmatan awam')) {
     bond = 'Federal Civil Service Obligation';
-  } else if (text.includes('fast-track') || text.includes('career placement') || text.includes('employment pathway')) {
-    bond = 'Guaranteed Corporate Placement Track (No strict cash penalty)';
   } else if (text.includes('convertible')) {
     bond = 'Conversion Schedule tied to final CGPA';
   }
@@ -233,7 +249,7 @@ async function handleRequest(req: NextRequest) {
     // For each selected scholarship, fetch its latest intakeVersion and AST requirements
     const enrichedItems: VerifiedComparisonItem[] = await Promise.all(
       selectedRows.map(async (row) => {
-        let sourceUrl = row.providerUrl || 'https://esilav2.jpa.gov.my';
+        let sourceUrl = row.providerUrl || '';
         let evidenceNotes = '';
         let astNodes: RequirementNode[] = [];
 

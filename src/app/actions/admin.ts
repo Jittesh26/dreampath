@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { db } from '@/db';
 import { providers, scholarships, intakes, intakeVersions, requirements, users } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
-import { RequirementNode } from '@/domain/schema';
+import { RequirementNode, validateRequirementNode } from '@/domain/schema';
 import { createClient } from '@/lib/supabase/server';
 
 // Helper to verify admin role securely via DB
@@ -110,18 +110,32 @@ export async function cloneIntake(previousIntakeId: string) {
 export async function updateRequirements(intakeVersionId: string, name: string, ruleAst: RequirementNode) {
   await requireAdmin();
 
+  // Validate the complete rule AST at the server boundary using domain schema
+  const validatedAst = validateRequirementNode(ruleAst);
+
+  // Check version integrity — prevent modifying published or closed versions
+  const [version] = await db.select().from(intakeVersions).where(eq(intakeVersions.id, intakeVersionId));
+  if (!version) throw new Error("Intake version not found.");
+
+  const [intake] = await db.select().from(intakes).where(eq(intakes.id, version.intakeId));
+  if (!intake) throw new Error("Intake not found.");
+
+  if (intake.status === 'published' || intake.status === 'closed') {
+    throw new Error("Cannot mutate a published or closed intake version. Please clone or create a new version.");
+  }
+
   // Check if requirements exist
   const [existingReq] = await db.select().from(requirements).where(eq(requirements.intakeVersionId, intakeVersionId));
 
   if (existingReq) {
     await db.update(requirements)
-      .set({ name, ruleAst })
+      .set({ name, ruleAst: validatedAst })
       .where(eq(requirements.id, existingReq.id));
   } else {
     await db.insert(requirements).values({
       intakeVersionId,
       name,
-      ruleAst,
+      ruleAst: validatedAst,
     });
   }
 }
@@ -129,13 +143,60 @@ export async function updateRequirements(intakeVersionId: string, name: string, 
 export async function updateIntakeEvidence(intakeVersionId: string, sourceUrl: string, evidenceNotes: string) {
   await requireAdmin();
 
+  // Check version integrity — prevent modifying published or closed versions
+  const [version] = await db.select().from(intakeVersions).where(eq(intakeVersions.id, intakeVersionId));
+  if (!version) throw new Error("Intake version not found.");
+
+  const [intake] = await db.select().from(intakes).where(eq(intakes.id, version.intakeId));
+  if (!intake) throw new Error("Intake not found.");
+
+  if (intake.status === 'published' || intake.status === 'closed') {
+    throw new Error("Cannot mutate evidence for a published or closed intake version.");
+  }
+
   await db.update(intakeVersions)
     .set({ sourceUrl, evidenceNotes })
     .where(eq(intakeVersions.id, intakeVersionId));
 }
 
-export async function transitionIntakeStatus(intakeId: string, newStatus: 'draft' | 'in_review' | 'published' | 'superseded' | 'closed') {
+export async function transitionIntakeStatus(
+  intakeId: string,
+  newStatus: 'draft' | 'in_review' | 'published' | 'superseded' | 'closed'
+) {
   await requireAdmin();
+
+  // Publication gate: before becoming published, verify minimum required evidence & structured data
+  if (newStatus === 'published') {
+    const [intake] = await db.select().from(intakes).where(eq(intakes.id, intakeId));
+    if (!intake) throw new Error("Intake not found.");
+
+    const [latestVersion] = await db.select()
+      .from(intakeVersions)
+      .where(eq(intakeVersions.intakeId, intakeId))
+      .orderBy(desc(intakeVersions.versionNum))
+      .limit(1);
+
+    if (!latestVersion) {
+      throw new Error("Cannot publish: Intake must have at least one intake version.");
+    }
+
+    if (!latestVersion.sourceUrl || !latestVersion.sourceUrl.trim()) {
+      throw new Error("Cannot publish: Intake version must have an authoritative official source URL.");
+    }
+
+    const reqRows = await db.select()
+      .from(requirements)
+      .where(eq(requirements.intakeVersionId, latestVersion.id));
+
+    if (reqRows.length === 0) {
+      throw new Error("Cannot publish: Intake version must have eligibility requirements defined.");
+    }
+
+    const [scholarship] = await db.select().from(scholarships).where(eq(scholarships.id, intake.scholarshipId));
+    if (!scholarship || !scholarship.name?.trim()) {
+      throw new Error("Cannot publish: Associated scholarship record is incomplete.");
+    }
+  }
 
   await db.update(intakes)
     .set({ status: newStatus })

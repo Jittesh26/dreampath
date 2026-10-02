@@ -85,6 +85,21 @@ export default function RegisterPage() {
             )}
 
             <div className="space-y-1.5">
+              <label htmlFor="fullName" className="block text-xs font-bold text-slate-700">
+                Full name
+              </label>
+              <Input
+                id="fullName"
+                name="fullName"
+                type="text"
+                autoComplete="name"
+                required
+                className="h-11 w-full text-xs bg-slate-50 border-slate-200 rounded-xl focus:bg-white focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 font-medium"
+                placeholder="e.g. Jittesh Amaran"
+              />
+            </div>
+
+            <div className="space-y-1.5">
               <label htmlFor="email" className="block text-xs font-bold text-slate-700">
                 Email address
               </label>

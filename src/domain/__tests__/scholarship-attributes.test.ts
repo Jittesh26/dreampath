@@ -87,6 +87,66 @@ describe('scholarship-attributes domain utility', () => {
       expect(attrs.awardText).toBe('Up to RM 120,000');
       expect(attrs.awardType).toBe('Convertible Loan');
       expect(attrs.providerMonogram.text).toBe('YBR');
+      expect(attrs.verifiedDateText).toBe('Verified Source');
+    });
+
+    it('does NOT fabricate defaults when data is unspecified', () => {
+      const attrs = extractScholarshipAttributes(
+        'General Scholarship',
+        'A scholarship for deserving students.',
+        '',
+        null,
+        null,
+        'published',
+        'Some Generic Body'
+      );
+
+      expect(attrs.studyLevel).toBe('All Study Levels');
+      expect(attrs.awardText).toBe('See Official Announcement');
+      expect(attrs.awardType).toBe('Scholarship Award');
+      expect(attrs.eligibleFields).toBe('All Academic Disciplines');
+      expect(attrs.verifiedDateText).toBe('');
+      expect(attrs.formattedDeadline).toBe('Ongoing / Rolling');
+    });
+
+    it('does NOT falsely match Computer Science & AI on merit, tuition, or eligibility substrings', () => {
+      const attrs = extractScholarshipAttributes(
+        'Merit Excellence Fund',
+        'A merit-based scholarship covering institution tuition for eligible community leaders.',
+        'Official notes',
+        '2026-11-15',
+        '2026-03-01',
+        'published',
+        'Community Trust'
+      );
+
+      // Must NOT be 'Computer Science & AI' simply because "merit" contains "it" or "tuition" contains "it"
+      expect(attrs.eligibleFields).not.toBe('Computer Science & AI');
+      expect(attrs.eligibleFields).toBe('All Academic Disciplines');
+    });
+
+    it('matches Computer Science & AI when IT or AI is a standalone word', () => {
+      const attrsWithIT = extractScholarshipAttributes(
+        'Tech Leaders Grant',
+        'Scholarship for students pursuing IT and software engineering.',
+        '',
+        null,
+        null,
+        'published',
+        'Tech Foundation'
+      );
+      expect(attrsWithIT.eligibleFields).toBe('Computer Science & AI');
+
+      const attrsWithAI = extractScholarshipAttributes(
+        'Future Intelligence Award',
+        'Dedicated to advances in AI and robotics.',
+        '',
+        null,
+        null,
+        'published',
+        'Tech Foundation'
+      );
+      expect(attrsWithAI.eligibleFields).toBe('Computer Science & AI');
     });
   });
 });

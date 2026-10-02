@@ -236,19 +236,21 @@ export function extractScholarshipAttributes(
 ): FormattedScholarshipAttributes {
   const combinedText = `${name} ${description} ${evidenceNotes}`.toLowerCase();
 
-  // Study Level
-  let studyLevel = 'Undergraduate Degree';
-  if (combinedText.includes('postgraduate') || combinedText.includes('masters') || combinedText.includes('phd') || combinedText.includes('bydpa')) {
+  // Study Level — do NOT default unknown to 'Undergraduate Degree'
+  let studyLevel = 'All Study Levels';
+  if (/\b(postgraduate|masters|phd|bydpa)\b/i.test(combinedText)) {
     studyLevel = 'Postgraduate (Masters/PhD)';
-  } else if (combinedText.includes('diploma') || combinedText.includes('tvet')) {
+  } else if (/\b(diploma|tvet)\b/i.test(combinedText)) {
     studyLevel = 'Diploma / TVET';
-  } else if (combinedText.includes('pre-university') || combinedText.includes('a-levels') || combinedText.includes('foundation') || combinedText.includes('matriculation') || combinedText.includes('spm')) {
+  } else if (/\b(pre-university|a-levels|foundation|matriculation|spm)\b/i.test(combinedText)) {
     studyLevel = 'Pre-University / Foundation';
+  } else if (/\b(undergraduate|degree|bachelor)\b/i.test(combinedText)) {
+    studyLevel = 'Undergraduate Degree';
   }
 
-  // Award Type & Monetary Value
-  let awardText = 'Full Tuition & Living Allowance';
-  let awardType = 'Full Sponsorship';
+  // Award Type & Monetary Value — do NOT fabricate 'Full Tuition & Living Allowance'
+  let awardText = 'See Official Announcement';
+  let awardType = 'Scholarship Award';
 
   if (combinedText.includes('rm 150,000') || combinedText.includes('150,000')) {
     awardText = 'Up to RM 150,000';
@@ -265,31 +267,40 @@ export function extractScholarshipAttributes(
   } else if (combinedText.includes('rm 32,000') || combinedText.includes('32,000')) {
     awardText = 'Up to RM 32,000';
     awardType = 'Needs & Merit';
-  } else if (combinedText.includes('overseas') || combinedText.includes('global') || combinedText.includes('ivy league')) {
+  } else if (/\b(overseas|ivy league)\b/i.test(combinedText)) {
     awardText = 'Full Overseas Cost';
     awardType = 'Global Premier';
-  } else if (combinedText.includes('pidn') || combinedText.includes('public service') || combinedText.includes('perkhidmatan awam')) {
+  } else if (/\b(pidn|public service|perkhidmatan awam)\b/i.test(combinedText)) {
     awardText = 'Full Tuition + Allowance';
     awardType = 'Federal Tier';
-  } else if (combinedText.includes('convertible') || combinedText.includes('pembiayaan boleh ubah')) {
-    awardText = 'Up to RM 120,000';
+  } else if (/\b(convertible|pembiayaan boleh ubah)\b/i.test(combinedText)) {
+    awardText = 'Convertible Loan';
     awardType = 'Convertible Loan';
-  } else if (combinedText.includes('living allowance') || combinedText.includes('monthly stipend')) {
-    awardText = 'Full Tuition + Monthly Stipend';
+  } else if (/\bfull tuition\b/i.test(combinedText) && /\b(living allowance|monthly stipend)\b/i.test(combinedText)) {
+    awardText = 'Full Tuition & Living Allowance';
     awardType = 'Full Sponsorship';
+  } else if (/\bfull tuition\b/i.test(combinedText)) {
+    awardText = 'Full Tuition Coverage';
+    awardType = 'Tuition Grant';
+  } else if (/\b(living allowance|monthly stipend)\b/i.test(combinedText)) {
+    awardText = 'Monthly Living Allowance';
+    awardType = 'Stipend';
   }
 
-  // Eligible Fields
+  // Eligible Fields — strictly bound words, avoid matching substrings inside 'merit', 'tuition', etc.
   let eligibleFields = 'All Academic Disciplines';
-  if (combinedText.includes('stem') && combinedText.includes('medicine')) {
+  if (/\bstem\b/i.test(combinedText) && /\b(medicine|medical)\b/i.test(combinedText)) {
     eligibleFields = 'STEM & Medicine';
-  } else if (combinedText.includes('engineering') || combinedText.includes('built environment')) {
-    eligibleFields = 'Engineering & Technology';
-  } else if (combinedText.includes('digital') || combinedText.includes('computing') || combinedText.includes('artificial intelligence') || combinedText.includes('it')) {
+  } else if (
+    /\b(digital technology|computing|artificial intelligence|information technology|software engineering|computer science)\b/i.test(combinedText) ||
+    /\b(it|ai)\b/i.test(combinedText)
+  ) {
     eligibleFields = 'Computer Science & AI';
-  } else if (combinedText.includes('economics') || combinedText.includes('actuarial') || combinedText.includes('finance')) {
+  } else if (/\b(engineering|built environment)\b/i.test(combinedText)) {
+    eligibleFields = 'Engineering & Technology';
+  } else if (/\b(economics|actuarial|finance)\b/i.test(combinedText)) {
     eligibleFields = 'Economics & Actuarial Science';
-  } else if (combinedText.includes('agriculture')) {
+  } else if (/\bagriculture\b/i.test(combinedText)) {
     eligibleFields = 'Agriculture & Sciences';
   }
 
@@ -312,6 +323,6 @@ export function extractScholarshipAttributes(
     deadlineUrgency,
     eligibleFields,
     formattedDeadline,
-    verifiedDateText: 'Verified 2026 Cycle',
+    verifiedDateText: evidenceNotes && evidenceNotes.trim() ? 'Verified Source' : '',
   };
 }

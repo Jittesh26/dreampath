@@ -37,7 +37,7 @@ export default async function Home() {
       .innerJoin(providers, eq(scholarships.providerId, providers.id))
       .innerJoin(intakes, eq(scholarships.id, intakes.scholarshipId))
       .leftJoin(intakeVersions, eq(intakes.id, intakeVersions.intakeId))
-      .where(inArray(intakes.status, ['published', 'open', 'closed']))
+      .where(inArray(intakes.status, ['published', 'closed']))
       .orderBy(desc(intakes.createdAt));
 
     const unique = new Map<string, any>();

@@ -77,7 +77,7 @@ export default async function ScholarshipDetailPage({
     ? new Date(latestVersion.createdAt).toLocaleDateString('en-MY', { day: 'numeric', month: 'short', year: 'numeric' })
     : 'Recently';
 
-  const sourceUrl = latestVersion?.sourceUrl || scholarshipData.providers.url || 'https://esilav2.jpa.gov.my';
+  const sourceUrl = latestVersion?.sourceUrl || scholarshipData.providers.url || '';
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans">

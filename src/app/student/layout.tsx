@@ -12,9 +12,11 @@ import {
   PenTool,
   GraduationCap,
   Sparkles,
-  ExternalLink
+  ExternalLink,
+  LogOut,
 } from 'lucide-react';
 import { NotificationCenter } from '@/components/NotificationCenter';
+import { logout } from '@/app/actions/auth';
 
 export default async function StudentLayout({
   children,
@@ -27,6 +29,8 @@ export default async function StudentLayout({
   if (!user) {
     redirect('/login');
   }
+
+  const displayName = (user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'Student').trim();
 
   const coreNav = [
     { href: '/student', label: 'Dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -145,15 +149,26 @@ export default async function StudentLayout({
         <div className="pt-4 border-t border-slate-100 space-y-3">
           <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl">
             <p className="text-slate-400 text-[9px] font-bold uppercase tracking-wider">Verified Malaysian Student</p>
-            <p className="font-semibold text-xs text-slate-900 truncate mt-0.5">{user.email}</p>
+            <p className="font-semibold text-xs text-slate-900 truncate mt-0.5">{displayName}</p>
           </div>
-          <Link
-            href="/"
-            className="flex items-center justify-between px-3 py-1.5 text-xs text-slate-500 hover:text-slate-900 font-medium transition-colors"
-          >
-            <span>Public Directory</span>
-            <ExternalLink className="w-3.5 h-3.5" />
-          </Link>
+          <div className="flex flex-col gap-1">
+            <Link
+              href="/"
+              className="flex items-center justify-between px-3 py-1.5 text-xs text-slate-500 hover:text-slate-900 font-medium transition-colors"
+            >
+              <span>Public Directory</span>
+              <ExternalLink className="w-3.5 h-3.5" />
+            </Link>
+            <form action={logout}>
+              <button
+                type="submit"
+                className="w-full flex items-center justify-between px-3 py-1.5 text-xs text-rose-600 hover:text-rose-800 hover:bg-rose-50/60 rounded-lg font-medium transition-colors cursor-pointer"
+              >
+                <span>Sign Out</span>
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </form>
+          </div>
         </div>
       </aside>
 
@@ -167,7 +182,19 @@ export default async function StudentLayout({
             Dream<span className="text-blue-700">Path</span>
           </span>
         </Link>
-        <NotificationCenter />
+        <div className="flex items-center gap-2">
+          <NotificationCenter />
+          <form action={logout}>
+            <button
+              type="submit"
+              title="Sign Out"
+              aria-label="Sign Out"
+              className="p-2 text-slate-500 hover:text-rose-600 rounded-lg transition-colors cursor-pointer"
+            >
+              <LogOut className="w-4 h-4" />
+            </button>
+          </form>
+        </div>
       </header>
 
       {/* Main Content Area */}

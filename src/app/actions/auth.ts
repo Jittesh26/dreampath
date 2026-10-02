@@ -53,6 +53,7 @@ export async function login(
 }
 
 export async function register(formData: FormData) {
+  const fullName = ((formData.get('fullName') as string) || (formData.get('name') as string) || '').trim();
   const email = (formData.get('email') as string)?.trim();
   const password = formData.get('password') as string;
 
@@ -62,10 +63,15 @@ export async function register(formData: FormData) {
 
   const supabase = await createClient();
 
-  // 1. Sign up the user in Supabase Auth
+  // 1. Sign up the user in Supabase Auth with metadata
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
+    options: {
+      data: {
+        full_name: fullName,
+      },
+    },
   });
 
   if (error) {

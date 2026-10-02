@@ -64,13 +64,7 @@ export function ScholarshipDetailView({
   // Grounded AI Q&A State
   const [qaQuestion, setQaQuestion] = useState('');
   const [qaLoading, setQaLoading] = useState(false);
-  const [qaHistory, setQaHistory] = useState<Array<{ q: string; a: string; sources: string[] }>>([
-    {
-      q: 'What is covered by this scholarship?',
-      a: `${name} covers tuition fees, living allowances, book grants, and structured developmental opportunities according to official ${year} intake guidelines.`,
-      sources: [`Official Source: ${sourceUrl || providerUrl}`, 'DreamPath Verified Dataset'],
-    },
-  ]);
+  const [qaHistory, setQaHistory] = useState<Array<{ q: string; a: string; sources: string[] }>>([]);
 
   const attrs = extractScholarshipAttributes(
     name,
@@ -129,14 +123,9 @@ export function ScholarshipDetailView({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          scholarshipId: id,
           question: currentQ,
           scholarshipName: name,
-          providerName,
-          description,
-          sourceUrl,
-          openDate,
-          closeDate,
-          requirementsSummary: requirements.map((r) => r.name),
           stream: true,
         }),
       });
