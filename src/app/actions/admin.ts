@@ -8,7 +8,7 @@ import { RequirementNode } from '@/domain/schema';
 import { createClient } from '@/lib/supabase/server';
 
 // Helper to verify admin role securely via DB
-async function requireAdmin() {
+export async function requireAdmin() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 

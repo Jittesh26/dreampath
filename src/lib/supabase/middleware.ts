@@ -35,19 +35,6 @@ export async function updateSession(request: NextRequest) {
     } catch {
       user = null;
     }
-  } else {
-    // Graceful preview/local cookie session
-    const sessionCookie = request.cookies.get('dreampath_session')?.value;
-    if (sessionCookie) {
-      try {
-        const parsed = JSON.parse(decodeURIComponent(sessionCookie));
-        if (parsed && parsed.id) {
-          user = parsed;
-        }
-      } catch {
-        user = null;
-      }
-    }
   }
 
   // Route protection
@@ -63,9 +50,9 @@ export async function updateSession(request: NextRequest) {
   }
 
   if (isAuthRoute && user) {
-    // user is logged in, redirect to dashboard
+    // user is logged in, redirect to student dashboard
     const url = request.nextUrl.clone();
-    url.pathname = user?.role === 'admin' ? '/admin' : '/student';
+    url.pathname = '/student';
     return NextResponse.redirect(url);
   }
 

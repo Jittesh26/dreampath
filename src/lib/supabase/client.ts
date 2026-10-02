@@ -8,25 +8,13 @@ export function createClient() {
     return createBrowserClient(supabaseUrl, supabaseKey);
   }
 
-  // Graceful browser client fallback
+  // Graceful browser client fallback: strictly unauthenticated
   return {
     auth: {
       async getUser() {
-        if (typeof document !== 'undefined') {
-          const match = document.cookie.match(/dreampath_session=([^;]+)/);
-          if (match) {
-            try {
-              const user = JSON.parse(decodeURIComponent(match[1]));
-              return { data: { user }, error: null };
-            } catch {}
-          }
-        }
         return { data: { user: null }, error: null };
       },
       async signOut() {
-        if (typeof document !== 'undefined') {
-          document.cookie = 'dreampath_session=; Path=/; Expires=Thu, 01 Jan 1970 00:00:01 GMT;';
-        }
         return { error: null };
       },
       onAuthStateChange() {
