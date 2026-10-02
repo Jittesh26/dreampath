@@ -154,8 +154,8 @@ describe('Resume AI Interview — Realistic Production Scenarios (A to J)', () =
     expect(validated.skills?.technical).toEqual(['Flutter', 'Dart', 'Firebase']);
   });
 
-  // Scenario D: User correction (updates previous CGPA and date)
-  it('Scenario D: User correction updates existing record and overrides outdated value', () => {
+  // Scenario D: Preserves existing manual values during re-synthesis
+  it('Scenario D: Preserves existing manual values during re-synthesis without silent overwrite', () => {
     const originalId = crypto.randomUUID();
     const existing: ResumeContent = {
       ...createEmptyResume(),
@@ -165,14 +165,14 @@ describe('Resume AI Interview — Realistic Production Scenarios (A to J)', () =
           institution: 'Universiti Malaya',
           qualification: 'Bachelor of Computer Science',
           educationLevel: 'Bachelor',
-          cgpa: '3.60', // Old CGPA
+          cgpa: '3.60', // Existing manual CGPA
           startDate: '2023',
           endDate: '2026',
         },
       ],
     };
 
-    // User later says: "Actually my CGPA is 3.84 and graduation is 2027"
+    // AI synthesis proposes new values
     const correctedWording: GeneratedWording = {
       education: [
         {
@@ -180,8 +180,8 @@ describe('Resume AI Interview — Realistic Production Scenarios (A to J)', () =
           institution: 'Universiti Malaya',
           qualification: 'Bachelor of Computer Science',
           educationLevel: 'Bachelor',
-          cgpa: '3.84', // Corrected CGPA
-          endDate: '2027', // Corrected date
+          cgpa: '3.84', // AI proposed new CGPA
+          endDate: '2027', // AI proposed new date
         },
       ],
     };
@@ -189,8 +189,8 @@ describe('Resume AI Interview — Realistic Production Scenarios (A to J)', () =
     const merged = mergeResumeContent(existing, correctedWording);
     const validated = resumeContentSchema.parse(merged);
     expect(validated.education).toHaveLength(1);
-    expect(validated.education[0].cgpa).toBe('3.84');
-    expect(validated.education[0].endDate).toBe('2027');
+    expect(validated.education[0].cgpa).toBe('3.60'); // Existing manual value preserved
+    expect(validated.education[0].endDate).toBe('2026'); // Existing manual value preserved
     expect(validated.education[0].id).toBe(originalId); // Preserves stable id
   });
 

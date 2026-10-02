@@ -14,7 +14,7 @@ import { PlanNextIntentResult } from './types';
  */
 
 const CORE_EDUCATION_SLOTS = ['institution', 'degree', 'field_of_study', 'start_year', 'cgpa'] as const;
-const CORE_EXPERIENCE_SLOTS = ['employer', 'position', 'responsibilities'] as const;
+const CORE_EXPERIENCE_SLOTS = ['employer', 'responsibilities'] as const;
 const CORE_PROJECT_SLOTS = ['name', 'role', 'description', 'technologies'] as const;
 
 export class DeterministicPlanner {
@@ -176,8 +176,78 @@ export class DeterministicPlanner {
       };
     }
 
-    // 7. COMPLETION PROTOCOL
-    // If core education + (experience or project or declared_none) + skills are satisfied:
+    // 7. RESUME COMPLETION & MISSING INFORMATION PHASE (Priority 6)
+    // Inspect structured facts and ask only for critical missing details needed for a complete resume.
+
+    // 7A. Student Full Name: Must be asked if missing and no verified name exists
+    const hasKnownName = ledger.isSlotKnown('personal|self', 'fullName');
+    const nameIntentKey = 'personal|self|fullName';
+    if (!hasKnownName && !ledger.isIntentResolved(nameIntentKey)) {
+      return {
+        intentKey: nameIntentKey,
+        isComplete: false,
+        targetEntityId: 'personal|self',
+        slotName: 'fullName',
+        suggestedPrompt: 'What is your full name as you would like it to appear on your resume?',
+        topic: 'personal',
+      };
+    }
+
+    // 7B. Official Job Title: If any experience entity is missing a job title/position
+    for (const exp of experienceEntities) {
+      const positionSlot = ledger.getSlot(exp.id, 'position');
+      const posIntentKey = makeIntentKey('experience', exp.normalizedKey, 'position');
+      const isPosKnown =
+        positionSlot?.state === 'known' ||
+        positionSlot?.state === 'inferred' ||
+        positionSlot?.state === 'declared_none' ||
+        positionSlot?.state === 'skipped';
+      if (!isPosKnown && !ledger.isIntentResolved(posIntentKey)) {
+        return {
+          intentKey: posIntentKey,
+          isComplete: false,
+          targetEntityId: exp.id,
+          slotName: 'position',
+          suggestedPrompt: `What was your official job title at ${exp.displayName}?`,
+          topic: 'experience',
+        };
+      }
+    }
+
+    // 7C. Contact Information & Professional Links (Grouped to prevent endless questions)
+    const hasPhone = ledger.isSlotKnown('personal|self', 'phone');
+    const hasLinkedIn = ledger.isSlotKnown('personal|self', 'linkedin');
+    const hasGitHub = ledger.isSlotKnown('personal|self', 'github');
+    const hasPortfolio = ledger.isSlotKnown('personal|self', 'portfolio');
+    const contactLinksIntentKey = 'personal|self|contact_links';
+
+    if (!hasPhone && !hasLinkedIn && !hasGitHub && !hasPortfolio && !ledger.isIntentResolved(contactLinksIntentKey)) {
+      return {
+        intentKey: contactLinksIntentKey,
+        isComplete: false,
+        targetEntityId: 'personal|self',
+        slotName: 'contact_links',
+        suggestedPrompt: "Do you have a phone number or any professional links (such as LinkedIn, GitHub, or a portfolio) you'd like to include? You can share them here or say 'skip'.",
+        topic: 'personal',
+      };
+    }
+
+    // 7D. Optional Profile Photo
+    const photoIntentKey = 'personal|self|photo';
+    const hasPhoto = ledger.isSlotKnown('personal|self', 'photoUrl');
+    if (!hasPhoto && !ledger.isIntentResolved(photoIntentKey)) {
+      return {
+        intentKey: photoIntentKey,
+        isComplete: false,
+        targetEntityId: 'personal|self',
+        slotName: 'photo',
+        suggestedPrompt: 'Would you like to include a professional photo on your resume? If yes, you can provide a photo link or upload. This is completely optional — you can say "skip" if you prefer not to include one.',
+        topic: 'personal',
+      };
+    }
+
+    // 8. FINAL COMPLETION PROTOCOL
+    // All core sections and missing critical fields have been addressed
     ledger.session.isComplete = true;
     return {
       intentKey: null,
@@ -197,6 +267,24 @@ export class DeterministicPlanner {
     const label = displayName || 'your institution';
 
     switch (entityType) {
+      case 'personal':
+        switch (slotName.toLowerCase()) {
+          case 'fullname':
+            return 'What is your full name as you would like it to appear on your resume?';
+          case 'contact_links':
+            return "Do you have a phone number or any professional links (such as LinkedIn, GitHub, or a portfolio) you'd like to include? You can share them here or say 'skip'.";
+          case 'photo':
+            return 'Would you like to include a professional photo on your resume? If yes, you can provide a photo link or upload. This is completely optional — you can say "skip" if you prefer not to include one.';
+          case 'email':
+            return 'What email address would you like to use on your resume?';
+          case 'phone':
+            return 'What phone number would you like to include on your resume?';
+          case 'linkedin':
+            return "Do you have a LinkedIn profile you'd like to include on your resume? If yes, send me the link. You can skip this if you don't have one.";
+          default:
+            return 'Could you share your personal and contact details for your resume?';
+        }
+
       case 'education':
         switch (slotName) {
           case 'degree':
@@ -216,7 +304,7 @@ export class DeterministicPlanner {
       case 'experience':
         switch (slotName) {
           case 'position':
-            return `What was your specific job title or position at ${label}?`;
+            return `What was your official job title at ${label}?`;
           case 'responsibilities':
             return `What were your main responsibilities and daily tasks at ${label}?`;
           case 'achievements':

@@ -301,7 +301,7 @@ export default function AIInterviewModal({
                 onClick={onClose}
                 className="bg-[#0B1B3D] text-[#FAFAF9] hover:bg-[#0B1B3D]/90 text-xs shrink-0 inline-flex items-center gap-1.5"
               >
-                <span>View in Editor</span>
+                <span>Edit Resume</span>
                 <ArrowRight className="w-3.5 h-3.5" />
               </Button>
             </div>

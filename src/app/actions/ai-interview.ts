@@ -3,7 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { db } from '@/db';
 import { resumeFacts, resumeProfiles, resumeVersions } from '@/db/schema';
-import { eq, and, isNull } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { createClient } from '@/lib/supabase/server';
 import { MockResumeAIProvider } from '../../lib/ai/mock-provider';
 import { GeminiResumeAIProvider } from '../../lib/ai/gemini-provider';
@@ -173,7 +173,7 @@ export async function submitInterviewTurn(params: {
     throw new Error('Answer cannot be empty');
   }
 
-  const { profile } = await requireResumeOwnership(resumeId);
+  const { profile, user } = await requireResumeOwnership(resumeId);
 
   // 1. Redact sensitive secrets (NRIC, cards, passwords, etc.)
   const redaction = redactSensitiveData(trimmed);
@@ -192,6 +192,30 @@ export async function submitInterviewTurn(params: {
       summary: null,
     });
     ledger.addTranscript('ai', "Hello! Let's build your resume together. What are you currently studying and where?");
+  }
+
+  // Pre-populate verified profile data if available so we do not re-ask known facts
+  const authName = (user?.user_metadata?.full_name || user?.user_metadata?.name || '').trim();
+  if (authName && !ledger.isSlotKnown('personal|self', 'fullName')) {
+    const pers = ledger.getOrCreateEntity('personal', 'self', 'Personal Information');
+    ledger.addFact({
+      entityId: pers.id,
+      slot: 'fullName',
+      value: authName,
+      rawEvidence: 'Verified profile metadata',
+      origin: 'system',
+    });
+    ledger.resolveIntent('personal|self|fullName');
+  }
+  if (user?.email && !ledger.isSlotKnown('personal|self', 'email')) {
+    const pers = ledger.getOrCreateEntity('personal', 'self', 'Personal Information');
+    ledger.addFact({
+      entityId: pers.id,
+      slot: 'email',
+      value: user.email,
+      rawEvidence: 'Verified account email',
+      origin: 'system',
+    });
   }
 
   // 3. Record student turn in transcript
@@ -300,14 +324,33 @@ export async function synthesizeAndSaveResume(resumeId: string) {
   const currentContent = (version.content || {}) as ResumeContent;
   const mergedContent = mergeResumeContent(currentContent, synthesizedContent);
 
+  // Ensure personal section uses real user data, never placeholder strings
+  const authName = (user?.user_metadata?.full_name || user?.user_metadata?.name || '').trim();
+  const authEmail = (user?.email || '').trim();
+
   if (mergedContent.personal) {
-    if (!mergedContent.personal.fullName && !mergedContent.personal.email) {
+    if (!mergedContent.personal.fullName && authName) {
+      mergedContent.personal.fullName = authName;
+    }
+    if ((!mergedContent.personal.email || !mergedContent.personal.email.includes('@')) && authEmail.includes('@')) {
+      mergedContent.personal.email = authEmail;
+    }
+  } else if (authName && authEmail.includes('@')) {
+    mergedContent.personal = {
+      fullName: authName,
+      email: authEmail,
+      phone: '',
+      location: '',
+      professionalSummary: '',
+    };
+  }
+
+  // Final guard: personal section must have valid fullName and email for schema validation.
+  // Never save placeholders like "Student Scholar" or "Your Full Name", and never invent fake names.
+  // If real name is unavailable, leave personal section unresolved.
+  if (mergedContent.personal) {
+    if (!mergedContent.personal.fullName || !mergedContent.personal.email?.includes('@')) {
       delete mergedContent.personal;
-    } else {
-      if (!mergedContent.personal.fullName) mergedContent.personal.fullName = 'Student Scholar';
-      if (!mergedContent.personal.email || !mergedContent.personal.email.includes('@')) {
-        mergedContent.personal.email = user?.email || 'student@dreampath.my';
-      }
     }
   }
 

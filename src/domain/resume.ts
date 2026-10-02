@@ -11,6 +11,7 @@ export const personalSchema = z.object({
   github: z.string().url('Invalid URL').optional().or(z.literal('')),
   portfolio: z.string().url('Invalid URL').optional().or(z.literal('')),
   professionalSummary: z.string().optional(),
+  photoUrl: z.string().url('Invalid URL').optional().or(z.literal('')),
 });
 
 export const spmSubjectSchema = z.object({

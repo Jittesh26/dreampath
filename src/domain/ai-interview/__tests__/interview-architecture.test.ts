@@ -8,6 +8,7 @@ import { ProviderCascade } from '../provider-cascade';
 import { redactSensitiveData } from '../redactor';
 import { saveSessionSnapshot, loadSessionSnapshot, deleteSession } from '../persistence';
 import { synthesizeResumeFromLedger } from '../synthesis';
+import { resumeContentSchema } from '../../resume';
 
 describe('Approved Resume AI Architecture & Regression Tests', () => {
   let ledger: InterviewLedger;
@@ -223,8 +224,8 @@ describe('Approved Resume AI Architecture & Regression Tests', () => {
     // 1. Education
     const edu = ledger.getOrCreateEntity('education', 'upnm', 'Universiti Pertahanan Nasional Malaysia (UPNM)');
     ledger.addFact({ entityId: edu.id, slot: 'degree', value: 'Bachelor of Computer Science with Honours', rawEvidence: 'text' });
-    ledger.addFact({ entityId: edu.id, slot: 'cgpa', value: '3.98', rawEvidence: 'text' });
-    ledger.addFact({ entityId: edu.id, slot: 'start_year', value: '2025', rawEvidence: 'text' });
+    ledger.addFact({ entityId: edu.id, slot: 'cgpa', value: 3.98 as any, rawEvidence: 'text' });
+    ledger.addFact({ entityId: edu.id, slot: 'start_year', value: 2025 as any, rawEvidence: 'text' });
 
     // 2. Experience
     const exp = ledger.getOrCreateEntity('experience', 'health_lane', 'Health Lane Family Pharmacy');
@@ -246,11 +247,17 @@ describe('Approved Resume AI Architecture & Regression Tests', () => {
     // Synthesize
     const content = synthesizeResumeFromLedger(ledger);
 
-    // Verify Education
+    // Verify Education & numeric start_year normalization
     expect(content.education?.length).toBe(1);
     expect(content.education![0].institution).toBe('Universiti Pertahanan Nasional Malaysia (UPNM)');
     expect(content.education![0].qualification).toBe('Bachelor of Computer Science with Honours');
     expect(content.education![0].cgpa).toBe('3.98');
+    expect(typeof content.education![0].startDate).toBe('string');
+    expect(content.education![0].startDate).toBe('2025');
+
+    // Strict schema parse should succeed without ZodError
+    const validated = resumeContentSchema.parse(content);
+    expect(validated.education[0].startDate).toBe('2025');
 
     // Verify Experience
     expect(content.experience?.length).toBe(1);
@@ -305,7 +312,7 @@ describe('Approved Resume AI Architecture & Regression Tests', () => {
 
     // 2. Student introduces Health Lane -> creates experience|health_lane
     testLedger.addTranscript('ai', plan.suggestedPrompt);
-    const expAnswer = 'I worked part-time at Health Lane Family Pharmacy. I helped customers, handled pharmacy-related tasks, and worked with the team.';
+    const expAnswer = 'I worked part-time as a Pharmacy Assistant at Health Lane Family Pharmacy. I helped customers, handled pharmacy-related tasks, and worked with the team.';
     testLedger.addTranscript('student', expAnswer);
     deterministicExtractor.extract(expAnswer, testLedger);
 
@@ -485,4 +492,374 @@ describe('Approved Resume AI Architecture & Regression Tests', () => {
     // Clean up
     await deleteSession(testResumeVersionId);
   }, 20_000);
+
+  // --------------------------------------------------------------------------
+  // 15. The Seven-Answer Resume AI Regression Scenario (All 23 Requirements)
+  // --------------------------------------------------------------------------
+  it('faithfully synthesizes complete resume from 7-turn interview meeting all 23 verification points', () => {
+    const interviewLedger = new InterviewLedger({
+      id: `session_7turn_${crypto.randomUUID()}`,
+      resumeVersionId: crypto.randomUUID(),
+      resumeProfileId: crypto.randomUUID(),
+      currentTurn: 0,
+      isComplete: false,
+      currentIntentKey: 'education|general|overview',
+      summary: null,
+    });
+
+    // Turn 1: Academic / Education
+    const t1Prompt = "Hello! Let's build your resume together. What are you currently studying and where?";
+    interviewLedger.addTranscript('ai', t1Prompt);
+    const t1Answer = "I'm currently pursuing a Bachelor of Computer Science with Honours at Universiti Pertahanan Nasional Malaysia (UPNM). I started in 2025, and my current CGPA is 3.98.";
+    interviewLedger.addTranscript('student', t1Answer);
+    deterministicExtractor.extract(t1Answer, interviewLedger);
+
+    let plan = deterministicPlanner.planNextIntent(interviewLedger);
+    expect(plan.topic).toBe('experience');
+    interviewLedger.session.currentIntentKey = plan.intentKey;
+
+    // Turn 2: Work Experience Introduction
+    interviewLedger.addTranscript('ai', plan.suggestedPrompt);
+    const t2Answer = "Part-time work at Health Lane Family Pharmacy";
+    interviewLedger.addTranscript('student', t2Answer);
+    deterministicExtractor.extract(t2Answer, interviewLedger);
+
+    plan = deterministicPlanner.planNextIntent(interviewLedger);
+    expect(plan.intentKey).toBe('experience|health_lane|responsibilities');
+    interviewLedger.session.currentIntentKey = plan.intentKey;
+
+    // Turn 3: Work Experience Responsibilities (Multi-sentence)
+    interviewLedger.addTranscript('ai', plan.suggestedPrompt);
+    const t3Answer = "My main responsibilities were assisting customers, explaining products, handling sales/payments, restocking, organizing products, checking stock, and maintaining pharmacy area. I also practiced teamwork and supported daily operations.";
+    interviewLedger.addTranscript('student', t3Answer);
+    deterministicExtractor.extract(t3Answer, interviewLedger);
+
+    plan = deterministicPlanner.planNextIntent(interviewLedger);
+    expect(plan.topic).toBe('project');
+    interviewLedger.session.currentIntentKey = plan.intentKey;
+
+    // Turn 4: Project Introduction & Role
+    interviewLedger.addTranscript('ai', plan.suggestedPrompt);
+    const t4Answer = "I worked on CampusFind. I served as Project Manager.";
+    interviewLedger.addTranscript('student', t4Answer);
+    deterministicExtractor.extract(t4Answer, interviewLedger);
+
+    plan = deterministicPlanner.planNextIntent(interviewLedger);
+    expect(plan.intentKey).toBe('project|campusfind|description');
+    interviewLedger.session.currentIntentKey = plan.intentKey;
+
+    // Turn 5: Project Description & Contributions
+    interviewLedger.addTranscript('ai', plan.suggestedPrompt);
+    const t5Answer = "AI-powered smart lost-and-found system for UPNM. I contributed to system design, requirements, website development, database, AI-assisted item matching, and project coordination.";
+    interviewLedger.addTranscript('student', t5Answer);
+    deterministicExtractor.extract(t5Answer, interviewLedger);
+
+    plan = deterministicPlanner.planNextIntent(interviewLedger);
+    expect(plan.intentKey).toBe('project|campusfind|technologies');
+    interviewLedger.session.currentIntentKey = plan.intentKey;
+
+    // Turn 6: Technologies (All 8 technologies)
+    interviewLedger.addTranscript('ai', plan.suggestedPrompt);
+    const t6Answer = "HTML, CSS, JavaScript, PHP, MySQL, XAMPP, Apache, VS Code";
+    interviewLedger.addTranscript('student', t6Answer);
+    deterministicExtractor.extract(t6Answer, interviewLedger);
+
+    plan = deterministicPlanner.planNextIntent(interviewLedger);
+    expect(plan.topic).toBe('leadership');
+    interviewLedger.session.currentIntentKey = plan.intentKey;
+
+    // Turn 7: Leadership
+    interviewLedger.addTranscript('ai', plan.suggestedPrompt);
+    const t7Answer = "I have taken on leadership and committee responsibilities at university, serving on student event committees and coordinating group activities.";
+    interviewLedger.addTranscript('student', t7Answer);
+    deterministicExtractor.extract(t7Answer, interviewLedger);
+
+    plan = deterministicPlanner.planNextIntent(interviewLedger);
+    expect(plan.isComplete).toBe(false);
+
+    // Turn 8: Resume Completion - Student Full Name
+    expect(plan.intentKey).toBe('personal|self|fullName');
+    expect(plan.suggestedPrompt).toBe('What is your full name as you would like it to appear on your resume?');
+    interviewLedger.session.currentIntentKey = plan.intentKey;
+    interviewLedger.addTranscript('ai', plan.suggestedPrompt);
+    const t8Answer = "Test Student";
+    interviewLedger.addTranscript('student', t8Answer);
+    deterministicExtractor.extract(t8Answer, interviewLedger);
+
+    plan = deterministicPlanner.planNextIntent(interviewLedger);
+    expect(plan.isComplete).toBe(false);
+
+    // Turn 9: Resume Completion - Official Job Title for Health Lane
+    expect(plan.intentKey).toBe('experience|health_lane|position');
+    expect(plan.suggestedPrompt).toBe('What was your official job title at Health Lane Family Pharmacy?');
+    interviewLedger.session.currentIntentKey = plan.intentKey;
+    interviewLedger.addTranscript('ai', plan.suggestedPrompt);
+    const t9Answer = "Pharmacy Assistant";
+    interviewLedger.addTranscript('student', t9Answer);
+    deterministicExtractor.extract(t9Answer, interviewLedger);
+
+    plan = deterministicPlanner.planNextIntent(interviewLedger);
+    expect(plan.isComplete).toBe(false);
+
+    // Turn 10: Resume Completion - Contact Information & Professional Links
+    expect(plan.intentKey).toBe('personal|self|contact_links');
+    expect(plan.suggestedPrompt).toContain('phone number');
+    interviewLedger.session.currentIntentKey = plan.intentKey;
+    interviewLedger.addTranscript('ai', plan.suggestedPrompt);
+    const t10Answer = "+60123456789, student@example.com, https://linkedin.com/in/teststudent, https://github.com/teststudent";
+    interviewLedger.addTranscript('student', t10Answer);
+    deterministicExtractor.extract(t10Answer, interviewLedger);
+
+    plan = deterministicPlanner.planNextIntent(interviewLedger);
+    expect(plan.isComplete).toBe(false);
+
+    // Turn 11: Resume Completion - Optional Profile Photo
+    expect(plan.intentKey).toBe('personal|self|photo');
+    expect(plan.suggestedPrompt).toContain('photo');
+    interviewLedger.session.currentIntentKey = plan.intentKey;
+    interviewLedger.addTranscript('ai', plan.suggestedPrompt);
+    const t11Answer = "skip";
+    interviewLedger.addTranscript('student', t11Answer);
+    deterministicExtractor.extract(t11Answer, interviewLedger);
+
+    plan = deterministicPlanner.planNextIntent(interviewLedger);
+    expect(plan.isComplete).toBe(true);
+
+    // Synthesize Resume
+    const content = synthesizeResumeFromLedger(interviewLedger);
+
+    // ------------------------------------------------------------------------
+    // VERIFICATION OF ALL 23 REQUIREMENTS:
+    // ------------------------------------------------------------------------
+    // 1. 2025 numeric value still becomes valid string "2025"
+    expect(typeof content.education![0].startDate).toBe('string');
+    expect(content.education![0].startDate).toBe('2025');
+
+    // 2. UPNM is preserved
+    expect(content.education![0].institution).toContain('UPNM');
+
+    // 3. degree is preserved
+    expect(content.education![0].qualification).toContain('Bachelor of Computer Science with Honours');
+
+    // 4. CGPA 3.98 is preserved
+    expect(content.education![0].cgpa).toBe('3.98');
+
+    // 5. Health Lane exists
+    expect(content.experience?.length).toBeGreaterThan(0);
+    const healthLane = content.experience!.find(e => e.employer.includes('Health Lane'));
+    expect(healthLane).toBeDefined();
+
+    // 6. Health Lane responsibilities survive multiple sentences
+    expect(healthLane!.description).toContain('assisting customers');
+    expect(healthLane!.description).toContain('explaining products');
+    expect(healthLane!.description).toContain('restocking');
+    expect(healthLane!.description).toContain('teamwork');
+    expect(healthLane!.description).toContain('daily operations');
+
+    // 7. CampusFind exists
+    expect(content.projects?.length).toBeGreaterThan(0);
+    const campusFind = content.projects!.find(p => p.name === 'CampusFind');
+    expect(campusFind).toBeDefined();
+
+    // 8. Project Manager is preserved
+    expect(campusFind!.role).toBe('Project Manager');
+
+    // 9. CampusFind description survives
+    expect(campusFind!.description).toContain('lost-and-found system for UPNM');
+
+    // 10. project contributions survive
+    expect(campusFind!.achievements).toBeDefined();
+    expect(campusFind!.achievements).toContain('system design');
+    expect(campusFind!.achievements).toContain('requirements');
+    expect(campusFind!.achievements).toContain('database');
+    expect(campusFind!.achievements).toContain('project coordination');
+
+    // 11. HTML survives
+    expect(campusFind!.technologies).toContain('HTML');
+    expect(content.skills?.technical).toContain('HTML');
+
+    // 12. CSS survives
+    expect(campusFind!.technologies).toContain('CSS');
+    expect(content.skills?.technical).toContain('CSS');
+
+    // 13. JavaScript survives
+    expect(campusFind!.technologies).toContain('JavaScript');
+    expect(content.skills?.technical).toContain('JavaScript');
+
+    // 14. PHP survives
+    expect(campusFind!.technologies).toContain('PHP');
+    expect(content.skills?.technical).toContain('PHP');
+
+    // 15. MySQL survives
+    expect(campusFind!.technologies).toContain('MySQL');
+    expect(content.skills?.technical).toContain('MySQL');
+
+    // 16. XAMPP survives
+    expect(campusFind!.technologies).toContain('XAMPP');
+    expect(content.skills?.technical).toContain('XAMPP');
+
+    // 17. Apache survives
+    expect(campusFind!.technologies).toContain('Apache');
+    expect(content.skills?.technical).toContain('Apache');
+
+    // 18. VS Code survives
+    expect(campusFind!.technologies).toContain('VS Code');
+    expect(content.skills?.technical).toContain('VS Code');
+
+    // 19. AI-assisted matching survives as a project contribution/feature
+    const hasAiAssisted = campusFind!.achievements?.some(a => a.toLowerCase().includes('ai-assisted'));
+    expect(hasAiAssisted).toBe(true);
+
+    // 20. leadership does not appear under education
+    expect(content.education?.length).toBe(1);
+    expect(content.education![0].institution).not.toContain('leadership');
+    expect(content.education![0].qualification).not.toContain('leadership');
+    expect(content.education![0].qualification).not.toBe('Bachelor Degree');
+    expect(content.leadership?.length).toBeGreaterThan(0);
+    expect(content.leadership![0].description).toContain('leadership and committee responsibilities');
+
+    // 21. no "Student Scholar" is persisted
+    expect(JSON.stringify(content)).not.toContain('Student Scholar');
+
+    // 22. no "Your Full Name" is persisted
+    expect(JSON.stringify(content)).not.toContain('Your Full Name');
+
+    // 23. array facts do not overwrite one another
+    expect(campusFind!.technologies!.length).toBeGreaterThanOrEqual(8);
+    expect(content.skills!.technical!.length).toBeGreaterThanOrEqual(8);
+
+    // 24. Resume Completion Phase verifications
+    expect(content.personal?.fullName).toBe('Test Student');
+    expect(content.personal?.email).toBe('student@example.com');
+    expect(content.personal?.phone).toBe('+60123456789');
+    expect(content.personal?.linkedin).toBe('https://linkedin.com/in/teststudent');
+    expect(content.personal?.github).toBe('https://github.com/teststudent');
+    expect(healthLane!.position).toBe('Pharmacy Assistant');
+    expect(JSON.stringify(content)).not.toContain('Part-time Associate');
+
+    // Strict schema parse MUST pass without any error
+    const validated = resumeContentSchema.parse(content);
+    expect(validated).toBeDefined();
+    expect(validated.education[0].cgpa).toBe('3.98');
+    expect(validated.education[0].startDate).toBe('2025');
+  });
+
+  // --------------------------------------------------------------------------
+  // 16. Resume Completion Phase Unit Verification
+  // --------------------------------------------------------------------------
+  describe('Resume Completion Phase', () => {
+    it('does NOT re-ask full name if verified user profile metadata exists in ledger', () => {
+      const ledger = new InterviewLedger({
+        id: `session_completion_${crypto.randomUUID()}`,
+        resumeVersionId: crypto.randomUUID(),
+        resumeProfileId: crypto.randomUUID(),
+        currentTurn: 0,
+        isComplete: false,
+        currentIntentKey: 'education|general|overview',
+        summary: null,
+      });
+
+      // Pre-populate verified name from user profile
+      const pers = ledger.getOrCreateEntity('personal', 'self', 'Personal Information');
+      ledger.addFact({
+        entityId: pers.id,
+        slot: 'fullName',
+        value: 'Ahmad Daniel',
+        rawEvidence: 'Verified profile metadata',
+        origin: 'system',
+      });
+      ledger.resolveIntent('personal|self|fullName');
+
+      // Complete education, skills, leadership
+      const edu = ledger.getOrCreateEntity('education', 'um', 'Universiti Malaya');
+      ledger.setSlot(edu.id, 'degree', 'known', 'Bachelor of Computer Science');
+      ledger.setSlot(edu.id, 'institution', 'known', 'Universiti Malaya');
+      ledger.setSlot(edu.id, 'field_of_study', 'known', 'Computer Science');
+      ledger.setSlot(edu.id, 'start_year', 'known', '2024');
+      ledger.setSlot(edu.id, 'cgpa', 'known', '3.85');
+
+      ledger.setSlot('experience|general', 'declared_none', 'declared_none');
+      ledger.resolveIntent('project|general|overview');
+      ledger.setSlot('skill|self', 'technical', 'known', ['Python', 'SQL']);
+      ledger.resolveIntent('leadership|self|overview');
+
+      const plan = deterministicPlanner.planNextIntent(ledger);
+      // Name is already known, so it jumps straight to contact links!
+      expect(plan.intentKey).toBe('personal|self|contact_links');
+      expect(plan.intentKey).not.toBe('personal|self|fullName');
+    });
+
+    it('asks for official job title instead of inventing "Part-time Associate"', () => {
+      const ledger = new InterviewLedger({
+        id: `session_jobtitle_${crypto.randomUUID()}`,
+        resumeVersionId: crypto.randomUUID(),
+        resumeProfileId: crypto.randomUUID(),
+        currentTurn: 0,
+        isComplete: false,
+        currentIntentKey: 'experience|health_lane|responsibilities',
+        summary: null,
+      });
+
+      // Pre-populate verified name
+      const pers = ledger.getOrCreateEntity('personal', 'self', 'Personal Information');
+      ledger.setSlot(pers.id, 'fullName', 'known', 'Nurul Izzah');
+
+      // Add education
+      const edu = ledger.getOrCreateEntity('education', 'ukm', 'UKM');
+      ledger.setSlot(edu.id, 'degree', 'known', 'Diploma in Pharmacy');
+      ledger.setSlot(edu.id, 'institution', 'known', 'UKM');
+      ledger.setSlot(edu.id, 'field_of_study', 'known', 'Pharmacy');
+      ledger.setSlot(edu.id, 'start_year', 'known', '2023');
+      ledger.setSlot(edu.id, 'cgpa', 'known', '3.70');
+
+      // Add experience with employer and responsibilities, but NO position
+      const exp = ledger.getOrCreateEntity('experience', 'watson', 'Watsons Malaysia');
+      ledger.setSlot(exp.id, 'employer', 'known', 'Watsons Malaysia');
+      ledger.setSlot(exp.id, 'responsibilities', 'known', 'Customer service and cashiering');
+
+      ledger.resolveIntent('project|general|overview');
+      ledger.setSlot('skill|self', 'technical', 'known', ['POS Systems', 'Inventory']);
+      ledger.resolveIntent('leadership|self|overview');
+
+      const plan = deterministicPlanner.planNextIntent(ledger);
+      expect(plan.intentKey).toBe('experience|watson|position');
+      expect(plan.suggestedPrompt).toBe('What was your official job title at Watsons Malaysia?');
+
+      // Student answers with their actual official title
+      ledger.session.currentIntentKey = plan.intentKey;
+      ledger.addTranscript('student', 'I was a Retail Cashier');
+      deterministicExtractor.extract('I was a Retail Cashier', ledger);
+
+      const posSlot = ledger.getSlot(exp.id, 'position');
+      expect(posSlot?.state).toBe('known');
+      expect(posSlot?.value).toBe('Retail Cashier');
+    });
+
+    it('handles skipping optional profile photo cleanly without breaking schema', () => {
+      const ledger = new InterviewLedger({
+        id: `session_photo_${crypto.randomUUID()}`,
+        resumeVersionId: crypto.randomUUID(),
+        resumeProfileId: crypto.randomUUID(),
+        currentTurn: 0,
+        isComplete: false,
+        currentIntentKey: 'personal|self|photo',
+        summary: null,
+      });
+
+      const pers = ledger.getOrCreateEntity('personal', 'self', 'Personal Information');
+      ledger.setSlot(pers.id, 'fullName', 'known', 'Test User');
+
+      // Complete photo question with skip
+      ledger.session.currentIntentKey = 'personal|self|photo';
+      ledger.addTranscript('student', 'skip');
+      deterministicExtractor.extract('skip', ledger);
+
+      const photoSlot = ledger.getSlot(pers.id, 'photoUrl');
+      expect(photoSlot?.state).toBe('skipped');
+
+      const content = synthesizeResumeFromLedger(ledger);
+      // photoUrl should either be omitted or empty string, passing Zod validation
+      expect(content.personal?.photoUrl).toBeUndefined();
+    });
+  });
 });
