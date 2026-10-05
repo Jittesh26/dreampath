@@ -184,7 +184,7 @@ export function ScholarshipCard({
             href={`/scholarships/${id}`}
             className="text-xs font-semibold text-slate-600 group-hover:text-[#0B1B3D] inline-flex items-center gap-1"
           >
-            Details <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+            View Details <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
           </Link>
         </div>
       </div>

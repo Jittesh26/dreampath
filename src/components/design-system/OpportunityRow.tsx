@@ -36,8 +36,8 @@ export function OpportunityRow({
   status,
   openDate,
   closeDate,
-  studyLevel = 'Undergraduate Degree',
-  field = 'All Disciplines',
+  studyLevel,
+  field,
   isCompared = false,
   onToggleCompare,
   viewMode = 'row',
@@ -97,11 +97,11 @@ export function OpportunityRow({
               >
                 {attrs.providerMonogram.text}
               </div>
-              <div className="flex flex-col">
-                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wide line-clamp-1">
+              <div className="flex flex-col min-w-0 flex-1">
+                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wide truncate" title={providerName}>
                   {providerName}
                 </span>
-                <span className="text-[10px] text-slate-400 font-medium">
+                <span className="text-[10px] text-slate-400 font-medium truncate">
                   {attrs.providerMonogram.tierTag}
                 </span>
               </div>
@@ -142,9 +142,15 @@ export function OpportunityRow({
                 {attrs.awardType}
               </span>
             </div>
-            <span className="text-[24px] font-extrabold text-[#0B1727] tracking-tight block">
-              {attrs.awardText}
-            </span>
+            {attrs.awardText === 'See Official Announcement' ? (
+              <span className="text-[16px] font-semibold text-slate-700 tracking-tight block py-0.5">
+                See Official Announcement
+              </span>
+            ) : (
+              <span className="text-[20px] sm:text-[22px] font-extrabold text-[#0B1727] tracking-tight block truncate">
+                {attrs.awardText}
+              </span>
+            )}
           </div>
         </div>
 
@@ -160,51 +166,56 @@ export function OpportunityRow({
             </span>
           </div>
 
-          <div className="flex items-center justify-between gap-2 pt-1">
+          <div className="flex flex-col gap-2.5 pt-1">
             <Link
               href={`/scholarships/${id}/check`}
-              className="flex-1 py-2.5 rounded-xl bg-[#0F172A] hover:bg-slate-800 text-white text-[13px] font-semibold text-center transition-colors shadow-xs cursor-pointer min-h-[44px] flex items-center justify-center gap-1.5"
+              className="w-full py-2.5 px-4 rounded-xl bg-[#0F172A] hover:bg-slate-800 text-white text-[13px] font-semibold text-center transition-colors shadow-xs cursor-pointer min-h-[42px] flex items-center justify-center gap-1.5 whitespace-nowrap"
             >
-              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-              <span>Check Eligibility</span>
+              <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span>Check Eligibility to Apply</span>
             </Link>
 
-            <Link
-              href={`/scholarships/${id}`}
-              className="px-3 py-2.5 text-blue-700 hover:text-blue-800 text-[13px] font-semibold text-center transition-colors inline-flex items-center gap-1 min-h-[44px]"
-            >
-              <span>Details</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-
-            {onToggleCompare && (
-              <button
-                type="button"
-                onClick={() => onToggleCompare(id)}
-                aria-label={isCompared ? 'Remove from compare' : 'Add to compare'}
-                className={`p-2.5 rounded-xl border transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center ${
-                  isCompared
-                    ? 'bg-blue-600 border-blue-600 text-white'
-                    : 'bg-white border-slate-200 text-slate-500 hover:text-slate-800'
-                }`}
-                title={isCompared ? 'In Compare' : 'Add to compare'}
+            <div className="flex items-center justify-between gap-2 pt-0.5">
+              <Link
+                href={`/scholarships/${id}`}
+                className="py-1.5 text-blue-700 hover:text-blue-800 text-[13px] font-semibold transition-colors inline-flex items-center gap-1.5 group/link"
               >
-                <Scale className="w-4 h-4" />
-              </button>
-            )}
+                <span>View Details</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover/link:translate-x-0.5 transition-transform" />
+              </Link>
 
-            <button
-              type="button"
-              onClick={toggleSave}
-              aria-label={isSaved ? 'Remove from saved' : 'Save scholarship'}
-              className={`p-2.5 rounded-xl border transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center ${
-                isSaved
-                  ? 'bg-amber-50 border-amber-300 text-amber-700'
-                  : 'bg-white border-slate-200 text-slate-400 hover:text-slate-800'
-              }`}
-            >
-              <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
-            </button>
+              <div className="flex items-center gap-1.5">
+                {onToggleCompare && (
+                  <button
+                    type="button"
+                    onClick={() => onToggleCompare(id)}
+                    aria-label={isCompared ? 'Remove from compare' : 'Add to compare'}
+                    className={`p-2 rounded-xl border transition-colors cursor-pointer min-h-[38px] min-w-[38px] flex items-center justify-center ${
+                      isCompared
+                        ? 'bg-blue-600 border-blue-600 text-white'
+                        : 'bg-white border-slate-200 text-slate-500 hover:text-slate-800 hover:border-slate-300'
+                    }`}
+                    title={isCompared ? 'In Compare' : 'Add to compare'}
+                  >
+                    <Scale className="w-4 h-4" />
+                  </button>
+                )}
+
+                <button
+                  type="button"
+                  onClick={toggleSave}
+                  aria-label={isSaved ? 'Remove from saved' : 'Save scholarship'}
+                  className={`p-2 rounded-xl border transition-colors cursor-pointer min-h-[38px] min-w-[38px] flex items-center justify-center ${
+                    isSaved
+                      ? 'bg-amber-50 border-amber-300 text-amber-700'
+                      : 'bg-white border-slate-200 text-slate-400 hover:text-slate-800 hover:border-slate-300'
+                  }`}
+                  title={isSaved ? 'Saved to Tracker' : 'Save to Tracker'}
+                >
+                  <Bookmark className={`w-4 h-4 ${isSaved ? 'fill-current' : ''}`} />
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </div>

@@ -4,7 +4,7 @@ import { db } from '@/db';
 import { users } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import Link from 'next/link';
-import { LayoutDashboard, Building2, Award, ArrowLeft, GraduationCap, LogOut } from 'lucide-react';
+import { LayoutDashboard, Building2, Award, Users, ArrowLeft, GraduationCap, LogOut } from 'lucide-react';
 import { logout } from '@/app/actions/auth';
 
 export default async function AdminLayout({
@@ -69,6 +69,13 @@ export default async function AdminLayout({
             >
               <Award className="w-4 h-4 text-slate-400" />
               <span>Scholarships &amp; Intakes</span>
+            </Link>
+            <Link
+              href="/admin/users"
+              className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl hover:bg-slate-100 hover:text-slate-900 transition-colors"
+            >
+              <Users className="w-4 h-4 text-slate-400" />
+              <span>Users &amp; Roles</span>
             </Link>
           </nav>
         </div>

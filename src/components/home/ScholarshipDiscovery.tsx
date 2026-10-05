@@ -350,9 +350,15 @@ export function ScholarshipDiscovery({
                           {attrs.awardType}
                         </span>
                       </div>
-                      <span className="text-[26px] font-extrabold text-[#0B1727] tracking-tight block">
-                        {attrs.awardText}
-                      </span>
+                      {attrs.awardText === 'See Official Announcement' ? (
+                        <span className="text-[16px] font-semibold text-slate-700 tracking-tight block py-0.5">
+                          See Official Announcement
+                        </span>
+                      ) : (
+                        <span className="text-[20px] sm:text-[22px] font-extrabold text-[#0B1727] tracking-tight block truncate">
+                          {attrs.awardText}
+                        </span>
+                      )}
                     </div>
                   </div>
 
@@ -368,7 +374,7 @@ export function ScholarshipDiscovery({
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between gap-2.5 pt-1">
+                    <div className="flex flex-col gap-2.5 pt-1">
                       <button
                         type="button"
                         onClick={() =>
@@ -380,31 +386,35 @@ export function ScholarshipDiscovery({
                             studyLevel: attrs.studyLevel,
                           })
                         }
-                        className="flex-1 py-2.5 rounded-xl bg-[#0F172A] hover:bg-slate-800 text-white text-[13px] font-semibold text-center transition-colors shadow-xs cursor-pointer min-h-[44px] flex items-center justify-center"
+                        className="w-full py-2.5 px-4 rounded-xl bg-[#0F172A] hover:bg-slate-800 text-white text-[13px] font-semibold text-center transition-colors shadow-xs cursor-pointer min-h-[42px] flex items-center justify-center gap-1.5 whitespace-nowrap"
                       >
-                        Check Eligibility
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                        <span>Check Eligibility to Apply</span>
                       </button>
 
-                      <Link
-                        href={`/scholarships/${item.id}`}
-                        className="px-3.5 py-2.5 text-blue-700 hover:text-blue-800 text-[13px] font-semibold text-center transition-colors inline-flex items-center gap-1 min-h-[44px]"
-                      >
-                        <span>Details</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </Link>
+                      <div className="flex items-center justify-between gap-2 pt-0.5">
+                        <Link
+                          href={`/scholarships/${item.id}`}
+                          className="py-1.5 text-blue-700 hover:text-blue-800 text-[13px] font-semibold transition-colors inline-flex items-center gap-1.5 group/link"
+                        >
+                          <span>View Details</span>
+                          <ArrowRight className="w-3.5 h-3.5 group-hover/link:translate-x-0.5 transition-transform" />
+                        </Link>
 
-                      <button
-                        type="button"
-                        onClick={() => toggleSave(item.id, item.intakeId)}
-                        aria-label={isSaved ? 'Remove from saved' : 'Save scholarship'}
-                        className={`p-2.5 rounded-xl border transition-colors cursor-pointer min-h-[44px] min-w-[44px] flex items-center justify-center ${
-                          isSaved
-                            ? 'bg-amber-50 border-amber-300 text-amber-700'
-                            : 'bg-white border-slate-200 text-slate-400 hover:text-slate-800'
-                        }`}
-                      >
-                        <Bookmark className="w-4 h-4 fill-current" />
-                      </button>
+                        <button
+                          type="button"
+                          onClick={() => toggleSave(item.id, item.intakeId)}
+                          aria-label={isSaved ? 'Remove from saved' : 'Save scholarship'}
+                          className={`p-2 rounded-xl border transition-colors cursor-pointer min-h-[38px] min-w-[38px] flex items-center justify-center ${
+                            isSaved
+                              ? 'bg-amber-50 border-amber-300 text-amber-700'
+                              : 'bg-white border-slate-200 text-slate-400 hover:text-slate-800 hover:border-slate-300'
+                          }`}
+                          title={isSaved ? 'Saved to Tracker' : 'Save to Tracker'}
+                        >
+                          <Bookmark className="w-4 h-4 fill-current" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>

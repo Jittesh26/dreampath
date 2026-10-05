@@ -243,3 +243,195 @@ export async function resolveDataReport(reportId: string, status: string = 'reso
   revalidatePath('/admin');
   revalidatePath('/admin/reports');
 }
+
+export interface CompleteScholarshipInput {
+  providerId?: string;
+  newProvider?: {
+    name: string;
+    url?: string;
+    description?: string;
+  };
+  name: string;
+  description: string;
+  year: number;
+  openDate?: string; // YYYY-MM-DD
+  closeDate?: string; // YYYY-MM-DD
+  sourceUrl: string;
+  evidenceNotes: string;
+  ruleAst: RequirementNode;
+  selectionStages?: SelectionStage[];
+  publishImmediately?: boolean;
+}
+
+/**
+ * Creates a complete authoritative scholarship record atomically:
+ * - Provider (creates if new, or attaches to existing)
+ * - Scholarship
+ * - Intake (with opening/closing dates and year)
+ * - Intake Version (sourceUrl and evidence notes)
+ * - Requirements (validated AST + separated selection stages)
+ * - Optionally passes publication gate if publishImmediately is requested.
+ */
+export async function createCompleteScholarship(input: CompleteScholarshipInput) {
+  await requireAdmin();
+
+  if (!input.name?.trim()) throw new Error('Scholarship name is required.');
+  if (!input.description?.trim()) throw new Error('Scholarship description is required.');
+  if (!input.sourceUrl?.trim()) throw new Error('Official source URL is required.');
+
+  // Validate AST
+  const validatedAst = validateRequirementNode(input.ruleAst);
+  const { eligibilityAst, selectionStages: extractedStages } = separateEligibilityAndSelection(
+    validatedAst,
+    input.selectionStages
+  );
+
+  let targetProviderId = input.providerId;
+
+  // If new provider specified, create it
+  if (!targetProviderId && input.newProvider?.name?.trim()) {
+    // Check if provider with same name already exists
+    const [existingP] = await db
+      .select()
+      .from(providers)
+      .where(eq(providers.name, input.newProvider.name.trim()));
+
+    if (existingP) {
+      targetProviderId = existingP.id;
+    } else {
+      const [newP] = await db
+        .insert(providers)
+        .values({
+          name: input.newProvider.name.trim(),
+          url: input.newProvider.url?.trim() || input.sourceUrl,
+          description: input.newProvider.description?.trim() || 'Official scholarship provider.',
+        })
+        .returning();
+      targetProviderId = newP.id;
+    }
+  }
+
+  if (!targetProviderId) {
+    throw new Error('Please select an existing provider or supply a provider name.');
+  }
+
+  // 1. Insert Scholarship
+  const [createdScholarship] = await db
+    .insert(scholarships)
+    .values({
+      providerId: targetProviderId,
+      name: input.name.trim(),
+      description: input.description.trim(),
+    })
+    .returning();
+
+  // 2. Insert Intake (starts as 'draft')
+  const [createdIntake] = await db
+    .insert(intakes)
+    .values({
+      scholarshipId: createdScholarship.id,
+      year: input.year || new Date().getFullYear(),
+      openDate: input.openDate || null,
+      closeDate: input.closeDate || null,
+      status: 'draft',
+    })
+    .returning();
+
+  // 3. Insert Intake Version
+  const [createdVersion] = await db
+    .insert(intakeVersions)
+    .values({
+      intakeId: createdIntake.id,
+      versionNum: 1,
+      sourceUrl: input.sourceUrl.trim(),
+      evidenceNotes: input.evidenceNotes?.trim() || `Verified from ${input.sourceUrl}`,
+    })
+    .returning();
+
+  // 4. Insert Requirements
+  await db.insert(requirements).values({
+    intakeVersionId: createdVersion.id,
+    name: `${input.name.trim()} Eligibility Criteria`,
+    ruleAst: eligibilityAst,
+    selectionStages: extractedStages,
+  });
+
+  // 5. If requested to publish immediately, run publication gate
+  if (input.publishImmediately) {
+    await transitionIntakeStatus(createdIntake.id, 'published');
+  }
+
+  revalidatePath('/scholarships');
+  revalidatePath('/admin/scholarships');
+  revalidatePath('/', 'layout');
+
+  return {
+    scholarshipId: createdScholarship.id,
+    intakeId: createdIntake.id,
+    versionId: createdVersion.id,
+  };
+}
+
+/**
+ * Server action to safely ingest an official scholarship URL and extract a structured draft.
+ * Never publishes automatically. Output is strictly for admin review.
+ */
+export async function ingestOfficialScholarshipUrl(targetUrl: string) {
+  await requireAdmin();
+
+  const { safeFetchWebContent } = await import('@/lib/security/safe-fetch');
+  const { extractScholarshipDraftFromText } = await import('@/lib/ai/scholarship-extractor');
+
+  const { cleanText, url } = await safeFetchWebContent(targetUrl, { timeoutMs: 12000 });
+  const draftProposal = await extractScholarshipDraftFromText(cleanText, url);
+
+  return draftProposal;
+}
+
+/**
+ * Server action to update a user's role (promote to admin or demote to student).
+ * Enforces strict last-admin protection.
+ */
+export async function updateUserRole(userId: string, newRole: 'student' | 'admin') {
+  await requireAdmin();
+
+  if (!userId || typeof userId !== 'string') {
+    throw new Error('User ID is required.');
+  }
+
+  if (newRole !== 'student' && newRole !== 'admin') {
+    throw new Error('Invalid role specified. Must be either "student" or "admin".');
+  }
+
+  const [targetUser] = await db.select().from(users).where(eq(users.id, userId));
+  if (!targetUser) {
+    throw new Error('User not found.');
+  }
+
+  if (targetUser.role === newRole) {
+    return { success: true, message: `User is already a ${newRole}.` };
+  }
+
+  // Last-admin protection: cannot demote an admin if they are the only remaining admin
+  if (targetUser.role === 'admin' && newRole === 'student') {
+    const adminCount = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.role, 'admin'));
+
+    if (adminCount.length <= 1) {
+      throw new Error('Cannot demote the last remaining administrator.');
+    }
+  }
+
+  await db
+    .update(users)
+    .set({ role: newRole })
+    .where(eq(users.id, userId));
+
+  revalidatePath('/admin/users');
+  revalidatePath('/admin');
+  revalidatePath('/student');
+
+  return { success: true, message: `User role successfully updated to ${newRole}.` };
+}

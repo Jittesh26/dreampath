@@ -1,5 +1,8 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { db } from '@/db';
+import { users } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import Link from 'next/link';
 import {
   LayoutDashboard,
@@ -14,6 +17,7 @@ import {
   Sparkles,
   ExternalLink,
   LogOut,
+  ShieldAlert,
 } from 'lucide-react';
 import { NotificationCenter } from '@/components/NotificationCenter';
 import { logout } from '@/app/actions/auth';
@@ -28,6 +32,15 @@ export default async function StudentLayout({
 
   if (!user) {
     redirect('/login');
+  }
+
+  // Check database role for admin privileges
+  let isAdmin = false;
+  try {
+    const [dbUser] = await db.select({ role: users.role }).from(users).where(eq(users.id, user.id));
+    isAdmin = dbUser?.role === 'admin';
+  } catch (err) {
+    console.error('Failed to query user role in StudentLayout:', err);
   }
 
   const displayName = (user.user_metadata?.full_name || user.user_metadata?.name || user.email || 'Student').trim();
@@ -147,8 +160,26 @@ export default async function StudentLayout({
 
         {/* User Footer */}
         <div className="pt-4 border-t border-slate-100 space-y-3">
+          {isAdmin && (
+            <div className="p-2.5 bg-blue-50/80 border border-blue-200/90 rounded-xl space-y-1.5">
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-blue-900 uppercase tracking-wider">
+                <ShieldAlert className="w-3.5 h-3.5 text-blue-700" />
+                <span>Admin Session</span>
+              </div>
+              <Link
+                href="/admin"
+                className="w-full flex items-center justify-between px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg shadow-xs transition-colors"
+              >
+                <span>Back to Admin Console</span>
+                <span aria-hidden="true">&rarr;</span>
+              </Link>
+            </div>
+          )}
+
           <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl">
-            <p className="text-slate-400 text-[9px] font-bold uppercase tracking-wider">Verified Malaysian Student</p>
+            <p className="text-slate-400 text-[9px] font-bold uppercase tracking-wider">
+              {isAdmin ? 'System Administrator' : 'Verified Malaysian Student'}
+            </p>
             <p className="font-semibold text-xs text-slate-900 truncate mt-0.5">{displayName}</p>
           </div>
           <div className="flex flex-col gap-1">
@@ -183,6 +214,14 @@ export default async function StudentLayout({
           </span>
         </Link>
         <div className="flex items-center gap-2">
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className="px-2.5 py-1 bg-slate-900 text-white rounded-lg text-[11px] font-bold tracking-tight"
+            >
+              Admin Console
+            </Link>
+          )}
           <NotificationCenter />
           <form action={logout}>
             <button

@@ -26,19 +26,29 @@ export default async function AdminScholarshipsPage() {
 
   return (
     <div className="space-y-8 max-w-6xl">
-      <div>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div>
+          <Link
+            href="/admin"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 mb-2 transition-colors"
+          >
+            <ArrowLeft className="w-3.5 h-3.5" /> Back to Dashboard
+          </Link>
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-950 font-sans">
+            Scholarships <span className="font-serif italic font-normal text-blue-900">Management</span> ({allScholarships.length})
+          </h1>
+          <p className="font-sans text-slate-600 text-sm mt-1 font-normal">
+            Control the verification and publishing lifecycle: Draft &rarr; In Review &rarr; Published &rarr; Superseded.
+          </p>
+        </div>
+
         <Link
-          href="/admin"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-slate-900 mb-2 transition-colors"
+          href="/admin/scholarships/new"
+          className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-all shadow-xs shrink-0"
         >
-          <ArrowLeft className="w-3.5 h-3.5" /> Back to Dashboard
+          <Plus className="w-4 h-4 text-amber-400" />
+          <span>+ Add Scholarship</span>
         </Link>
-        <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-950 font-sans">
-          Scholarships <span className="font-serif italic font-normal text-blue-900">Management</span> ({allScholarships.length})
-        </h1>
-        <p className="font-sans text-slate-600 text-sm mt-1 font-normal">
-          Control the verification and publishing lifecycle: Draft &rarr; In Review &rarr; Published &rarr; Superseded.
-        </p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
