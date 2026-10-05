@@ -313,7 +313,7 @@ export function OpportunityRow({
               href={`/scholarships/${id}`}
               className="px-4 py-2 bg-[#0F172A] hover:bg-slate-800 text-white font-semibold text-xs rounded-xl transition-colors inline-flex items-center gap-1.5 shadow-xs min-h-[38px]"
             >
-              <span>Dossier</span>
+              <span>View Details</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
