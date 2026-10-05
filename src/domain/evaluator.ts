@@ -136,8 +136,20 @@ function evaluateCondition(profile: StudentProfile, node: BaseConditionNode, ref
 
   // Safely extract field value or evaluate dynamic fields (like age)
   let profileValue: unknown;
+  const normField =
+    field === 'bumiputeraStatus'
+      ? 'bumiputera_status'
+      : field === 'incomeBand'
+      ? 'income_band'
+      : field === 'householdIncome'
+      ? 'household_income'
+      : field === 'spmResults'
+      ? 'spm_results'
+      : field === 'dateOfBirth'
+      ? 'date_of_birth'
+      : field;
 
-  if (field === 'age') {
+  if (normField === 'age') {
     if (profile.date_of_birth) {
       const dob = new Date(profile.date_of_birth);
       let computedAge = referenceDate.getFullYear() - dob.getFullYear();
@@ -147,6 +159,8 @@ function evaluateCondition(profile: StudentProfile, node: BaseConditionNode, ref
         computedAge--;
       }
       profileValue = computedAge;
+    } else if (typeof profile.age === 'number') {
+      profileValue = profile.age;
     } else {
       return { 
         status: 'MISSING_INFO', 
@@ -155,7 +169,7 @@ function evaluateCondition(profile: StudentProfile, node: BaseConditionNode, ref
     }
   } else {
     // Validate if the field is actually machine checkable based on our known StudentProfile schema
-    const isCheckable = ['citizenship', 'bumiputera_status', 'income_band', 'household_income', 'cgpa', 'spm_results', 'date_of_birth', 'id'].includes(field);
+    const isCheckable = ['citizenship', 'bumiputera_status', 'income_band', 'household_income', 'cgpa', 'spm_results', 'date_of_birth', 'id'].includes(normField);
     
     if (!isCheckable) {
       return {
@@ -164,7 +178,7 @@ function evaluateCondition(profile: StudentProfile, node: BaseConditionNode, ref
       };
     }
 
-    profileValue = profile[field as keyof StudentProfile];
+    profileValue = profile[normField as keyof StudentProfile] ?? (profile as any)[field];
   }
 
   if (profileValue === undefined || profileValue === null) {

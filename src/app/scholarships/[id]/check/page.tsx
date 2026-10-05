@@ -82,7 +82,7 @@ export default async function EligibilityCheckPage({
             href={`/scholarships/${id}`}
             className="text-xs font-semibold text-slate-500 hover:text-[#0F172A] transition-colors inline-flex items-center gap-1.5 mb-3"
           >
-            &larr; Back to {scholarshipData.name} Dossier
+            &larr; Back to {scholarshipData.name} Details
           </Link>
           <div className="flex items-center gap-2 text-[11px] font-bold text-blue-700 uppercase tracking-wider">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-600" />

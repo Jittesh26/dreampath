@@ -180,6 +180,27 @@ export function StatusBadge({ status, label, className = '', size = 'md' }: Stat
         defaultLabel: 'Criteria Unmet',
       };
       break;
+    case 'missing-info':
+    case 'missing_info':
+      config = {
+        bg: 'bg-amber-50/90',
+        text: 'text-amber-900',
+        border: 'border-amber-300',
+        icon: <AlertCircle className="w-3.5 h-3.5 text-amber-600" />,
+        defaultLabel: 'Missing Information',
+      };
+      break;
+    case 'manual-verification':
+    case 'manual_verification':
+    case 'review':
+      config = {
+        bg: 'bg-blue-50/90',
+        text: 'text-blue-900',
+        border: 'border-blue-200',
+        icon: <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />,
+        defaultLabel: 'Manual Verification Required',
+      };
+      break;
     default:
       config = {
         bg: 'bg-slate-100',
