@@ -10,7 +10,7 @@ import {
   date,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
-import { RequirementNode } from '../domain/schema';
+import { RequirementNode, SelectionStage } from '../domain/schema';
 
 // USERS TABLE
 export const users = pgTable('users', {
@@ -97,6 +97,7 @@ export const requirements = pgTable('requirements', {
   intakeVersionId: uuid('intake_version_id').references(() => intakeVersions.id, { onDelete: 'cascade' }).notNull(),
   name: varchar('name', { length: 255 }).notNull(),
   ruleAst: jsonb('rule_ast').$type<RequirementNode>().notNull(), // Strongly typed AST!
+  selectionStages: jsonb('selection_stages').$type<SelectionStage[]>(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 

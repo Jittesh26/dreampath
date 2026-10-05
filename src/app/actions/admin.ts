@@ -4,7 +4,8 @@ import { revalidatePath } from 'next/cache';
 import { db } from '@/db';
 import { providers, scholarships, intakes, intakeVersions, requirements, users } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
-import { RequirementNode, validateRequirementNode } from '@/domain/schema';
+import { RequirementNode, validateRequirementNode, SelectionStage } from '@/domain/schema';
+import { separateEligibilityAndSelection } from '@/domain/selection-process';
 import { createClient } from '@/lib/supabase/server';
 
 // Helper to verify admin role securely via DB
@@ -100,6 +101,7 @@ export async function cloneIntake(previousIntakeId: string) {
       name: prevReqs.name,
       // The JSONB ruleAst is automatically deeply serialized/cloned
       ruleAst: prevReqs.ruleAst, 
+      selectionStages: prevReqs.selectionStages,
     });
   }
 
@@ -107,11 +109,22 @@ export async function cloneIntake(previousIntakeId: string) {
   return newIntake.id;
 }
 
-export async function updateRequirements(intakeVersionId: string, name: string, ruleAst: RequirementNode) {
+export async function updateRequirements(
+  intakeVersionId: string,
+  name: string,
+  ruleAst: RequirementNode,
+  selectionStages?: SelectionStage[]
+) {
   await requireAdmin();
 
   // Validate the complete rule AST at the server boundary using domain schema
   const validatedAst = validateRequirementNode(ruleAst);
+
+  // Generic separation: extract post-application selection stages from eligibility predicates
+  const { eligibilityAst, selectionStages: extractedStages } = separateEligibilityAndSelection(
+    validatedAst,
+    selectionStages
+  );
 
   // Check version integrity — prevent modifying published or closed versions
   const [version] = await db.select().from(intakeVersions).where(eq(intakeVersions.id, intakeVersionId));
@@ -129,13 +142,14 @@ export async function updateRequirements(intakeVersionId: string, name: string, 
 
   if (existingReq) {
     await db.update(requirements)
-      .set({ name, ruleAst: validatedAst })
+      .set({ name, ruleAst: eligibilityAst, selectionStages: extractedStages })
       .where(eq(requirements.id, existingReq.id));
   } else {
     await db.insert(requirements).values({
       intakeVersionId,
       name,
-      ruleAst: validatedAst,
+      ruleAst: eligibilityAst,
+      selectionStages: extractedStages,
     });
   }
 }

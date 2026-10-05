@@ -2,6 +2,7 @@ import { config } from 'dotenv';
 import { db } from './index';
 import { providers, scholarships, intakes, intakeVersions, requirements, applications, dataReports } from './schema';
 import { RequirementNode } from '../domain/schema';
+import { separateEligibilityAndSelection } from '../domain/selection-process';
 
 config({ path: '.env.local' });
 
@@ -669,40 +670,52 @@ async function seedGoldenDataset() {
       ]
     };
 
-    // 7. Insert Requirements
+    // 7. Insert Requirements with generic eligibility / selection process separation
     console.log('✅ Compiling JSONB AST rules into database...');
-    await db.insert(requirements).values([
+    const rawRequirements = [
       // Initial 5
-      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Gamuda Scholarship']]], name: 'Gamuda Eligibility Rules', ruleAst: gamudaAst },
-      { intakeVersionId: versionMap[intakeMap[scholarshipMap['PPBU (Pembiayaan Pendidikan Boleh Ubah)']]], name: 'YBR PPBU Rules', ruleAst: ppbuAst },
-      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Maxis Scholarship Programme']]], name: 'Maxis Rules', ruleAst: maxisAst },
-      { intakeVersionId: versionMap[intakeMap[scholarshipMap['YTM Future Leaders Scholarship']]], name: 'YTM Leadership Rules', ruleAst: ytmAst },
-      { intakeVersionId: versionMap[intakeMap[scholarshipMap['JPA Program Ijazah Dalam Negara (PIDN)']]], name: 'JPA PIDN Rules', ruleAst: jpaPidnAst },
+      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Gamuda Scholarship']]], name: 'Gamuda Eligibility Rules', ast: gamudaAst },
+      { intakeVersionId: versionMap[intakeMap[scholarshipMap['PPBU (Pembiayaan Pendidikan Boleh Ubah)']]], name: 'YBR PPBU Rules', ast: ppbuAst },
+      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Maxis Scholarship Programme']]], name: 'Maxis Rules', ast: maxisAst },
+      { intakeVersionId: versionMap[intakeMap[scholarshipMap['YTM Future Leaders Scholarship']]], name: 'YTM Leadership Rules', ast: ytmAst },
+      { intakeVersionId: versionMap[intakeMap[scholarshipMap['JPA Program Ijazah Dalam Negara (PIDN)']]], name: 'JPA PIDN Rules', ast: jpaPidnAst },
       // Batch 1 (10)
-      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Yayasan Khazanah Global Scholarship']]], name: 'Khazanah Global Eligibility Rules', ruleAst: khazanahGlobalAst },
-      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Yayasan Khazanah Watan Scholarship']]], name: 'Khazanah Watan Eligibility Rules', ruleAst: khazanahWatanAst },
-      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Petronas Education Sponsorship Programme (PESP)']]], name: 'PETRONAS PESP Eligibility Rules', ruleAst: petronasPespAst },
-      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Bank Negara Malaysia (BNM) Kijang Scholarship']]], name: 'BNM Kijang Eligibility Rules', ruleAst: bnmKijangAst },
-      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Yayasan Sime Darby Undergraduate Scholarship']]], name: 'Yayasan Sime Darby Eligibility Rules', ruleAst: simeDarbyAst },
-      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Shell Malaysia Undergraduate Scholarship']]], name: 'Shell Malaysia Eligibility Rules', ruleAst: shellAst },
-      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Yayasan Peneraju Pendidikan Bumiputera']]], name: 'Yayasan Peneraju Eligibility Rules', ruleAst: penerajuAst },
-      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Biasiswa Yang di-Pertuan Agong (BYDPA)']]], name: 'BYDPA Eligibility Rules', ruleAst: bydpaAst },
-      { intakeVersionId: versionMap[intakeMap[scholarshipMap['JPA Program Penajaan Nasional (PPN)']]], name: 'JPA PPN Eligibility Rules', ruleAst: jpaPpnAst },
-      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Yayasan UEM Undergraduate Scholarship']]], name: 'Yayasan UEM Eligibility Rules', ruleAst: uemAst },
+      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Yayasan Khazanah Global Scholarship']]], name: 'Khazanah Global Eligibility Rules', ast: khazanahGlobalAst },
+      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Yayasan Khazanah Watan Scholarship']]], name: 'Khazanah Watan Eligibility Rules', ast: khazanahWatanAst },
+      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Petronas Education Sponsorship Programme (PESP)']]], name: 'PETRONAS PESP Eligibility Rules', ast: petronasPespAst },
+      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Bank Negara Malaysia (BNM) Kijang Scholarship']]], name: 'BNM Kijang Eligibility Rules', ast: bnmKijangAst },
+      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Yayasan Sime Darby Undergraduate Scholarship']]], name: 'Yayasan Sime Darby Eligibility Rules', ast: simeDarbyAst },
+      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Shell Malaysia Undergraduate Scholarship']]], name: 'Shell Malaysia Eligibility Rules', ast: shellAst },
+      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Yayasan Peneraju Pendidikan Bumiputera']]], name: 'Yayasan Peneraju Eligibility Rules', ast: penerajuAst },
+      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Biasiswa Yang di-Pertuan Agong (BYDPA)']]], name: 'BYDPA Eligibility Rules', ast: bydpaAst },
+      { intakeVersionId: versionMap[intakeMap[scholarshipMap['JPA Program Penajaan Nasional (PPN)']]], name: 'JPA PPN Eligibility Rules', ast: jpaPpnAst },
+      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Yayasan UEM Undergraduate Scholarship']]], name: 'Yayasan UEM Eligibility Rules', ast: uemAst },
       // Batch 2 (12)
-      { intakeVersionId: versionMap[intakeMap[scholarshipMap['MARA Young Talent Development Programme (YTP)']]], name: 'MARA YTP Eligibility Rules', ruleAst: maraYtpAst },
-      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Biasiswa Tunku Abdul Rahman (BTAR)']]], name: 'BTAR Leadership Rules', ruleAst: btarAst },
-      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Sarawak Energy Scholarship']]], name: 'Sarawak Energy Eligibility Rules', ruleAst: sarawakEnergyAst },
-      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Penang Future Foundation (PFF) Scholarship']]], name: 'PFF Scholarship Rules', ruleAst: pffAst },
-      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Kuok Foundation Undergraduate Awards']]], name: 'Kuok Foundation Rules', ruleAst: kuokAst },
-      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Hong Leong Foundation Undergraduate Scholarship']]], name: 'Hong Leong Foundation Rules', ruleAst: hongLeongAst },
-      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Top Glove Scholarship']]], name: 'Top Glove Rules', ruleAst: topGloveAst },
-      { intakeVersionId: versionMap[intakeMap[scholarshipMap['AIA Can Excel Scholarship']]], name: 'AIA Can Excel Rules', ruleAst: aiaAst },
-      { intakeVersionId: versionMap[intakeMap[scholarshipMap['IJM Scholarship Award']]], name: 'IJM Scholarship Rules', ruleAst: ijmAst },
-      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Genting Malaysia Scholarship']]], name: 'Genting Malaysia Rules', ruleAst: gentingAst },
-      { intakeVersionId: versionMap[intakeMap[scholarshipMap['CIMB ASEAN Scholarship']]], name: 'CIMB ASEAN Rules', ruleAst: cimbAseanAst },
-      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Yayasan Sarawak Tun Taib Scholarship']]], name: 'Yayasan Sarawak Tun Taib Rules', ruleAst: yayasanSarawakAst },
-    ]);
+      { intakeVersionId: versionMap[intakeMap[scholarshipMap['MARA Young Talent Development Programme (YTP)']]], name: 'MARA YTP Eligibility Rules', ast: maraYtpAst },
+      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Biasiswa Tunku Abdul Rahman (BTAR)']]], name: 'BTAR Leadership Rules', ast: btarAst },
+      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Sarawak Energy Scholarship']]], name: 'Sarawak Energy Eligibility Rules', ast: sarawakEnergyAst },
+      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Penang Future Foundation (PFF) Scholarship']]], name: 'PFF Scholarship Rules', ast: pffAst },
+      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Kuok Foundation Undergraduate Awards']]], name: 'Kuok Foundation Rules', ast: kuokAst },
+      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Hong Leong Foundation Undergraduate Scholarship']]], name: 'Hong Leong Foundation Rules', ast: hongLeongAst },
+      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Top Glove Scholarship']]], name: 'Top Glove Rules', ast: topGloveAst },
+      { intakeVersionId: versionMap[intakeMap[scholarshipMap['AIA Can Excel Scholarship']]], name: 'AIA Can Excel Rules', ast: aiaAst },
+      { intakeVersionId: versionMap[intakeMap[scholarshipMap['IJM Scholarship Award']]], name: 'IJM Scholarship Rules', ast: ijmAst },
+      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Genting Malaysia Scholarship']]], name: 'Genting Malaysia Rules', ast: gentingAst },
+      { intakeVersionId: versionMap[intakeMap[scholarshipMap['CIMB ASEAN Scholarship']]], name: 'CIMB ASEAN Rules', ast: cimbAseanAst },
+      { intakeVersionId: versionMap[intakeMap[scholarshipMap['Yayasan Sarawak Tun Taib Scholarship']]], name: 'Yayasan Sarawak Tun Taib Rules', ast: yayasanSarawakAst },
+    ];
+
+    const requirementsToInsert = rawRequirements.map((r) => {
+      const { eligibilityAst, selectionStages } = separateEligibilityAndSelection(r.ast);
+      return {
+        intakeVersionId: r.intakeVersionId,
+        name: r.name,
+        ruleAst: eligibilityAst,
+        selectionStages,
+      };
+    });
+
+    await db.insert(requirements).values(requirementsToInsert);
 
     console.log('🎉 Golden Dataset successfully seeded: 27 verified scholarships, 24 providers, 27 intakes & AST rule sets!');
   } catch (error) {

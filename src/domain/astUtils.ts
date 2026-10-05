@@ -1,4 +1,5 @@
 import { RequirementNode } from './schema';
+import { isSelectionStageField, separateEligibilityAndSelection } from './selection-process';
 
 /**
  * Normalizes field names (handling camelCase vs snake_case aliases).
@@ -35,8 +36,8 @@ export function isMachineCheckableField(field: string): boolean {
 
 /**
  * Recursively traverses the Requirement AST to extract a unique list
- * of all fields required by a scholarship.
- * e.g., ['citizenship', 'income_band', 'spm_results.Mathematics']
+ * of all eligibility fields required by a scholarship.
+ * Excludes post-application selection stages.
  */
 export function extractRequiredFields(node: RequirementNode): string[] {
   const fields = new Set<string>();
@@ -45,6 +46,10 @@ export function extractRequiredFields(node: RequirementNode): string[] {
     if (n.type === 'ALL' || n.type === 'ANY') {
       n.nodes.forEach(traverse);
     } else if (n.type === 'CONDITION') {
+      // Exclude selection stages (interviews, assessment centres, etc.)
+      if (isSelectionStageField(n.field)) {
+        return;
+      }
       if (n.operator === 'HAS_SPM_SUBJECT_GRADE') {
         fields.add(`spm_results.${n.value.subject}`);
       } else {
@@ -58,17 +63,18 @@ export function extractRequiredFields(node: RequirementNode): string[] {
 }
 
 /**
- * Extracts only machine-checkable required fields.
+ * Extracts only machine-checkable required eligibility fields.
  */
 export function extractMachineCheckableFields(node: RequirementNode): string[] {
   return extractRequiredFields(node).filter(isMachineCheckableField);
 }
 
 /**
- * Extracts non-machine-checkable criteria fields (e.g. bnm_assessment_centre).
+ * Extracts genuine manual eligibility verification fields (e.g. premier_university_offer).
+ * Strictly excludes selection stages.
  */
 export function extractManualVerificationFields(node: RequirementNode): string[] {
-  return extractRequiredFields(node).filter((f) => !isMachineCheckableField(f));
+  return extractRequiredFields(node).filter((f) => !isMachineCheckableField(f) && !isSelectionStageField(f));
 }
 
 /**
@@ -179,7 +185,7 @@ export function getCriterionDescription(node: RequirementNode): string {
       return value ? 'Must be of Bumiputera status.' : 'Open to non-Bumiputera applicants.';
     }
     if (!isMachineCheckableField(norm)) {
-      return 'This scholarship includes an assessment-centre or circular requirement that DreamPath cannot verify automatically. Please check the official scholarship announcement.';
+      return 'This condition requires manual review of official documentation (e.g. proof of admission offer or financial verification).';
     }
     return `Requirement on ${getCriterionLabel(field)} (${operator}: ${JSON.stringify(value)}).`;
   }
@@ -201,10 +207,13 @@ export interface DetailedCriterion {
 /**
  * Breaks down an AST into individual top-level criteria suitable
  * for audit display and progress tracking.
+ * Strictly filters out post-application selection stages.
  */
 export function extractDetailedCriteria(node: RequirementNode): DetailedCriterion[] {
-  if (node.type === 'ALL') {
-    return node.nodes.map((child, index) => {
+  const { eligibilityAst } = separateEligibilityAndSelection(node);
+
+  if (eligibilityAst.type === 'ALL') {
+    return eligibilityAst.nodes.map((child, index) => {
       let field = 'composite';
       if (child.type === 'CONDITION') {
         field = child.operator === 'HAS_SPM_SUBJECT_GRADE'
@@ -222,8 +231,8 @@ export function extractDetailedCriteria(node: RequirementNode): DetailedCriterio
     });
   }
 
-  const field = node.type === 'CONDITION'
-    ? (node.operator === 'HAS_SPM_SUBJECT_GRADE' ? `spm_results.${node.value.subject}` : normalizeFieldName(node.field))
+  const field = eligibilityAst.type === 'CONDITION'
+    ? (eligibilityAst.operator === 'HAS_SPM_SUBJECT_GRADE' ? `spm_results.${eligibilityAst.value.subject}` : normalizeFieldName(eligibilityAst.field))
     : 'composite';
 
   return [
@@ -231,9 +240,9 @@ export function extractDetailedCriteria(node: RequirementNode): DetailedCriterio
       id: `crit_0_${field}`,
       field,
       label: getCriterionLabel(field),
-      description: getCriterionDescription(node),
+      description: getCriterionDescription(eligibilityAst),
       isMachineCheckable: isMachineCheckableField(field),
-      node,
+      node: eligibilityAst,
     },
   ];
 }

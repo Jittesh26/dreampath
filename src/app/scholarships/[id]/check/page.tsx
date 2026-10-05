@@ -96,6 +96,7 @@ export default async function EligibilityCheckPage({
           scholarshipId={scholarshipData.id}
           scholarshipName={scholarshipData.name}
           ruleAst={rules.ruleAst}
+          selectionStages={rules.selectionStages || []}
         />
       </main>
 

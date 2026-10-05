@@ -7,7 +7,6 @@ import {
   extractMachineCheckableFields,
   extractManualVerificationFields,
   extractDetailedCriteria,
-  isMachineCheckableField,
   getCriterionLabel,
   getCriterionDescription,
 } from '../astUtils';
@@ -73,6 +72,8 @@ describe('Scholarship-Specific Eligibility Architecture', () => {
       const machineCheckable = extractMachineCheckableFields(bnmKijangAst);
       const manualFields = extractManualVerificationFields(bnmKijangAst);
 
+      expect(allFields.length).toBeGreaterThan(0);
+
       // Must include citizenship, age, and the 3 SPM subjects
       expect(machineCheckable).toContain('citizenship');
       expect(machineCheckable).toContain('age');
@@ -86,8 +87,8 @@ describe('Scholarship-Specific Eligibility Architecture', () => {
       expect(machineCheckable).not.toContain('household_income');
       expect(machineCheckable).not.toContain('bumiputera_status');
 
-      // Assessment centre must be identified as manual verification only
-      expect(manualFields).toEqual(['bnm_assessment_centre']);
+      // BNM assessment centre is a post-application selection stage, not an eligibility requirement
+      expect(manualFields).toEqual([]);
       expect(machineCheckable).not.toContain('bnm_assessment_centre');
     });
 
@@ -96,6 +97,7 @@ describe('Scholarship-Specific Eligibility Architecture', () => {
       const manualFields = extractManualVerificationFields(gamudaAst);
 
       expect(machineCheckable).toEqual(['citizenship', 'cgpa']);
+      // Premier university offer is a genuine pre-application eligibility prerequisite requiring manual proof
       expect(manualFields).toEqual(['premier_university_offer']);
 
       // Gamuda does NOT ask for age, SPM, income band, or bumiputera status
@@ -121,7 +123,7 @@ describe('Scholarship-Specific Eligibility Architecture', () => {
   });
 
   describe('2. Distinguishing Met vs Not Met vs Missing vs Manual Verification', () => {
-    it('BNM: when all machine facts pass, manual verification is NOT marked as Criteria Unmet', () => {
+    it('BNM: when all machine facts pass, post-application selection stage does NOT block eligibility (evaluates to MET)', () => {
       const qualifiedStudent: StudentProfile = {
         citizenship: 'Malaysian',
         date_of_birth: '2007-06-15', // Age 19 on 2026-10-14
@@ -134,18 +136,13 @@ describe('Scholarship-Specific Eligibility Architecture', () => {
 
       const result = evaluateEligibility(qualifiedStudent, bnmRequirement, REF_DATE);
 
-      // Deterministic evaluator marks overall as MISSING_INFO with code NOT_MACHINE_CHECKABLE
-      expect(result.status).toBe('MISSING_INFO');
-      expect(result.reasons).toHaveLength(1);
-      expect(result.reasons[0].code).toBe('NOT_MACHINE_CHECKABLE');
-      expect(result.reasons[0].field).toBe('bnm_assessment_centre');
+      // Deterministic evaluator evaluates pure eligibility: MET (Eligible to Apply)
+      expect(result.status).toBe('MET');
+      expect(result.reasons).toHaveLength(0);
 
-      // Crucially, it is NOT marked as NOT_MET (Hard failure)
-      expect(result.status).not.toBe('NOT_MET');
-
-      // Breakdown of criteria
+      // Breakdown of criteria excludes selection stages
       const criteria = extractDetailedCriteria(bnmKijangAst);
-      expect(criteria).toHaveLength(6);
+      expect(criteria).toHaveLength(5);
 
       const evaluatedCriteria = criteria.map((crit) => {
         const evalRes = evaluateEligibility(qualifiedStudent, { id: 'test', name: crit.label, rootNode: crit.node }, REF_DATE);
@@ -156,18 +153,31 @@ describe('Scholarship-Specific Eligibility Architecture', () => {
         };
       });
 
-      // 5 criteria are MET
+      // All 5 criteria are MET
       const metCriteria = evaluatedCriteria.filter((c) => c.status === 'MET');
       expect(metCriteria).toHaveLength(5);
-
-      // 1 criterion is manual verification
-      const manualCrit = evaluatedCriteria.find((c) => c.code === 'NOT_MACHINE_CHECKABLE');
-      expect(manualCrit).toBeDefined();
-      expect(manualCrit?.label).toBe('Bank Negara Assessment Centre');
 
       // NONE are NOT_MET
       const unmet = evaluatedCriteria.filter((c) => c.status === 'NOT_MET');
       expect(unmet).toHaveLength(0);
+    });
+
+    it('Gamuda: genuine pre-application manual prerequisite triggers Manual Verification Required, not Criteria Unmet', () => {
+      const qualifiedStudent: StudentProfile = {
+        citizenship: 'Malaysian',
+        cgpa: 3.8,
+      };
+
+      const result = evaluateEligibility(qualifiedStudent, gamudaRequirement, REF_DATE);
+
+      // Deterministic evaluator marks as MISSING_INFO with code NOT_MACHINE_CHECKABLE
+      expect(result.status).toBe('MISSING_INFO');
+      expect(result.reasons).toHaveLength(1);
+      expect(result.reasons[0].code).toBe('NOT_MACHINE_CHECKABLE');
+      expect(result.reasons[0].field).toBe('premier_university_offer');
+
+      // Crucially, it is NOT marked as NOT_MET (Hard failure)
+      expect(result.status).not.toBe('NOT_MET');
     });
 
     it('Definitively failed criteria are reported as NOT_MET (Criteria Unmet)', () => {
@@ -235,7 +245,7 @@ describe('Scholarship-Specific Eligibility Architecture', () => {
         operator: 'EQUALS',
         value: true,
       });
-      expect(bnmDesc).toContain('cannot verify automatically');
+      expect(bnmDesc).toContain('requires manual review of official documentation');
 
       const cgpaDesc = getCriterionDescription({
         type: 'CONDITION',

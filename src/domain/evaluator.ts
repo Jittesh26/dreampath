@@ -1,5 +1,6 @@
 import { StudentProfile, isGradeGte } from './registry';
 import { RequirementNode, ScholarshipRequirement, BaseConditionNode, LogicalNode } from './schema';
+import { separateEligibilityAndSelection, isSelectionStageField } from './selection-process';
 
 export type EligibilityStatus = 'MET' | 'NOT_MET' | 'MISSING_INFO';
 
@@ -25,7 +26,8 @@ export function evaluateEligibility(
   requirement: ScholarshipRequirement,
   referenceDate: Date
 ): EvaluationResult {
-  return evaluateNode(profile, requirement.rootNode, referenceDate);
+  const { eligibilityAst } = separateEligibilityAndSelection(requirement.rootNode);
+  return evaluateNode(profile, eligibilityAst, referenceDate);
 }
 
 function evaluateNode(profile: StudentProfile, node: RequirementNode, referenceDate: Date): EvaluationResult {
@@ -171,6 +173,11 @@ function evaluateCondition(profile: StudentProfile, node: BaseConditionNode, ref
     // Validate if the field is actually machine checkable based on our known StudentProfile schema
     const isCheckable = ['citizenship', 'bumiputera_status', 'income_band', 'household_income', 'cgpa', 'spm_results', 'date_of_birth', 'id'].includes(normField);
     
+    if (isSelectionStageField(normField)) {
+      // Selection stages (interviews, assessments) are not eligibility criteria to apply
+      return { status: 'MET', reasons: [] };
+    }
+
     if (!isCheckable) {
       return {
         status: 'MISSING_INFO', // Treated as missing because we can't deterministically verify it

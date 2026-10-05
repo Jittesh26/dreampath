@@ -2,13 +2,14 @@
 
 import { useState, useMemo } from 'react';
 import Link from 'next/link';
-import { RequirementNode } from '@/domain/schema';
+import { RequirementNode, SelectionStage } from '@/domain/schema';
 import { StudentProfile, SPMGrade } from '@/domain/registry';
 import {
   extractRequiredFields,
   extractManualVerificationFields,
   extractDetailedCriteria,
 } from '@/domain/astUtils';
+import { separateEligibilityAndSelection } from '@/domain/selection-process';
 import { evaluateEligibility, EvaluationResult, evaluateEligibility as evaluateNode } from '@/domain/evaluator';
 import {
   CheckCircle2,
@@ -18,6 +19,7 @@ import {
   ArrowRight,
   ShieldCheck,
   FileCheck2,
+  Clock,
 } from 'lucide-react';
 import { StatusBadge } from '@/components/design-system';
 
@@ -25,6 +27,7 @@ interface CheckerWizardProps {
   scholarshipId: string;
   scholarshipName: string;
   ruleAst: RequirementNode;
+  selectionStages?: SelectionStage[];
   referenceDate?: string;
 }
 
@@ -34,14 +37,23 @@ export function CheckerWizard({
   scholarshipId,
   scholarshipName,
   ruleAst,
+  selectionStages = [],
   referenceDate,
 }: CheckerWizardProps) {
   const refDate = useMemo(() => (referenceDate ? new Date(referenceDate) : new Date()), [referenceDate]);
 
-  // Extract fields and criteria strictly from this scholarship's verified AST
-  const requiredFields = useMemo(() => extractRequiredFields(ruleAst), [ruleAst]);
-  const manualFields = useMemo(() => extractManualVerificationFields(ruleAst), [ruleAst]);
-  const detailedCriteria = useMemo(() => extractDetailedCriteria(ruleAst), [ruleAst]);
+  // Architecturally separate eligibility criteria from post-application selection stages
+  const { eligibilityAst, selectionStages: extractedStages } = useMemo(
+    () => separateEligibilityAndSelection(ruleAst, selectionStages),
+    [ruleAst, selectionStages]
+  );
+
+  const combinedSelectionStages = extractedStages;
+
+  // Extract fields and criteria strictly from the ELIGIBILITY AST
+  const requiredFields = useMemo(() => extractRequiredFields(eligibilityAst), [eligibilityAst]);
+  const manualFields = useMemo(() => extractManualVerificationFields(eligibilityAst), [eligibilityAst]);
+  const detailedCriteria = useMemo(() => extractDetailedCriteria(eligibilityAst), [eligibilityAst]);
 
   const needsCitizenship = useMemo(() => requiredFields.includes('citizenship'), [requiredFields]);
   const needsDob = useMemo(
@@ -81,7 +93,7 @@ export function CheckerWizard({
 
   const hasManualVerification = manualFields.length > 0;
 
-  // Initialize student profile facts strictly based on required questions
+  // Initialize student profile facts strictly based on required eligibility questions
   const [profile, setProfile] = useState<Partial<StudentProfile>>(() => {
     const initial: Partial<StudentProfile> = {};
     if (needsCitizenship) initial.citizenship = 'Malaysian';
@@ -136,7 +148,7 @@ export function CheckerWizard({
         {
           id: scholarshipId,
           name: scholarshipName,
-          rootNode: ruleAst,
+          rootNode: eligibilityAst,
         },
         refDate
       );
@@ -162,14 +174,14 @@ export function CheckerWizard({
       {
         id: scholarshipId,
         name: scholarshipName,
-        rootNode: ruleAst,
+        rootNode: eligibilityAst,
       },
       refDate
     );
     setSimResult(evaluated);
   };
 
-  // Evaluate each individual criterion to produce a granular, transparent audit
+  // Evaluate each individual ELIGIBILITY criterion to produce an auditable breakdown
   const detailedAudit = useMemo(() => {
     if (!result) return [];
 
@@ -199,7 +211,7 @@ export function CheckerWizard({
           ...crit,
           status: 'NOT_MET' as const,
           badgeStatus: 'ineligible' as const,
-          badgeLabel: 'Criteria Unmet',
+          badgeLabel: 'Criteria Not Met',
           message: critResult.reasons[0]?.message || 'Requirement not met.',
         };
       }
@@ -213,7 +225,7 @@ export function CheckerWizard({
           badgeStatus: 'manual-verification' as const,
           badgeLabel: 'Manual Verification Required',
           message:
-            'This scholarship includes an assessment-centre or circular requirement that DreamPath cannot verify automatically. Please check the official scholarship announcement.',
+            'This genuine eligibility criterion requires manual verification of official provider documentation.',
         };
       }
 
@@ -221,7 +233,7 @@ export function CheckerWizard({
         ...crit,
         status: 'MISSING_INFO' as const,
         badgeStatus: 'missing-info' as const,
-        badgeLabel: 'Missing Information',
+        badgeLabel: 'Information Needed',
         message: critResult.reasons[0]?.message || 'Please provide this information in the form above.',
       };
     });
@@ -241,13 +253,13 @@ export function CheckerWizard({
           <ShieldCheck className="w-4 h-4 text-emerald-600" />
           <span>Deterministic Eligibility Engine</span>
           <span aria-hidden="true" className="text-slate-300">·</span>
-          <span>Scholarship-Specific Audit</span>
+          <span>Application Eligibility Audit</span>
         </div>
         <h2 className="text-2xl sm:text-3xl font-bold text-[#0F172A] tracking-tight font-sans">
-          Eligibility Evaluation: {scholarshipName}
+          Check Eligibility to Apply: {scholarshipName}
         </h2>
         <p className="text-sm text-slate-600 leading-relaxed font-normal">
-          Provide only the specific academic and personal profile facts required by this scholarship. Our deterministic engine checks your answers directly against the verified requirement AST without probabilistic guessing.
+          Determines whether you meet the verified requirements to apply for this scholarship. Post-application selection stages (such as interviews or assessments) are modeled separately and not evaluated here.
         </p>
       </div>
 
@@ -274,7 +286,7 @@ export function CheckerWizard({
           </div>
         </div>
 
-        {/* Dynamic Fields Grid - only display fields required by this scholarship */}
+        {/* Dynamic Fields Grid - only display fields required by this scholarship's eligibility AST */}
         {hasMachineCheckableQuestions ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-xs">
             {/* Citizenship */}
@@ -395,13 +407,13 @@ export function CheckerWizard({
             </div>
             <p className="text-xs text-slate-500 leading-relaxed">
               {hasManualVerification
-                ? 'All criteria for this scholarship are evaluated through official provider circulars or external application milestones.'
-                : 'All criteria for this scholarship are machine-verified without requiring additional inputs.'}
+                ? 'All eligibility criteria for this scholarship are verified manually via official documentation.'
+                : 'All eligibility criteria for this scholarship are verified without requiring additional inputs.'}
             </p>
           </div>
         )}
 
-        {/* Required SPM Subject Grades (Only rendered when the scholarship explicitly specifies SPM criteria) */}
+        {/* Required SPM Subject Grades */}
         {spmSubjects.length > 0 && (
           <div className="space-y-3 pt-4 border-t border-slate-100">
             <h4 className="text-base font-bold text-[#0F172A] font-sans">
@@ -434,7 +446,7 @@ export function CheckerWizard({
         {/* Submit Check Button */}
         <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <p className="text-xs text-slate-500 font-medium">
-            Evaluation is executed deterministically against verified provider rules.
+            Evaluation determines eligibility to apply against verified provider rules.
           </p>
           <button
             type="submit"
@@ -442,7 +454,7 @@ export function CheckerWizard({
             className="w-full sm:w-auto px-6 py-3 bg-[#0F172A] hover:bg-slate-800 text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-2 transition-all disabled:opacity-50 shadow-md cursor-pointer min-h-[44px]"
           >
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <span>{isEvaluating ? 'Evaluating Rules...' : 'Run Deterministic Check'}</span>
+            <span>{isEvaluating ? 'Evaluating Rules...' : 'Check Eligibility to Apply'}</span>
           </button>
         </div>
       </form>
@@ -450,7 +462,7 @@ export function CheckerWizard({
       {/* Evaluation Results Display with Criteria Audit Breakdown */}
       {result && (
         <div className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-md space-y-6 animate-in fade-in duration-200">
-          {/* Result Banner */}
+          {/* Result Banner: Eligible to Apply */}
           {result.status === 'MET' && (
             <div className="p-6 bg-emerald-50/90 border border-emerald-200/90 rounded-2xl flex items-start gap-4">
               <div className="w-11 h-11 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
@@ -458,15 +470,16 @@ export function CheckerWizard({
               </div>
               <div className="space-y-1">
                 <h3 className="text-2xl font-bold text-emerald-950 font-sans tracking-tight">
-                  Fully Eligible Based on Official Requirements
+                  Eligible to Apply
                 </h3>
                 <p className="text-xs sm:text-sm text-emerald-800 leading-relaxed font-normal">
-                  Your academic profile satisfies all machine-checkable criteria verified for {scholarshipName}.
+                  You meet the verified eligibility requirements for this scholarship and can proceed to the application process.
                 </p>
               </div>
             </div>
           )}
 
+          {/* Result Banner: Not Eligible to Apply */}
           {hasHardFailures && (
             <div className="p-6 bg-rose-50/90 border border-rose-200/90 rounded-2xl flex items-start gap-4">
               <div className="w-11 h-11 rounded-xl bg-rose-600 text-white flex items-center justify-center shrink-0 shadow-xs">
@@ -474,15 +487,16 @@ export function CheckerWizard({
               </div>
               <div className="space-y-1">
                 <h3 className="text-2xl font-bold text-rose-950 font-sans tracking-tight">
-                  Requirements Not Satisfied
+                  Not Eligible to Apply
                 </h3>
                 <p className="text-xs sm:text-sm text-rose-800 leading-relaxed font-normal">
-                  One or more verified criteria were not satisfied by your inputs. Review the criteria audit breakdown below.
+                  One or more verified eligibility requirements are not satisfied by your current qualifications. Review the criteria audit below.
                 </p>
               </div>
             </div>
           )}
 
+          {/* Result Banner: Eligible to Apply (Manual Verification Required) */}
           {onlyManualCriteriaPending && (
             <div className="p-6 bg-blue-50/90 border border-blue-200/90 rounded-2xl flex items-start gap-4">
               <div className="w-11 h-11 rounded-xl bg-blue-700 text-white flex items-center justify-center shrink-0 shadow-xs">
@@ -490,15 +504,16 @@ export function CheckerWizard({
               </div>
               <div className="space-y-1">
                 <h3 className="text-2xl font-bold text-blue-950 font-sans tracking-tight">
-                  Eligible (Manual Verification Required)
+                  Eligible to Apply (Manual Verification Required)
                 </h3>
                 <p className="text-xs sm:text-sm text-blue-800 leading-relaxed font-normal">
-                  Your profile meets all automated criteria. This scholarship also requires participation in provider selection stages (such as assessment centres or circular reviews) that must be verified directly with the provider.
+                  Your academic profile meets all machine-checkable criteria. This scholarship also requires manual verification of official eligibility documents (such as admission offers or financial statements).
                 </p>
               </div>
             </div>
           )}
 
+          {/* Result Banner: More Information Needed */}
           {result.status === 'MISSING_INFO' && hasMissingInputReasons && (
             <div className="p-6 bg-amber-50/90 border border-amber-200/90 rounded-2xl flex items-start gap-4">
               <div className="w-11 h-11 rounded-xl bg-amber-600 text-white flex items-center justify-center shrink-0 shadow-xs">
@@ -506,10 +521,10 @@ export function CheckerWizard({
               </div>
               <div className="space-y-1">
                 <h3 className="text-2xl font-bold text-amber-950 font-sans tracking-tight">
-                  More Information Required
+                  More Information Needed
                 </h3>
                 <p className="text-xs sm:text-sm text-amber-800 leading-relaxed font-normal">
-                  Some required fields were left empty. Please fill them in above to complete your evaluation.
+                  Some required eligibility fields were left empty. Please fill them in above to complete your evaluation.
                 </p>
               </div>
             </div>
@@ -519,7 +534,7 @@ export function CheckerWizard({
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <h4 className="text-lg font-bold text-[#0F172A] font-sans">
-                Deterministic Criteria Audit Breakdown
+                Deterministic Eligibility Audit Breakdown
               </h4>
               <span className="text-xs text-slate-500 font-medium">
                 {detailedAudit.length} {detailedAudit.length === 1 ? 'Rule' : 'Rules'} Modeled
@@ -547,7 +562,7 @@ export function CheckerWizard({
                       </span>
                       {!crit.isMachineCheckable && (
                         <span className="text-[10px] font-semibold px-2 py-0.5 bg-blue-100/70 text-blue-800 rounded">
-                          External / Assessment
+                          Official Document Verification
                         </span>
                       )}
                     </div>
@@ -568,6 +583,41 @@ export function CheckerWizard({
               ))}
             </div>
           </div>
+
+          {/* Selection Process (Separate from Eligibility Determination) */}
+          {combinedSelectionStages.length > 0 && (
+            <div className="pt-6 border-t border-slate-100 space-y-3">
+              <div className="flex items-center gap-2">
+                <Clock className="w-4 h-4 text-slate-500" />
+                <h4 className="text-base font-bold text-[#0F172A] font-sans">
+                  Selection Process
+                </h4>
+              </div>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                The scholarship provider may have additional selection stages after application. These stages are conducted directly by the scholarship provider and are not evaluated by DreamPath&rsquo;s eligibility checker.
+              </p>
+              <div className="space-y-2 pt-1">
+                {combinedSelectionStages.map((stage) => (
+                  <div
+                    key={stage.id}
+                    className="p-3.5 bg-slate-50 border border-slate-200/80 rounded-xl space-y-1 text-xs"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-bold text-slate-900">{stage.name}</span>
+                      <span className="text-[10px] font-semibold px-2 py-0.5 bg-slate-200/70 text-slate-700 rounded">
+                        Provider Selection Stage
+                      </span>
+                    </div>
+                    {stage.description && (
+                      <p className="text-slate-500 text-[11px] leading-relaxed">
+                        {stage.description}
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Future / What-If Scenario Simulator (Only if scholarship evaluates CGPA or Income Band) */}
           {(needsCgpa || needsIncomeBand) && (
@@ -650,9 +700,9 @@ export function CheckerWizard({
                           }
                           label={
                             simResult.status === 'MET'
-                              ? 'Eligible'
+                              ? 'Eligible to Apply'
                               : simResult.status === 'NOT_MET'
-                              ? 'Requirements Unmet'
+                              ? 'Not Eligible to Apply'
                               : 'Pending Verification'
                           }
                           size="sm"

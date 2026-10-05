@@ -32,7 +32,7 @@ interface DetailProps {
   verificationDate: string;
   sourceUrl: string;
   evidenceNotes: string;
-  requirements: Array<{ id: string; name: string; ruleAst: any }>;
+  requirements: Array<{ id: string; name: string; ruleAst: any; selectionStages?: any[] }>;
   similarScholarships: Array<{
     id: string;
     name: string;
@@ -437,6 +437,41 @@ export function ScholarshipDetailView({
               )}
             </div>
           </section>
+
+          {/* Post-Application Selection Process (Separate from Eligibility) */}
+          {requirements.flatMap((r) => r.selectionStages || []).length > 0 && (
+            <section className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-4">
+              <div>
+                <h2 className="text-2xl font-bold text-[#0F172A] font-sans tracking-tight">
+                  Provider Selection Stages
+                </h2>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  Stages conducted by the scholarship provider after application submission. These are not part of DreamPath&rsquo;s eligibility determination.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                {requirements.flatMap((r) => r.selectionStages || []).map((stage: any, idx: number) => (
+                  <div
+                    key={stage.id || idx}
+                    className="p-4 rounded-xl border border-slate-200/80 bg-slate-50/60 flex items-start gap-3.5"
+                  >
+                    <div className="w-6 h-6 rounded-full bg-slate-200 text-slate-800 flex items-center justify-center text-xs font-bold shrink-0 mt-0.5">
+                      {idx + 1}
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-sm font-bold text-slate-900">{stage.name}</p>
+                      {stage.description && (
+                        <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                          {stage.description}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* Scholarship Intake Timeline */}
           <section className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-5">

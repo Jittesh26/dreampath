@@ -22,11 +22,26 @@ export interface LogicalNode {
 
 export type RequirementNode = BaseConditionNode | LogicalNode;
 
+export interface SelectionStage {
+  id: string;
+  name: string;
+  description?: string;
+  type?: 'interview' | 'assessment_centre' | 'written_test' | 'panel_interview' | 'review' | 'other';
+}
+
 export interface ScholarshipRequirement {
   id: string;
   name: string;
   rootNode: RequirementNode;
+  selectionStages?: SelectionStage[];
 }
+
+export const selectionStageSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  description: z.string().optional(),
+  type: z.enum(['interview', 'assessment_centre', 'written_test', 'panel_interview', 'review', 'other']).optional(),
+});
 
 export const conditionOperatorSchema = z.enum([
   'EQUALS',
