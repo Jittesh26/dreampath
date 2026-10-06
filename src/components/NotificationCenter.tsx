@@ -21,7 +21,7 @@ const DEFAULT_NOTIFICATIONS: NotificationItem[] = [
     message: 'Intake cycle closes within 48 hours. Ensure your resume and essay are prepared.',
     timestamp: '2 hours ago',
     type: 'deadline',
-    link: '/scholarships',
+    link: '/scholarships/d17042a6-eb13-4141-b952-449615287a2d',
     read: false,
   },
   {
@@ -30,7 +30,7 @@ const DEFAULT_NOTIFICATIONS: NotificationItem[] = [
     message: 'Central Bank of Malaysia 2026 criteria updated with confirmed SPM subject cutoffs.',
     timestamp: 'Yesterday',
     type: 'reopened',
-    link: '/scholarships',
+    link: '/scholarships/3d1c2f80-73b0-4c3d-84dd-6c486cf2dae4',
     read: false,
   },
   {
@@ -53,7 +53,19 @@ export function NotificationCenter() {
       try {
         const stored = localStorage.getItem('dreampath_notifications');
         if (stored) {
-          setNotifications(JSON.parse(stored));
+          const parsed = JSON.parse(stored) as NotificationItem[];
+          // Migrate cached notifications to specific scholarship detail URLs
+          const updated = parsed.map((item) => {
+            if (item.id === 'n1' && (item.link === '/scholarships' || !item.link)) {
+              return { ...item, link: '/scholarships/d17042a6-eb13-4141-b952-449615287a2d' };
+            }
+            if (item.id === 'n2' && (item.link === '/scholarships' || !item.link)) {
+              return { ...item, link: '/scholarships/3d1c2f80-73b0-4c3d-84dd-6c486cf2dae4' };
+            }
+            return item;
+          });
+          setNotifications(updated);
+          localStorage.setItem('dreampath_notifications', JSON.stringify(updated));
         }
       } catch {
         // default remains
@@ -165,72 +177,90 @@ export function NotificationCenter() {
                   <p className="text-[11px] text-slate-500">No new notifications at the moment.</p>
                 </div>
               ) : (
-                notifications.map((item) => (
-                  <div
-                    key={item.id}
-                    onClick={() => markSingleRead(item.id)}
-                    className={`p-3.5 sm:p-4 flex items-start gap-3 transition-colors cursor-pointer ${
-                      item.read
-                        ? 'bg-white hover:bg-slate-50/80 opacity-75'
-                        : 'bg-blue-50/25 hover:bg-blue-50/45'
-                    }`}
-                  >
-                    <div className="shrink-0 mt-0.5">
-                      {item.type === 'deadline' && (
-                        <div className="w-8 h-8 rounded-xl bg-rose-50 border border-rose-200/60 text-rose-600 flex items-center justify-center shadow-2xs">
-                          <Clock className="w-4 h-4" />
-                        </div>
-                      )}
-                      {item.type === 'reopened' && (
-                        <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200/60 text-emerald-600 flex items-center justify-center shadow-2xs">
-                          <CheckCircle2 className="w-4 h-4" />
-                        </div>
-                      )}
-                      {item.type === 'update' && (
-                        <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-200/60 text-blue-600 flex items-center justify-center shadow-2xs">
-                          <Sparkles className="w-4 h-4" />
-                        </div>
-                      )}
-                      {item.type === 'tip' && (
-                        <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200/60 text-amber-600 flex items-center justify-center shadow-2xs">
-                          <AlertTriangle className="w-4 h-4" />
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          {!item.read && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0" />
-                          )}
-                          <p className={`text-xs font-semibold leading-snug truncate ${item.read ? 'text-slate-800' : 'text-slate-950 font-bold'}`}>
-                            {item.title}
-                          </p>
-                        </div>
-                        <span className="text-[10px] text-slate-400 font-medium shrink-0 whitespace-nowrap">
-                          {item.timestamp}
-                        </span>
+                notifications.map((item) => {
+                  const cardContent = (
+                    <>
+                      <div className="shrink-0 mt-0.5">
+                        {item.type === 'deadline' && (
+                          <div className="w-8 h-8 rounded-xl bg-rose-50 border border-rose-200/60 text-rose-600 flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform">
+                            <Clock className="w-4 h-4" />
+                          </div>
+                        )}
+                        {item.type === 'reopened' && (
+                          <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200/60 text-emerald-600 flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform">
+                            <CheckCircle2 className="w-4 h-4" />
+                          </div>
+                        )}
+                        {item.type === 'update' && (
+                          <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-200/60 text-blue-600 flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform">
+                            <Sparkles className="w-4 h-4" />
+                          </div>
+                        )}
+                        {item.type === 'tip' && (
+                          <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200/60 text-amber-600 flex items-center justify-center shadow-2xs group-hover:scale-105 transition-transform">
+                            <AlertTriangle className="w-4 h-4" />
+                          </div>
+                        )}
                       </div>
-                      <p className="text-xs text-slate-600 mt-1 line-clamp-2 leading-relaxed">
-                        {item.message}
-                      </p>
-                      {item.link && (
-                        <Link
-                          href={item.link}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            markSingleRead(item.id);
-                            setIsOpen(false);
-                          }}
-                          className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 hover:text-blue-900 transition-colors"
-                        >
-                          <span>View opportunity</span>
-                          <span aria-hidden="true">&rarr;</span>
-                        </Link>
-                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            {!item.read && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0" />
+                            )}
+                            <p className={`text-xs font-semibold leading-snug truncate group-hover:text-blue-700 transition-colors ${item.read ? 'text-slate-800' : 'text-slate-950 font-bold'}`}>
+                              {item.title}
+                            </p>
+                          </div>
+                          <span className="text-[10px] text-slate-400 font-medium shrink-0 whitespace-nowrap">
+                            {item.timestamp}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-600 mt-1 line-clamp-2 leading-relaxed">
+                          {item.message}
+                        </p>
+                        {item.link && (
+                          <div className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 group-hover:text-blue-900 transition-colors">
+                            <span>View opportunity</span>
+                            <span aria-hidden="true" className="group-hover:translate-x-0.5 transition-transform">&rarr;</span>
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  );
+
+                  const cardClass = `group p-3.5 sm:p-4 flex items-start gap-3 transition-colors cursor-pointer block ${
+                    item.read
+                      ? 'bg-white hover:bg-slate-50/80 opacity-80 hover:opacity-100'
+                      : 'bg-blue-50/25 hover:bg-blue-50/50'
+                  }`;
+
+                  if (item.link) {
+                    return (
+                      <Link
+                        key={item.id}
+                        href={item.link}
+                        onClick={() => {
+                          markSingleRead(item.id);
+                          setIsOpen(false);
+                        }}
+                        className={cardClass}
+                      >
+                        {cardContent}
+                      </Link>
+                    );
+                  }
+
+                  return (
+                    <div
+                      key={item.id}
+                      onClick={() => markSingleRead(item.id)}
+                      className={cardClass}
+                    >
+                      {cardContent}
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
 
