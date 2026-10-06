@@ -84,12 +84,27 @@ export function NotificationCenter() {
     }
   };
 
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsOpen(false);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
+
   return (
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
         aria-label="View notifications"
-        className="relative p-2 text-slate-600 hover:text-slate-900 rounded-full hover:bg-slate-100 transition-colors focus-visible:outline-2 focus-visible:outline-blue-600 cursor-pointer"
+        aria-expanded={isOpen}
+        aria-haspopup="dialog"
+        className={`relative p-2 rounded-xl transition-all cursor-pointer ${
+          isOpen
+            ? 'bg-blue-50 text-blue-700 ring-2 ring-blue-600/20'
+            : 'text-slate-600 hover:text-slate-950 hover:bg-slate-100'
+        }`}
       >
         <Bell className="w-5 h-5" />
         {unreadCount > 0 && (
@@ -99,13 +114,23 @@ export function NotificationCenter() {
 
       {isOpen && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white border border-slate-200/90 rounded-2xl shadow-xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
-            <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+          {/* Outside click overlay */}
+          <div
+            className="fixed inset-0 z-40 bg-slate-900/5 md:bg-transparent"
+            onClick={() => setIsOpen(false)}
+            aria-hidden="true"
+          />
+
+          {/* Notification Popover Panel: on mobile anchors cleanly within viewport margins; on desktop flyout to the right of the sidebar */}
+          <div className="fixed inset-x-3 sm:inset-x-auto top-16 sm:top-full sm:absolute sm:right-0 sm:mt-2 w-auto sm:w-96 max-w-sm ml-auto md:left-full md:right-auto md:top-[-6px] md:ml-5 md:mt-0 md:w-[380px] bg-white border border-slate-200/90 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+            {/* Header */}
+            <div className="px-4 py-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/80">
               <div className="flex items-center gap-2">
-                <h4 className="text-xs font-bold text-slate-950 uppercase tracking-wider">Notifications</h4>
+                <h4 className="text-xs font-bold text-slate-950 uppercase tracking-wider font-sans">
+                  Notifications
+                </h4>
                 {unreadCount > 0 && (
-                  <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200/60 px-2 py-0.5 rounded-full">
+                  <span className="text-[10px] font-bold text-blue-700 bg-blue-50 border border-blue-200/70 px-2 py-0.5 rounded-full">
                     {unreadCount} new
                   </span>
                 )}
@@ -114,62 +139,77 @@ export function NotificationCenter() {
                 {unreadCount > 0 && (
                   <button
                     onClick={markAllRead}
-                    className="text-xs text-slate-500 hover:text-slate-900 font-bold transition-colors cursor-pointer"
+                    className="text-xs text-slate-500 hover:text-slate-900 font-semibold transition-colors cursor-pointer"
                   >
-                    Mark read
+                    Mark all read
                   </button>
                 )}
                 <button
                   onClick={() => setIsOpen(false)}
-                  className="text-slate-400 hover:text-slate-600 p-1 cursor-pointer"
+                  className="text-slate-400 hover:text-slate-700 p-1 rounded-lg hover:bg-slate-200/60 transition-colors cursor-pointer"
+                  aria-label="Close notifications"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
             </div>
 
-            <div className="max-h-80 overflow-y-auto divide-y divide-slate-100">
+            {/* List */}
+            <div className="max-h-[360px] overflow-y-auto divide-y divide-slate-100">
               {notifications.length === 0 ? (
-                <div className="p-8 text-center text-slate-500 text-xs">
-                  No notifications at the moment.
+                <div className="py-12 px-6 text-center space-y-2">
+                  <div className="w-10 h-10 rounded-full bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                    <Bell className="w-5 h-5" />
+                  </div>
+                  <p className="text-xs font-bold text-slate-800">All caught up!</p>
+                  <p className="text-[11px] text-slate-500">No new notifications at the moment.</p>
                 </div>
               ) : (
                 notifications.map((item) => (
                   <div
                     key={item.id}
                     onClick={() => markSingleRead(item.id)}
-                    className={`p-3.5 flex gap-3 transition-colors cursor-pointer ${
-                      item.read ? 'bg-white opacity-80' : 'bg-blue-50/20'
+                    className={`p-3.5 sm:p-4 flex items-start gap-3 transition-colors cursor-pointer ${
+                      item.read
+                        ? 'bg-white hover:bg-slate-50/80 opacity-75'
+                        : 'bg-blue-50/25 hover:bg-blue-50/45'
                     }`}
                   >
                     <div className="shrink-0 mt-0.5">
                       {item.type === 'deadline' && (
-                        <div className="p-1.5 bg-rose-50 text-rose-600 rounded-lg">
+                        <div className="w-8 h-8 rounded-xl bg-rose-50 border border-rose-200/60 text-rose-600 flex items-center justify-center shadow-2xs">
                           <Clock className="w-4 h-4" />
                         </div>
                       )}
                       {item.type === 'reopened' && (
-                        <div className="p-1.5 bg-emerald-50 text-emerald-600 rounded-lg">
+                        <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-200/60 text-emerald-600 flex items-center justify-center shadow-2xs">
                           <CheckCircle2 className="w-4 h-4" />
                         </div>
                       )}
                       {item.type === 'update' && (
-                        <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg">
+                        <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-200/60 text-blue-600 flex items-center justify-center shadow-2xs">
                           <Sparkles className="w-4 h-4" />
                         </div>
                       )}
                       {item.type === 'tip' && (
-                        <div className="p-1.5 bg-amber-50 text-amber-600 rounded-lg">
+                        <div className="w-8 h-8 rounded-xl bg-amber-50 border border-amber-200/60 text-amber-600 flex items-center justify-center shadow-2xs">
                           <AlertTriangle className="w-4 h-4" />
                         </div>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-1">
-                        <p className={`text-xs font-semibold ${item.read ? 'text-slate-800' : 'text-slate-950 font-bold'}`}>
-                          {item.title}
-                        </p>
-                        <span className="text-[10px] text-slate-400 shrink-0">{item.timestamp}</span>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-1.5 min-w-0">
+                          {!item.read && (
+                            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 shrink-0" />
+                          )}
+                          <p className={`text-xs font-semibold leading-snug truncate ${item.read ? 'text-slate-800' : 'text-slate-950 font-bold'}`}>
+                            {item.title}
+                          </p>
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-medium shrink-0 whitespace-nowrap">
+                          {item.timestamp}
+                        </span>
                       </div>
                       <p className="text-xs text-slate-600 mt-1 line-clamp-2 leading-relaxed">
                         {item.message}
@@ -177,10 +217,15 @@ export function NotificationCenter() {
                       {item.link && (
                         <Link
                           href={item.link}
-                          onClick={() => setIsOpen(false)}
-                          className="mt-1.5 inline-block text-[11px] font-bold text-blue-700 hover:text-blue-900 hover:underline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            markSingleRead(item.id);
+                            setIsOpen(false);
+                          }}
+                          className="mt-1.5 inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 hover:text-blue-900 transition-colors"
                         >
-                          View opportunity &rarr;
+                          <span>View opportunity</span>
+                          <span aria-hidden="true">&rarr;</span>
                         </Link>
                       )}
                     </div>
@@ -189,13 +234,15 @@ export function NotificationCenter() {
               )}
             </div>
 
-            <div className="p-2.5 bg-slate-50/70 border-t border-slate-100 text-center">
+            {/* Footer */}
+            <div className="p-3 bg-slate-50/80 border-t border-slate-100 text-center">
               <Link
                 href="/student/settings"
                 onClick={() => setIsOpen(false)}
-                className="text-xs text-slate-600 hover:text-slate-900 font-semibold"
+                className="text-xs text-slate-600 hover:text-slate-950 font-semibold transition-colors inline-flex items-center gap-1"
               >
-                Notification & Alert Preferences &rarr;
+                <span>Notification & Alert Preferences</span>
+                <span aria-hidden="true">&rarr;</span>
               </Link>
             </div>
           </div>
@@ -204,3 +251,4 @@ export function NotificationCenter() {
     </div>
   );
 }
+

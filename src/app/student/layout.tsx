@@ -65,7 +65,7 @@ export default async function StudentLayout({
   return (
     <div className="min-h-screen flex flex-col md:flex-row bg-[#F8FAFC] pb-16 md:pb-0 font-sans">
       {/* Desktop Sidebar */}
-      <aside className="w-full md:w-68 bg-white border-r border-slate-200/90 p-5 flex flex-col justify-between hidden md:flex shrink-0 min-h-screen sticky top-0 shadow-2xs">
+      <aside className="w-full md:w-68 bg-white border-r border-slate-200/90 p-5 flex flex-col justify-between hidden md:flex shrink-0 min-h-screen sticky top-0 shadow-2xs z-30">
         <div className="space-y-6">
           {/* Brand Header */}
           <div className="flex items-center justify-between pb-4 border-b border-slate-100">

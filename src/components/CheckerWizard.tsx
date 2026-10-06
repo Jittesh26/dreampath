@@ -8,6 +8,8 @@ import {
   extractRequiredFields,
   extractManualVerificationFields,
   extractDetailedCriteria,
+  normalizeFieldName,
+  isMachineCheckableField,
 } from '@/domain/astUtils';
 import { separateEligibilityAndSelection } from '@/domain/selection-process';
 import { evaluateEligibility, EvaluationResult, evaluateEligibility as evaluateNode } from '@/domain/evaluator';
@@ -15,7 +17,7 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
-  Sliders,
+  RefreshCw,
   ArrowRight,
   ShieldCheck,
   FileCheck2,
@@ -32,6 +34,273 @@ interface CheckerWizardProps {
 }
 
 const SPM_GRADES: SPMGrade[] = ['A+', 'A', 'A-', 'B+', 'B', 'C+', 'C', 'D', 'E', 'G'];
+
+export interface CriterionFeedback {
+  currentValueDisplay: string;
+  requiredValueDisplay: string;
+  gapDisplay?: string;
+  explanation: string;
+  isNumericGap?: boolean;
+}
+
+function computeCriterionFeedback(
+  node: RequirementNode,
+  profile: Partial<StudentProfile>,
+  refDate: Date,
+  status: 'MET' | 'NOT_MET' | 'MISSING_INFO' | 'MANUAL_VERIFICATION',
+  critLabel: string,
+  rawMessage?: string
+): CriterionFeedback {
+  if (node.type === 'CONDITION') {
+    const { field, operator, value } = node;
+    const norm = normalizeFieldName(field);
+
+    // 1. CGPA
+    if (norm === 'cgpa') {
+      const current = profile.cgpa !== undefined && profile.cgpa !== null && !isNaN(Number(profile.cgpa))
+        ? Number(profile.cgpa)
+        : undefined;
+      const required = Number(value);
+      const currentStr = current !== undefined ? current.toFixed(2) : 'Not specified';
+      const requiredStr = `${required.toFixed(2)} (minimum)`;
+
+      if (current === undefined) {
+        return {
+          currentValueDisplay: 'Not specified',
+          requiredValueDisplay: requiredStr,
+          explanation: `Please enter your CGPA to evaluate this requirement (minimum ${required.toFixed(2)}).`,
+        };
+      }
+
+      if (status === 'NOT_MET') {
+        const gap = (required - current).toFixed(2);
+        return {
+          currentValueDisplay: currentStr,
+          requiredValueDisplay: requiredStr,
+          gapDisplay: `${gap} (Need +${gap})`,
+          isNumericGap: true,
+          explanation: `You need at least ${required.toFixed(2)} CGPA to meet this requirement.`,
+        };
+      } else {
+        return {
+          currentValueDisplay: currentStr,
+          requiredValueDisplay: requiredStr,
+          explanation: `Your CGPA (${currentStr}) meets the minimum requirement of ${required.toFixed(2)}.`,
+        };
+      }
+    }
+
+    // 2. AGE / DATE OF BIRTH
+    if (norm === 'age') {
+      let currentAge: number | undefined;
+      if (profile.date_of_birth) {
+        const dob = new Date(profile.date_of_birth);
+        let age = refDate.getFullYear() - dob.getFullYear();
+        const m = refDate.getMonth() - dob.getMonth();
+        if (m < 0 || (m === 0 && refDate.getDate() < dob.getDate())) {
+          age--;
+        }
+        currentAge = age;
+      } else if (typeof profile.age === 'number') {
+        currentAge = profile.age;
+      }
+
+      const maxAge = Number(value);
+      const currentStr = currentAge !== undefined ? `${currentAge} years old` : 'Not specified';
+      const requiredStr = operator === 'LESS_THAN_OR_EQUAL'
+        ? `At most ${maxAge} years old`
+        : `At least ${maxAge} years old`;
+
+      if (currentAge === undefined) {
+        return {
+          currentValueDisplay: 'Not specified',
+          requiredValueDisplay: requiredStr,
+          explanation: 'Please provide your date of birth to evaluate the age limit.',
+        };
+      }
+
+      if (status === 'NOT_MET') {
+        const diff = currentAge - maxAge;
+        const gapDisplay = diff > 0 ? `${diff} ${diff === 1 ? 'year' : 'years'} over limit` : undefined;
+        return {
+          currentValueDisplay: currentStr,
+          requiredValueDisplay: requiredStr,
+          gapDisplay,
+          isNumericGap: true,
+          explanation: `You must be at most ${maxAge} years old as of the reference date.`,
+        };
+      } else {
+        return {
+          currentValueDisplay: currentStr,
+          requiredValueDisplay: requiredStr,
+          explanation: `Your age (${currentStr}) satisfies the requirement.`,
+        };
+      }
+    }
+
+    // 3. CITIZENSHIP
+    if (norm === 'citizenship') {
+      const current = profile.citizenship || 'Not specified';
+      const required = String(value);
+
+      if (status === 'NOT_MET') {
+        return {
+          currentValueDisplay: current,
+          requiredValueDisplay: required,
+          gapDisplay: 'Non-matching citizenship',
+          explanation: `You must be a ${required} citizen to meet this requirement.`,
+        };
+      } else {
+        return {
+          currentValueDisplay: current,
+          requiredValueDisplay: required,
+          explanation: `Verified as ${current} citizen.`,
+        };
+      }
+    }
+
+    // 4. SPM SUBJECT GRADE
+    if (operator === 'HAS_SPM_SUBJECT_GRADE') {
+      const subject = value.subject;
+      const minGrade = value.minGrade;
+      const actualGrade = profile.spm_results?.[subject];
+      const currentStr = actualGrade ? `Grade ${actualGrade}` : 'Not provided';
+      const requiredStr = `Grade ${minGrade} (minimum)`;
+
+      if (!actualGrade) {
+        return {
+          currentValueDisplay: currentStr,
+          requiredValueDisplay: requiredStr,
+          explanation: `Please specify your SPM ${subject} grade.`,
+        };
+      }
+
+      if (status === 'NOT_MET') {
+        const gradeRank = SPM_GRADES.indexOf(actualGrade);
+        const reqRank = SPM_GRADES.indexOf(minGrade);
+        const diff = gradeRank >= 0 && reqRank >= 0 ? gradeRank - reqRank : undefined;
+        const gapDisplay = diff && diff > 0
+          ? `${diff} grade ${diff === 1 ? 'level' : 'levels'} below requirement`
+          : 'Below minimum grade';
+
+        return {
+          currentValueDisplay: currentStr,
+          requiredValueDisplay: requiredStr,
+          gapDisplay,
+          explanation: `You need at least grade ${minGrade} in SPM ${subject} to meet this requirement.`,
+        };
+      } else {
+        return {
+          currentValueDisplay: currentStr,
+          requiredValueDisplay: requiredStr,
+          explanation: `Your grade (${actualGrade}) meets or exceeds the required grade ${minGrade}.`,
+        };
+      }
+    }
+
+    // 5. HOUSEHOLD INCOME BAND
+    if (norm === 'income_band') {
+      const current = profile.income_band || 'Not specified';
+      const required = Array.isArray(value) ? value.join(' or ') : String(value);
+
+      if (status === 'NOT_MET') {
+        return {
+          currentValueDisplay: current,
+          requiredValueDisplay: `Tier ${required}`,
+          gapDisplay: 'Different income tier',
+          explanation: `Your household income tier must be ${required} to meet this requirement.`,
+        };
+      } else {
+        return {
+          currentValueDisplay: current,
+          requiredValueDisplay: `Tier ${required}`,
+          explanation: `Household income tier (${current}) meets the eligibility criteria.`,
+        };
+      }
+    }
+
+    // 6. HOUSEHOLD INCOME (RM AMOUNT)
+    if (norm === 'household_income') {
+      const current = profile.household_income !== undefined && profile.household_income !== null
+        ? Number(profile.household_income)
+        : undefined;
+      const maxIncome = Number(value);
+      const currentStr = current !== undefined ? `RM ${current.toLocaleString()}` : 'Not specified';
+      const requiredStr = `RM ${maxIncome.toLocaleString()} (maximum)`;
+
+      if (current === undefined) {
+        return {
+          currentValueDisplay: currentStr,
+          requiredValueDisplay: requiredStr,
+          explanation: 'Please provide your monthly household income.',
+        };
+      }
+
+      if (status === 'NOT_MET') {
+        const diff = current - maxIncome;
+        const gapDisplay = diff > 0 ? `RM ${diff.toLocaleString()} over limit` : undefined;
+        return {
+          currentValueDisplay: currentStr,
+          requiredValueDisplay: requiredStr,
+          gapDisplay,
+          isNumericGap: true,
+          explanation: `Gross monthly household income must not exceed RM ${maxIncome.toLocaleString()} to meet this requirement.`,
+        };
+      } else {
+        return {
+          currentValueDisplay: currentStr,
+          requiredValueDisplay: requiredStr,
+          explanation: `Monthly household income (${currentStr}) is within the allowable limit.`,
+        };
+      }
+    }
+
+    // 7. BUMIPUTERA STATUS
+    if (norm === 'bumiputera_status') {
+      const current = profile.bumiputera_status === true ? 'Bumiputera' : profile.bumiputera_status === false ? 'Non-Bumiputera' : 'Not specified';
+      const required = value ? 'Bumiputera' : 'Open / Non-Bumiputera';
+
+      if (status === 'NOT_MET') {
+        return {
+          currentValueDisplay: current,
+          requiredValueDisplay: required,
+          gapDisplay: 'Status mismatch',
+          explanation: value ? 'This scholarship requires Bumiputera status.' : 'Open to non-Bumiputera applicants.',
+        };
+      } else {
+        return {
+          currentValueDisplay: current,
+          requiredValueDisplay: required,
+          explanation: `Status verified as ${current}.`,
+        };
+      }
+    }
+
+    // 8. Other / Manual Verification
+    if (!isMachineCheckableField(norm)) {
+      return {
+        currentValueDisplay: 'Manual Review Required',
+        requiredValueDisplay: 'Official Documentation',
+        explanation: 'This criterion requires manual verification of official provider documentation (e.g. proof of admission offer or financial statements).',
+      };
+    }
+
+    // Generic fallback for any other condition
+    const rawVal = (profile as any)[norm] ?? (profile as any)[field];
+    return {
+      currentValueDisplay: rawVal !== undefined ? String(rawVal) : 'Not specified',
+      requiredValueDisplay: JSON.stringify(value),
+      explanation: rawMessage || `Requirement on ${critLabel}.`,
+    };
+  }
+
+  // Composite node fallback
+  return {
+    currentValueDisplay: 'Multiple profile factors',
+    requiredValueDisplay: 'All criteria conditions',
+    explanation: rawMessage || 'Criterion evaluated against your profile information.',
+  };
+}
 
 export function CheckerWizard({
   scholarshipId,
@@ -114,18 +383,16 @@ export function CheckerWizard({
   const [result, setResult] = useState<EvaluationResult | null>(null);
   const [isEvaluating, setIsEvaluating] = useState(false);
 
-  // Future / What-If Simulation State
-  const [simCgpa, setSimCgpa] = useState<number>(3.50);
-  const [simIncomeBand, setSimIncomeBand] = useState<string>('M40');
-  const [showSimulator, setShowSimulator] = useState(false);
-  const [simResult, setSimResult] = useState<EvaluationResult | null>(null);
+  const [hasModifiedAfterEvaluation, setHasModifiedAfterEvaluation] = useState(false);
 
   const handleTextChange = (field: keyof StudentProfile, value: string) => {
     setProfile((prev) => ({ ...prev, [field]: value }));
+    if (result) setHasModifiedAfterEvaluation(true);
   };
 
   const handleNumberChange = (field: keyof StudentProfile, value: string) => {
     setProfile((prev) => ({ ...prev, [field]: value ? Number(value) : undefined }));
+    if (result) setHasModifiedAfterEvaluation(true);
   };
 
   const handleSpmChange = (subject: string, grade: string) => {
@@ -136,6 +403,7 @@ export function CheckerWizard({
         [subject]: grade as SPMGrade,
       },
     }));
+    if (result) setHasModifiedAfterEvaluation(true);
   };
 
   const handleRunEvaluation = (e?: React.FormEvent) => {
@@ -153,32 +421,9 @@ export function CheckerWizard({
         refDate
       );
       setResult(evalResult);
-      if (profile.cgpa) setSimCgpa(Number(profile.cgpa));
-      if (profile.income_band) setSimIncomeBand(profile.income_band);
+      setHasModifiedAfterEvaluation(false);
       setIsEvaluating(false);
     }, 200);
-  };
-
-  const handleRunSimulation = (newCgpa: number, newIncome: string) => {
-    setSimCgpa(newCgpa);
-    setSimIncomeBand(newIncome);
-
-    const simulatedProfile: StudentProfile = {
-      ...(profile as StudentProfile),
-      cgpa: newCgpa,
-      income_band: newIncome as any,
-    };
-
-    const evaluated = evaluateEligibility(
-      simulatedProfile,
-      {
-        id: scholarshipId,
-        name: scholarshipName,
-        rootNode: eligibilityAst,
-      },
-      refDate
-    );
-    setSimResult(evaluated);
   };
 
   // Evaluate each individual ELIGIBILITY criterion to produce an auditable breakdown
@@ -197,28 +442,55 @@ export function CheckerWizard({
       );
 
       if (critResult.status === 'MET') {
+        const feedback = computeCriterionFeedback(
+          crit.node,
+          profile,
+          refDate,
+          'MET',
+          crit.label,
+          'Criterion satisfied based on your provided information.'
+        );
         return {
           ...crit,
           status: 'MET' as const,
           badgeStatus: 'eligible' as const,
           badgeLabel: 'Criteria Met',
           message: 'Criterion satisfied based on your provided information.',
+          feedback,
         };
       }
 
       if (critResult.status === 'NOT_MET') {
+        const rawMessage = critResult.reasons[0]?.message || 'Requirement not met.';
+        const feedback = computeCriterionFeedback(
+          crit.node,
+          profile,
+          refDate,
+          'NOT_MET',
+          crit.label,
+          rawMessage
+        );
         return {
           ...crit,
           status: 'NOT_MET' as const,
           badgeStatus: 'ineligible' as const,
           badgeLabel: 'Criteria Not Met',
-          message: critResult.reasons[0]?.message || 'Requirement not met.',
+          message: rawMessage,
+          feedback,
         };
       }
 
       // MISSING_INFO
       const hasUncheckable = critResult.reasons.some((r) => r.code === 'NOT_MACHINE_CHECKABLE');
       if (hasUncheckable || !crit.isMachineCheckable) {
+        const feedback = computeCriterionFeedback(
+          crit.node,
+          profile,
+          refDate,
+          'MANUAL_VERIFICATION',
+          crit.label,
+          'This genuine eligibility criterion requires manual verification of official provider documentation.'
+        );
         return {
           ...crit,
           status: 'MANUAL_VERIFICATION' as const,
@@ -226,15 +498,26 @@ export function CheckerWizard({
           badgeLabel: 'Manual Verification Required',
           message:
             'This genuine eligibility criterion requires manual verification of official provider documentation.',
+          feedback,
         };
       }
 
+      const rawMessage = critResult.reasons[0]?.message || 'Please provide this information in the form above.';
+      const feedback = computeCriterionFeedback(
+        crit.node,
+        profile,
+        refDate,
+        'MISSING_INFO',
+        crit.label,
+        rawMessage
+      );
       return {
         ...crit,
         status: 'MISSING_INFO' as const,
         badgeStatus: 'missing-info' as const,
         badgeLabel: 'Information Needed',
-        message: critResult.reasons[0]?.message || 'Please provide this information in the form above.',
+        message: rawMessage,
+        feedback,
       };
     });
   }, [result, detailedCriteria, profile, scholarshipId, refDate]);
@@ -445,16 +728,32 @@ export function CheckerWizard({
 
         {/* Submit Check Button */}
         <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <p className="text-xs text-slate-500 font-medium">
-            Evaluation determines eligibility to apply against verified provider rules.
-          </p>
+          <div className="space-y-1">
+            <p className="text-xs text-slate-500 font-medium">
+              {result
+                ? 'Adjust qualifications above to test what-if scenarios, then re-check.'
+                : 'Evaluation determines eligibility to apply against verified provider rules.'}
+            </p>
+            {hasModifiedAfterEvaluation && (
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-blue-700 bg-blue-50 px-2.5 py-0.5 rounded-full border border-blue-200">
+                <RefreshCw className="w-3 h-3 text-blue-600 animate-spin" style={{ animationDuration: '3s' }} />
+                <span>Qualifications changed · Re-check to update results</span>
+              </span>
+            )}
+          </div>
           <button
             type="submit"
             disabled={isEvaluating}
             className="w-full sm:w-auto px-6 py-3 bg-[#0F172A] hover:bg-slate-800 text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-2 transition-all disabled:opacity-50 shadow-md cursor-pointer min-h-[44px]"
           >
             <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <span>{isEvaluating ? 'Evaluating Rules...' : 'Check Eligibility to Apply'}</span>
+            <span>
+              {isEvaluating
+                ? 'Evaluating Rules...'
+                : result
+                ? 'Re-check Eligibility'
+                : 'Check Eligibility to Apply'}
+            </span>
           </button>
         </div>
       </form>
@@ -541,44 +840,106 @@ export function CheckerWizard({
               </span>
             </div>
 
-            <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden text-xs bg-white">
+            <div className="space-y-3">
               {detailedAudit.map((crit) => (
                 <div
                   key={crit.id}
-                  className={`p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 ${
+                  className={`p-4 sm:p-5 rounded-xl border transition-all ${
                     crit.status === 'MET'
-                      ? 'bg-emerald-50/20'
+                      ? 'bg-emerald-50/25 border-emerald-200/70'
                       : crit.status === 'NOT_MET'
-                      ? 'bg-rose-50/30'
+                      ? 'bg-rose-50/40 border-rose-200/90 shadow-2xs'
                       : crit.status === 'MANUAL_VERIFICATION'
-                      ? 'bg-blue-50/25'
-                      : 'bg-amber-50/20'
+                      ? 'bg-blue-50/25 border-blue-200/70'
+                      : 'bg-amber-50/25 border-amber-200/70'
                   }`}
                 >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-slate-900 text-[13px]">
-                        {crit.label}
-                      </span>
-                      {!crit.isMachineCheckable && (
-                        <span className="text-[10px] font-semibold px-2 py-0.5 bg-blue-100/70 text-blue-800 rounded">
-                          Official Document Verification
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-2.5">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900 text-sm">
+                          {crit.label}
                         </span>
-                      )}
-                    </div>
-                    <p className="text-slate-600 leading-relaxed">
-                      {crit.description}
-                    </p>
-                    {crit.status === 'NOT_MET' && (
-                      <p className="text-rose-700 font-semibold pt-0.5">
-                        {crit.message}
+                        {!crit.isMachineCheckable && (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 bg-blue-100/70 text-blue-800 rounded">
+                            Official Document Verification
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-slate-600 text-xs leading-relaxed">
+                        {crit.description}
                       </p>
-                    )}
+                    </div>
+
+                    <div className="shrink-0 self-start sm:self-auto">
+                      <StatusBadge status={crit.badgeStatus} label={crit.badgeLabel} size="sm" />
+                    </div>
                   </div>
 
-                  <div className="shrink-0">
-                    <StatusBadge status={crit.badgeStatus} label={crit.badgeLabel} size="sm" />
-                  </div>
+                  {/* Detailed Feedback: Current vs Required vs Gap */}
+                  {crit.status === 'NOT_MET' && (
+                    <div className="mt-3 p-3.5 bg-white/95 rounded-xl border border-rose-200 space-y-2.5">
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+                        <div className="space-y-0.5">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                            Current
+                          </span>
+                          <span className="font-semibold text-slate-900">
+                            {crit.feedback.currentValueDisplay}
+                          </span>
+                        </div>
+                        <div className="space-y-0.5">
+                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+                            Required
+                          </span>
+                          <span className="font-semibold text-slate-900">
+                            {crit.feedback.requiredValueDisplay}
+                          </span>
+                        </div>
+                        {crit.feedback.gapDisplay && (
+                          <div className="space-y-0.5">
+                            <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider block">
+                              Gap
+                            </span>
+                            <span className="font-bold text-rose-700">
+                              {crit.feedback.gapDisplay}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="pt-2 border-t border-rose-100 flex items-start gap-1.5 text-xs text-rose-900 font-medium">
+                        <span className="text-rose-600 shrink-0 font-bold">❌</span>
+                        <span>{crit.feedback.explanation}</span>
+                      </div>
+                    </div>
+                  )}
+
+                  {crit.status === 'MET' && (
+                    <div className="mt-2.5 pt-2 border-t border-emerald-100 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-emerald-800">
+                      <span className="inline-flex items-center gap-1 font-semibold text-emerald-700">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        <span>Requirement satisfied:</span>
+                      </span>
+                      <span className="text-slate-700 font-medium">
+                        Current ({crit.feedback.currentValueDisplay}) vs Required ({crit.feedback.requiredValueDisplay})
+                      </span>
+                    </div>
+                  )}
+
+                  {crit.status === 'MISSING_INFO' && (
+                    <div className="mt-2.5 pt-2 border-t border-amber-100 flex items-center gap-1.5 text-xs text-amber-800 font-medium">
+                      <AlertCircle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+                      <span>{crit.feedback.explanation}</span>
+                    </div>
+                  )}
+
+                  {crit.status === 'MANUAL_VERIFICATION' && (
+                    <div className="mt-2.5 pt-2 border-t border-blue-100 flex items-center gap-1.5 text-xs text-blue-800 font-medium">
+                      <ShieldCheck className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      <span>{crit.feedback.explanation}</span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -619,106 +980,30 @@ export function CheckerWizard({
             </div>
           )}
 
-          {/* Future / What-If Scenario Simulator (Only if scholarship evaluates CGPA or Income Band) */}
-          {(needsCgpa || needsIncomeBand) && (
-            <div className="pt-4 border-t border-slate-100 space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Sliders className="w-4 h-4 text-blue-700" />
-                  <h4 className="text-lg font-bold text-[#0F172A] font-sans">
-                    What-If Scenario Simulator
-                  </h4>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowSimulator(!showSimulator);
-                    if (!showSimulator) handleRunSimulation(simCgpa, simIncomeBand);
-                  }}
-                  className="text-xs font-semibold text-blue-700 hover:underline cursor-pointer"
-                >
-                  {showSimulator ? 'Hide Simulator' : 'Simulate Scenarios →'}
-                </button>
+          {/* Natural What-If Guidance for Ineligible Scenarios */}
+          {hasHardFailures && (
+            <div className="p-4 bg-slate-50 border border-slate-200/90 rounded-xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs">
+              <div className="space-y-0.5">
+                <span className="font-bold text-slate-900 block">Want to test a &ldquo;What-If&rdquo; scenario?</span>
+                <p className="text-slate-600">
+                  Simply adjust your qualifications in the form above (such as your CGPA) and click <strong>Re-check Eligibility</strong> to test how changes affect your eligibility.
+                </p>
               </div>
-
-              {showSimulator && (
-                <div className="p-5 bg-slate-50 border border-slate-200 rounded-xl space-y-5 animate-in fade-in duration-150">
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    Simulate how adjustments in your qualifications affect this specific scholarship&rsquo;s eligibility rules.
-                  </p>
-
-                  {/* Simulation Controls */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                    {needsCgpa && (
-                      <div className="space-y-2">
-                        <div className="flex justify-between font-semibold text-slate-800">
-                          <span>Simulated CGPA:</span>
-                          <span className="text-blue-700 font-bold text-sm">{simCgpa.toFixed(2)}</span>
-                        </div>
-                        <input
-                          type="range"
-                          min="2.00"
-                          max="4.00"
-                          step="0.05"
-                          value={simCgpa}
-                          onChange={(e) => handleRunSimulation(parseFloat(e.target.value), simIncomeBand)}
-                          className="w-full accent-blue-600 cursor-pointer"
-                        />
-                      </div>
-                    )}
-
-                    {needsIncomeBand && (
-                      <div className="space-y-2">
-                        <span className="font-semibold text-slate-800 block">Simulated Income Band:</span>
-                        <select
-                          value={simIncomeBand}
-                          onChange={(e) => handleRunSimulation(simCgpa, e.target.value)}
-                          className="w-full p-2 bg-white border border-slate-200 rounded-lg text-slate-900 font-medium cursor-pointer"
-                        >
-                          <option value="B40">B40 (Below RM 5,250)</option>
-                          <option value="M40">M40 (RM 5,250 - RM 11,819)</option>
-                          <option value="T20">T20 (Above RM 11,819)</option>
-                        </select>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Simulation Output */}
-                  {simResult && (
-                    <div className="p-4 bg-white border border-slate-200 rounded-xl text-xs space-y-2 shadow-2xs">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-slate-900">
-                          Simulated Parameters: {needsCgpa ? `CGPA ${simCgpa.toFixed(2)}` : ''} {needsIncomeBand ? `(${simIncomeBand})` : ''}
-                        </span>
-                        <StatusBadge
-                          status={
-                            simResult.status === 'MET'
-                              ? 'eligible'
-                              : simResult.status === 'NOT_MET'
-                              ? 'ineligible'
-                              : 'missing-info'
-                          }
-                          label={
-                            simResult.status === 'MET'
-                              ? 'Eligible to Apply'
-                              : simResult.status === 'NOT_MET'
-                              ? 'Not Eligible to Apply'
-                              : 'Pending Verification'
-                          }
-                          size="sm"
-                        />
-                      </div>
-                      <p className="text-slate-600">
-                        {simResult.status === 'MET'
-                          ? 'Under this simulation, all machine-checkable criteria for this scholarship are satisfied.'
-                          : 'Requirements remain unsatisfied under this simulated parameter set.'}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
+              <button
+                type="button"
+                onClick={() => {
+                  const formEl = document.querySelector('form');
+                  if (formEl) {
+                    formEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  }
+                }}
+                className="px-3.5 py-2 bg-white hover:bg-slate-100 border border-slate-300 text-slate-800 font-semibold rounded-lg shrink-0 transition-colors cursor-pointer shadow-2xs"
+              >
+                Adjust Qualifications ↑
+              </button>
             </div>
           )}
+
 
           {/* Action to Save or Return */}
           <div className="pt-4 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4">
