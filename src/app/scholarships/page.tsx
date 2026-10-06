@@ -5,6 +5,7 @@ import { ScholarshipCatalogueClient } from '@/components/scholarships/Scholarshi
 import { SiteNav } from '@/components/home/SiteNav';
 import { Footer } from '@/components/home/Footer';
 import { PageHeader } from '@/components/design-system';
+import { getAuthenticatedUser } from '@/lib/auth-user';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +14,7 @@ export default async function ScholarshipsPage({
 }: {
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
+  const currentUser = await getAuthenticatedUser();
   const params = await searchParams;
   const initialQ = typeof params.q === 'string' ? params.q : '';
   const initialLevel = typeof params.level === 'string' ? params.level : 'All';
@@ -49,7 +51,7 @@ export default async function ScholarshipsPage({
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans">
-      <SiteNav />
+      <SiteNav initialUser={currentUser} />
 
       {/* Ambient gradient top bar */}
       <div className="relative pt-24 pb-12 sm:pt-28 sm:pb-16 bg-gradient-to-b from-[#f8f9ff] via-[#f1f5fd] to-[#F8FAFC] border-b border-slate-200/80">

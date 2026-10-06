@@ -6,12 +6,14 @@ import { eq, desc } from 'drizzle-orm';
 import { CheckerWizard } from '@/components/CheckerWizard';
 import { SiteNav } from '@/components/home/SiteNav';
 import { Footer } from '@/components/home/Footer';
+import { getAuthenticatedUser } from '@/lib/auth-user';
 
 export default async function EligibilityCheckPage({
   params,
 }: {
   params: Promise<{ id: string }>
 }) {
+  const currentUser = await getAuthenticatedUser();
   const { id } = await params;
 
   // 1. Fetch Scholarship
@@ -53,7 +55,7 @@ export default async function EligibilityCheckPage({
   if (!rules || !rules.ruleAst) {
     return (
       <div className="min-h-screen bg-[#FAFAF9] flex flex-col">
-        <SiteNav />
+        <SiteNav initialUser={currentUser} />
         <main className="flex-1 container mx-auto px-4 py-20 text-center max-w-xl">
           <h1 className="font-serif text-3xl font-bold text-[#0B1B3D]">No Rules Modeled Yet</h1>
           <p className="text-slate-600 mt-2 text-sm leading-relaxed">
@@ -73,7 +75,7 @@ export default async function EligibilityCheckPage({
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans">
-      <SiteNav />
+      <SiteNav initialUser={currentUser} />
 
       {/* Top ambient background strip */}
       <div className="pt-24 pb-8 bg-gradient-to-b from-[#f8f9ff] via-[#f1f5fd] to-[#F8FAFC] border-b border-slate-200/80">

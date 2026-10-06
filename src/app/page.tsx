@@ -10,10 +10,12 @@ import { Footer } from '@/components/home/Footer';
 import { db } from '@/db';
 import { scholarships, providers, intakes, intakeVersions } from '@/db/schema';
 import { eq, inArray, desc, count } from 'drizzle-orm';
+import { getAuthenticatedUser } from '@/lib/auth-user';
 
 export const dynamic = 'force-dynamic';
 
 export default async function Home() {
+  const currentUser = await getAuthenticatedUser();
   let initialScholarships: any[] = [];
   let scholarshipCount = 27;
   let providerCount = 24;
@@ -62,7 +64,7 @@ export default async function Home() {
 
   return (
     <div className="flex flex-col min-h-screen font-sans bg-[#F8FAFC]">
-      <SiteNav />
+      <SiteNav initialUser={currentUser} />
       <main className="flex-1 w-full overflow-x-hidden">
         <Hero
           totalScholarships={scholarshipCount}

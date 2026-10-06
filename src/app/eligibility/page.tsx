@@ -9,6 +9,7 @@ import { SiteNav } from '@/components/home/SiteNav';
 import { Footer } from '@/components/home/Footer';
 import { PageHeader } from '@/components/design-system';
 import { StudentProfile } from '@/domain/registry';
+import { getAuthenticatedUser } from '@/lib/auth-user';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +19,7 @@ export const metadata: Metadata = {
 };
 
 export default async function EligibilityMatcherPage() {
+  const currentUser = await getAuthenticatedUser();
   // Check for optional authenticated student session
   let isAuthenticated = false;
   let initialProfile: Partial<StudentProfile> | null = null;
@@ -82,7 +84,7 @@ export default async function EligibilityMatcherPage() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans">
-      <SiteNav />
+      <SiteNav initialUser={currentUser} />
 
       {/* Ambient Top Section */}
       <div className="pt-24 pb-10 sm:pt-28 sm:pb-12 bg-gradient-to-b from-[#f8f9ff] via-[#f1f5fd] to-[#F8FAFC] border-b border-slate-200/80">

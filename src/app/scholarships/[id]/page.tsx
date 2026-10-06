@@ -5,6 +5,7 @@ import { eq, desc, ne } from 'drizzle-orm';
 import { ScholarshipDetailView } from '@/components/scholarships/ScholarshipDetailView';
 import { SiteNav } from '@/components/home/SiteNav';
 import { Footer } from '@/components/home/Footer';
+import { getAuthenticatedUser } from '@/lib/auth-user';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,6 +14,7 @@ export default async function ScholarshipDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const currentUser = await getAuthenticatedUser();
   const { id } = await params;
 
   // 1. Fetch Scholarship & Provider
@@ -81,7 +83,7 @@ export default async function ScholarshipDetailPage({
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-sans">
-      <SiteNav />
+      <SiteNav initialUser={currentUser} />
 
       {/* Top ambient background strip */}
       <div className="pt-24 pb-8 bg-gradient-to-b from-[#f8f9ff] via-[#f1f5fd] to-[#F8FAFC] border-b border-slate-200/80">
