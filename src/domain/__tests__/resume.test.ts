@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { resumeContentSchema } from '../resume';
+import {
+  resumeContentSchema,
+  formatEducationResult,
+  formatEducationBadge,
+} from '../resume';
 
 describe('Resume Domain Schema Validation', () => {
   it('should validate a valid empty resume content', () => {
@@ -81,5 +85,63 @@ describe('Resume Domain Schema Validation', () => {
 
     const result = resumeContentSchema.safeParse(resume);
     expect(result.success).toBe(false);
+  });
+});
+
+describe('Malaysian Education Result & PDF Badge Hygiene', () => {
+  it('formats SPM results as "Result: <grade>" and tertiary qualifications as "CGPA: <score>"', () => {
+    // SPM entry
+    const spmEdu = {
+      qualification: 'Sijil Pelajaran Malaysia (SPM)',
+      educationLevel: 'SPM',
+      cgpa: '8A+ 1A',
+    };
+    expect(formatEducationResult(spmEdu)).toBe('Result: 8A+ 1A');
+
+    // Degree entry
+    const degreeEdu = {
+      qualification: 'Bachelor of Computer Science',
+      educationLevel: 'Bachelor',
+      cgpa: '3.98 / 4.00',
+    };
+    expect(formatEducationResult(degreeEdu)).toBe('CGPA: 3.98 / 4.00');
+
+    // Pre-prefixed values shouldn't be duplicated
+    expect(formatEducationResult({ educationLevel: 'SPM', cgpa: 'Result: 9As' })).toBe('Result: 9As');
+    expect(formatEducationResult({ educationLevel: 'Bachelor', cgpa: 'CGPA: 3.85' })).toBe('CGPA: 3.85');
+  });
+
+  it('never outputs bracketed internal enums like [BACHELOR] in PDF badge text', () => {
+    const degreeEdu = {
+      qualification: 'Bachelor of Computer Science',
+      educationLevel: 'Bachelor',
+      cgpa: '3.95',
+    };
+    const badge = formatEducationBadge(degreeEdu);
+
+    // Invariant: no raw bracketed enums leaking into PDF
+    expect(badge).not.toContain('[BACHELOR]');
+    expect(badge).not.toContain('[');
+    expect(badge).not.toContain(']');
+    expect(badge).toBe('CGPA: 3.95');
+
+    // Where degree title does not contain the level, human-readable level is provided without brackets
+    const csEdu = {
+      qualification: 'Artificial Intelligence',
+      educationLevel: 'Bachelor',
+      cgpa: '3.90',
+    };
+    const csBadge = formatEducationBadge(csEdu);
+    expect(csBadge).toBe('Bachelor Degree • CGPA: 3.90');
+
+    // SPM badge
+    const spmEdu = {
+      qualification: 'Sijil Pelajaran Malaysia',
+      educationLevel: 'SPM',
+      cgpa: '9As',
+    };
+    const spmBadge = formatEducationBadge(spmEdu);
+    expect(spmBadge).toBe('Result: 9As');
+    expect(spmBadge).not.toContain('[SPM]');
   });
 });

@@ -6,7 +6,7 @@ import {
   View,
   StyleSheet,
 } from '@react-pdf/renderer';
-import { ResumeContent } from '@/domain/resume';
+import { ResumeContent, formatEducationResult } from '@/domain/resume';
 
 const styles = StyleSheet.create({
   page: {
@@ -429,10 +429,10 @@ export function ModernTechTemplate({ content }: { content: ResumeContent }) {
                   <Text style={styles.entryCompany}>{edu.institution}</Text>
                   <View style={{ flexDirection: 'row', gap: 4 }}>
                     {edu.educationLevel && (
-                      <Text style={styles.degreeBadge}>{edu.educationLevel}</Text>
+                      <Text style={styles.degreeBadge}>{edu.educationLevel === 'Bachelor' ? 'Bachelor Degree' : edu.educationLevel}</Text>
                     )}
                     {edu.cgpa && (
-                      <Text style={styles.degreeBadge}>CGPA: {edu.cgpa}</Text>
+                      <Text style={styles.degreeBadge}>{formatEducationResult(edu)}</Text>
                     )}
                   </View>
                 </View>

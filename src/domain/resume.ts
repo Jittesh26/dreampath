@@ -134,3 +134,67 @@ export type Award = z.infer<typeof awardSchema>;
 export type Leadership = z.infer<typeof leadershipSchema>;
 export type Volunteering = z.infer<typeof volunteeringSchema>;
 export type Scholarship = z.infer<typeof scholarshipSchema>;
+
+/**
+ * Formats academic result appropriately based on qualification level.
+ * SPM uses 'Result: <grade>' (never 'CGPA: 8As'), whereas universities use 'CGPA: <score>'.
+ */
+export function formatEducationResult(edu: {
+  educationLevel?: string;
+  qualification?: string;
+  cgpa?: string;
+}): string {
+  if (!edu.cgpa) return '';
+  const raw = edu.cgpa.trim();
+  if (!raw) return '';
+
+  const isSpm =
+    edu.educationLevel === 'SPM' ||
+    /spm|sijil\s+pelajaran\s+malaysia/i.test(edu.qualification || '');
+
+  if (isSpm) {
+    if (/^(result|grade):/i.test(raw)) return raw;
+    return `Result: ${raw}`;
+  }
+
+  // Tertiary qualifications
+  if (/^cgpa:/i.test(raw)) return raw;
+  return `CGPA: ${raw}`;
+}
+
+/**
+ * Builds clean, professional badge text for education entries without leaking internal enums or square brackets (e.g. never outputs [BACHELOR]).
+ */
+export function formatEducationBadge(edu: {
+  educationLevel?: string;
+  qualification?: string;
+  cgpa?: string;
+}): string {
+  const parts: string[] = [];
+  const qualLower = (edu.qualification || '').toLowerCase();
+  const level = edu.educationLevel;
+
+  if (level && level !== 'Other') {
+    const isRedundant =
+      qualLower.includes(level.toLowerCase()) ||
+      (level === 'Bachelor' &&
+        (qualLower.includes('degree') ||
+          qualLower.includes('bachelor') ||
+          qualLower.includes('bsc') ||
+          qualLower.includes('beng') ||
+          qualLower.includes('ba '))) ||
+      (level === 'SPM' &&
+        (qualLower.includes('spm') || qualLower.includes('pelajaran malaysia')));
+
+    if (!isRedundant) {
+      parts.push(level === 'Bachelor' ? 'Bachelor Degree' : level);
+    }
+  }
+
+  const resultStr = formatEducationResult(edu);
+  if (resultStr) {
+    parts.push(resultStr);
+  }
+
+  return parts.join(' • ');
+}

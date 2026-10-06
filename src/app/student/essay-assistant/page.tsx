@@ -11,6 +11,10 @@ import {
   HelpCircle,
   RotateCcw,
   AlertTriangle,
+  Compass,
+  Layers,
+  CheckSquare,
+  FileText,
 } from 'lucide-react';
 
 import { PageHeader } from '@/components/design-system';
@@ -347,14 +351,29 @@ export default function EssayAssistantPage() {
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-4">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-200/70 text-blue-700 flex items-center justify-center">
-                <Lightbulb className="w-4 h-4 text-amber-500" />
+                {result.mode === 'brainstorm' ? (
+                  <Compass className="w-4 h-4 text-blue-600" />
+                ) : result.mode === 'structure' ? (
+                  <Layers className="w-4 h-4 text-purple-600" />
+                ) : (
+                  <FileText className="w-4 h-4 text-emerald-600" />
+                )}
               </div>
               <div>
                 <h3 className="text-sm font-bold text-slate-950">
-                  Essay Coaching Synthesis — {selectedPrompt.name}
+                  {result.mode === 'brainstorm'
+                    ? `Idea Brainstorming & Theme Exploration — ${selectedPrompt.name}`
+                    : result.mode === 'structure'
+                    ? `Structural Architecture & Flow Review — ${selectedPrompt.name}`
+                    : `Line-by-Line Polish & Voice Review — ${selectedPrompt.name}`}
                 </h3>
                 <p className="text-[11px] text-slate-400 font-medium">
-                  {lastAnalyzedAt ? `Analyzed at ${lastAnalyzedAt}` : 'Writing Coach Evaluation'} • Editorial Writing Assessment
+                  {lastAnalyzedAt ? `Analyzed at ${lastAnalyzedAt}` : 'Writing Coach Evaluation'} •{' '}
+                  {result.mode === 'brainstorm'
+                    ? 'Ideation & Raw Material Mining'
+                    : result.mode === 'structure'
+                    ? 'Paragraph Logic & Prompt Balance'
+                    : 'Tone, Clarity & Authentic Student Voice'}
                 </p>
               </div>
             </div>
@@ -378,7 +397,11 @@ export default function EssayAssistantPage() {
           {/* Overall Editorial Assessment */}
           <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-xl space-y-1.5 text-xs text-slate-800 leading-relaxed font-normal">
             <strong className="block text-[11px] uppercase tracking-wider text-slate-900 font-bold">
-              Writing Coach Assessment:
+              {result.mode === 'brainstorm'
+                ? 'Brainstorming Coach Assessment:'
+                : result.mode === 'structure'
+                ? 'Structure & Progression Assessment:'
+                : 'Tone & Style Review:'}
             </strong>
             <p>{result.overallAssessment}</p>
             {result.readinessDescription && (
@@ -388,197 +411,317 @@ export default function EssayAssistantPage() {
             )}
           </div>
 
-          {/* What's Missing Check: Covered vs Needs Support */}
-          {result.promptCoverage && (
-            <div className="space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>Prompt Coverage &amp; &ldquo;What&apos;s Missing?&rdquo; Check</span>
-              </h4>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {/* Covered items */}
+          {/* MODE 1: BRAINSTORM SPECIFIC SECTIONS */}
+          {result.mode === 'brainstorm' && (
+            <div className="space-y-6">
+              {/* Strong Ideas & Experiences to Expand */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
                 <div className="p-4 bg-emerald-50/60 border border-emerald-200/70 rounded-xl space-y-2 text-xs">
-                  <strong className="text-emerald-950 font-bold block text-[11px] uppercase tracking-wider">
-                    What your draft currently covers:
+                  <strong className="text-emerald-950 font-bold block text-xs flex items-center gap-1.5">
+                    <Lightbulb className="w-4 h-4 text-emerald-600" />
+                    <span>Strong Ideas Already Present in Your Notes:</span>
                   </strong>
-                  {result.promptCoverage.covered && result.promptCoverage.covered.length > 0 ? (
-                    <ul className="space-y-1.5">
-                      {result.promptCoverage.covered.map((item, idx) => (
-                        <li key={idx} className="flex items-start gap-2 text-emerald-900 font-medium">
-                          <span className="text-emerald-600 font-bold shrink-0">✓</span>
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-emerald-800/80 italic text-[11px]">
-                      No core prompt components are fully grounded yet.
-                    </p>
-                  )}
+                  <ul className="space-y-1.5 pl-1">
+                    {(result.brainstormData?.strongIdeas || result.strengths || []).map((idea, idx) => (
+                      <li key={idx} className="flex items-start gap-2 text-emerald-900 font-medium">
+                        <span className="text-emerald-600 font-bold shrink-0">✓</span>
+                        <span>{idea}</span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
 
-                {/* Needs support / missing items */}
+                <div className="p-4 bg-blue-50/60 border border-blue-200/70 rounded-xl space-y-2 text-xs">
+                  <strong className="text-blue-950 font-bold block text-xs flex items-center gap-1.5">
+                    <Sparkles className="w-4 h-4 text-blue-600" />
+                    <span>Real Experiences Worth Expanding:</span>
+                  </strong>
+                  <ul className="space-y-1.5 pl-1">
+                    {(result.brainstormData?.experiencesToExpand || []).map((exp, idx) => (
+                      <li key={idx} className="flex items-start gap-2 text-blue-950 font-medium">
+                        <span className="text-blue-600 font-bold shrink-0">▸</span>
+                        <span>{exp}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              {/* What's Missing Check from Official Prompt */}
+              {result.promptCoverage && result.promptCoverage.needsSupport && result.promptCoverage.needsSupport.length > 0 && (
                 <div className="p-4 bg-amber-50/60 border border-amber-200/70 rounded-xl space-y-2 text-xs">
-                  <strong className="text-amber-950 font-bold block text-[11px] uppercase tracking-wider">
-                    What needs more personal support:
+                  <strong className="text-amber-950 font-bold block text-xs flex items-center gap-1.5">
+                    <AlertCircle className="w-4 h-4 text-amber-600" />
+                    <span>Requirements Missing from the Scholarship Prompt:</span>
                   </strong>
-                  {result.promptCoverage.needsSupport &&
-                  result.promptCoverage.needsSupport.length > 0 ? (
-                    <ul className="space-y-1.5">
-                      {result.promptCoverage.needsSupport.map((item, idx) => (
-                        <li key={idx} className="flex items-start gap-2 text-amber-900 font-medium">
-                          <span className="text-amber-600 font-bold shrink-0">○</span>
-                          <span>{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : (
-                    <p className="text-amber-800/80 italic text-[11px]">
-                      All primary requirements have at least initial narrative support!
-                    </p>
-                  )}
+                  <p className="text-[11px] text-amber-900/80 mb-1">
+                    To make your essay competitive for {selectedPrompt.name}, make sure you also address these official requirements:
+                  </p>
+                  <ul className="space-y-1.5 pl-1">
+                    {result.promptCoverage.needsSupport.map((req, idx) => (
+                      <li key={idx} className="flex items-start gap-2 text-amber-900 font-medium">
+                        <span className="text-amber-600 font-bold shrink-0">○</span>
+                        <span>{req}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {/* Probing Guiding Questions */}
+              <div className="p-4.5 bg-slate-50 border border-slate-200/90 rounded-xl space-y-2 text-xs">
+                <strong className="text-slate-950 font-bold block text-xs flex items-center gap-1.5">
+                  <HelpCircle className="w-4 h-4 text-blue-600" />
+                  <span>Probing Questions to Answer for Yourself:</span>
+                </strong>
+                <p className="text-[11px] text-slate-500 mb-2">
+                  Take a few minutes to write down honest, specific answers to these questions before drafting full paragraphs:
+                </p>
+                <ul className="space-y-2">
+                  {(result.brainstormData?.guidingQuestions || result.probingQuestions || []).map((q, idx) => (
+                    <li key={idx} className="flex items-start gap-2 text-slate-800 leading-relaxed font-normal">
+                      <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">
+                        {idx + 1}
+                      </span>
+                      <span>{q}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Narrative Angles */}
+              {result.brainstormData?.possibleAngles && result.brainstormData.possibleAngles.length > 0 && (
+                <div className="space-y-2.5">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                    <Compass className="w-4 h-4 text-indigo-600" />
+                    <span>Possible Narrative Angles for Your Story:</span>
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2.5">
+                    {result.brainstormData.possibleAngles.map((angle, idx) => (
+                      <div key={idx} className="p-3 bg-white border border-slate-200 rounded-xl text-xs space-y-1 text-slate-800">
+                        <span className="text-[10px] font-bold text-indigo-700 block uppercase">Option {idx + 1}</span>
+                        <p className="text-[11px] leading-relaxed text-slate-700">{angle}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Starter Outline */}
+              <div className="space-y-2.5">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                  <BookOpen className="w-4 h-4 text-blue-600" />
+                  <span>Suggested Starter Outline to Begin Writing:</span>
+                </h4>
+                <div className="space-y-2">
+                  {(result.brainstormData?.starterOutline || result.suggestedOutline || []).map((step, idx) => (
+                    <div key={idx} className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl flex items-start gap-2.5 text-xs text-slate-800">
+                      <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-800 flex items-center justify-center font-bold text-[11px] shrink-0 mt-0.5">
+                        {idx + 1}
+                      </span>
+                      <span className="font-medium leading-relaxed">{step}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
           )}
 
-          {/* Structure Evaluation */}
-          {result.structureEvaluation && result.structureEvaluation.length > 0 && (
-            <div className="space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-                <BookOpen className="w-4 h-4 text-blue-600" />
-                <span>Paragraph Structure Breakdown</span>
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {result.structureEvaluation.map((sec, idx) => (
-                  <div
-                    key={idx}
-                    className="p-3.5 bg-slate-50/80 border border-slate-200/80 rounded-xl text-xs space-y-1"
-                  >
-                    <div className="flex items-center justify-between">
-                      <strong className="text-slate-900 font-bold">{sec.section}</strong>
-                      <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          sec.status === 'covered'
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : sec.status === 'partial'
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-amber-100 text-amber-900'
-                        }`}
-                      >
-                        {sec.status === 'covered'
-                          ? 'Supported'
-                          : sec.status === 'partial'
-                          ? 'Partial'
-                          : 'Missing'}
+          {/* MODE 2: STRUCTURE SPECIFIC SECTIONS */}
+          {result.mode === 'structure' && (
+            <div className="space-y-6">
+              {/* Prompt Coverage: Covered vs Needs Support */}
+              {result.promptCoverage && (
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Prompt Coverage: Addressed vs Needs Personal Support</span>
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="p-4 bg-emerald-50/60 border border-emerald-200/70 rounded-xl space-y-2 text-xs">
+                      <strong className="text-emerald-950 font-bold block text-[11px] uppercase tracking-wider">
+                        Covered by your text:
+                      </strong>
+                      {result.promptCoverage.covered && result.promptCoverage.covered.length > 0 ? (
+                        <ul className="space-y-1.5">
+                          {result.promptCoverage.covered.map((item, idx) => (
+                            <li key={idx} className="flex items-start gap-2 text-emerald-900 font-medium">
+                              <span className="text-emerald-600 font-bold shrink-0">✓</span>
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-emerald-800/80 italic text-[11px]">No core prompt components are fully grounded yet.</p>
+                      )}
+                    </div>
+
+                    <div className="p-4 bg-amber-50/60 border border-amber-200/70 rounded-xl space-y-2 text-xs">
+                      <strong className="text-amber-950 font-bold block text-[11px] uppercase tracking-wider">
+                        Needs personal evidence:
+                      </strong>
+                      {result.promptCoverage.needsSupport && result.promptCoverage.needsSupport.length > 0 ? (
+                        <ul className="space-y-1.5">
+                          {result.promptCoverage.needsSupport.map((item, idx) => (
+                            <li key={idx} className="flex items-start gap-2 text-amber-900 font-medium">
+                              <span className="text-amber-600 font-bold shrink-0">○</span>
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-amber-800/80 italic text-[11px]">All primary requirements have at least initial narrative support!</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Section-by-Section Paragraph Structure */}
+              {result.structureEvaluation && result.structureEvaluation.length > 0 && (
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                    <BookOpen className="w-4 h-4 text-blue-600" />
+                    <span>Paragraph Architecture Breakdown</span>
+                  </h4>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    {result.structureEvaluation.map((sec, idx) => (
+                      <div key={idx} className="p-3.5 bg-slate-50/80 border border-slate-200/80 rounded-xl text-xs space-y-1">
+                        <div className="flex items-center justify-between">
+                          <strong className="text-slate-900 font-bold">{sec.section}</strong>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                              sec.status === 'covered'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : sec.status === 'partial'
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-amber-100 text-amber-900'
+                            }`}
+                          >
+                            {sec.status === 'covered' ? 'Supported' : sec.status === 'partial' ? 'Partial' : 'Missing'}
+                          </span>
+                        </div>
+                        <p className="text-slate-600 text-[11px] leading-relaxed font-normal">{sec.feedback}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Proportional Balance & Flow Analysis */}
+              <div className="p-4 bg-purple-50/50 border border-purple-200/70 rounded-xl space-y-2 text-xs">
+                <strong className="text-purple-950 font-bold block text-xs flex items-center gap-1.5">
+                  <Layers className="w-4 h-4 text-purple-600" />
+                  <span>Proportional Balance &amp; Flow Analysis:</span>
+                </strong>
+                <p className="text-purple-900 text-[11px] leading-relaxed">
+                  {result.structureData?.paragraphBalance ||
+                    'Ensure introductory remarks do not exceed 25% of your total essay, leaving sufficient space for concrete evidence (50%) and future vision (25%).'}
+                </p>
+                {((result.structureData?.flowAnalysis || result.flowIssues) || []).length > 0 && (
+                  <ul className="space-y-1 pt-1 border-t border-purple-200/60">
+                    {(result.structureData?.flowAnalysis || result.flowIssues || []).map((f, idx) => (
+                      <li key={idx} className="flex items-start gap-1.5 text-purple-900 font-medium text-[11px]">
+                        <span className="text-purple-600 font-bold shrink-0">&bull;</span>
+                        <span>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+
+              {/* Priority Structural Revisions */}
+              <div className="p-4.5 bg-slate-50 border border-slate-200/90 rounded-xl space-y-2 text-xs">
+                <strong className="text-slate-950 font-bold block text-xs tracking-wide">
+                  Priority Structural Revisions:
+                </strong>
+                <ul className="space-y-2">
+                  {(result.structureData?.priorityStructuralRevisions || result.actionableRecommendations || []).map((rec, i) => (
+                    <li key={i} className="flex items-start gap-2.5 text-slate-800 leading-relaxed font-normal">
+                      <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">
+                        {i + 1}
                       </span>
-                    </div>
-                    <p className="text-slate-600 text-[11px] leading-relaxed font-normal">
-                      {sec.feedback}
-                    </p>
-                  </div>
-                ))}
+                      <span>{rec}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
           )}
 
-          {/* Actionable Recommendations */}
-          {result.actionableRecommendations && result.actionableRecommendations.length > 0 && (
-            <div className="p-4.5 bg-slate-50 border border-slate-200/90 rounded-xl space-y-2 text-xs">
-              <strong className="text-slate-950 font-bold block text-xs tracking-wide">
-                Actionable Next Steps for Revision:
-              </strong>
-              <ul className="space-y-2">
-                {result.actionableRecommendations.map((rec, i) => (
-                  <li key={i} className="flex items-start gap-2.5 text-slate-800 leading-relaxed font-normal">
-                    <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-800 flex items-center justify-center font-bold text-[10px] shrink-0 mt-0.5">
-                      {i + 1}
-                    </span>
-                    <span>{rec}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Probing Brainstorming Questions (Especially in Brainstorm Mode) */}
-          {result.probingQuestions && result.probingQuestions.length > 0 && (
-            <div className="p-4.5 bg-blue-50/50 border border-blue-200/80 rounded-xl space-y-2 text-xs">
-              <strong className="text-blue-950 font-bold block text-xs tracking-wide flex items-center gap-1.5">
-                <HelpCircle className="w-4 h-4 text-blue-600" />
-                <span>Probing Questions to Uncover Your Authentic Stories:</span>
-              </strong>
-              <p className="text-[11px] text-blue-900/80 mb-2">
-                Reflect on these questions to bring forth real moments from your own life. The coach will not invent answers for you:
-              </p>
-              <ul className="space-y-1.5">
-                {result.probingQuestions.map((q, idx) => (
-                  <li key={idx} className="flex items-start gap-2 text-blue-950 font-medium">
-                    <span className="text-blue-600 font-bold shrink-0">&bull;</span>
-                    <span>{q}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {/* Tone & Clarity Issues (if any identified) */}
-          {result.toneAndClarityIssues && result.toneAndClarityIssues.length > 0 && (
-            <div className="p-4 bg-amber-50/50 border border-amber-200/70 rounded-xl space-y-2 text-xs">
-              <strong className="text-amber-950 font-bold block text-xs tracking-wide flex items-center gap-1.5">
-                <AlertTriangle className="w-4 h-4 text-amber-600" />
-                <span>Clarity &amp; Cliché Alerts:</span>
-              </strong>
-              <div className="space-y-2 mt-1">
-                {result.toneAndClarityIssues.map((issue, idx) => (
-                  <div key={idx} className="p-3 bg-white rounded-lg border border-amber-200/60 text-slate-800 space-y-1">
-                    <div className="text-[11px] font-mono text-rose-700 font-bold">
-                      &ldquo;{issue.originalSnippet}&rdquo;
-                    </div>
-                    <p className="text-slate-600 text-[11px]">{issue.issue}</p>
-                    <p className="text-slate-900 text-[11px] font-semibold">
-                      Suggested direction: {issue.suggestedImprovement}
-                    </p>
-                  </div>
-                ))}
+          {/* MODE 3: REVIEW / POLISH SPECIFIC SECTIONS */}
+          {result.mode === 'review' && (
+            <div className="space-y-6">
+              {/* Tone Assessment */}
+              <div className="p-4 bg-blue-50/50 border border-blue-200/70 rounded-xl space-y-2 text-xs">
+                <strong className="text-blue-950 font-bold block text-xs flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-blue-600" />
+                  <span>Tone &amp; Student Voice Assessment:</span>
+                </strong>
+                <p className="text-blue-900 leading-relaxed text-[11px]">
+                  {result.reviewData?.toneAssessment ||
+                    'Aim for humble confidence. Let your factual actions, timelines, and measurable achievements convey competence without relying on inflated buzzwords.'}
+                </p>
               </div>
-            </div>
-          )}
 
-          {/* Recommended Paragraph Architecture */}
-          {result.suggestedOutline && result.suggestedOutline.length > 0 && (
-            <div className="space-y-3">
-              <h4 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-                <BookOpen className="w-4 h-4 text-blue-600" />
-                <span>Suggested Paragraph Architecture</span>
-              </h4>
-              <div className="space-y-2">
-                {result.suggestedOutline.map((point: string, idx: number) => (
-                  <div
-                    key={idx}
-                    className="p-3.5 bg-slate-50/70 border border-slate-200/90 rounded-xl flex items-start gap-3 text-xs"
-                  >
-                    <span className="w-5 h-5 rounded-full bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-[11px] shrink-0 mt-0.5">
-                      {idx + 1}
-                    </span>
-                    <span className="text-slate-800 font-medium leading-relaxed">{point}</span>
+              {/* Clarity, Cliché & Phrase Alerts */}
+              {result.toneAndClarityIssues && result.toneAndClarityIssues.length > 0 && (
+                <div className="p-4 bg-amber-50/50 border border-amber-200/70 rounded-xl space-y-2 text-xs">
+                  <strong className="text-amber-950 font-bold block text-xs tracking-wide flex items-center gap-1.5">
+                    <AlertTriangle className="w-4 h-4 text-amber-600" />
+                    <span>Linguistic Tightening &amp; Cliché Alerts:</span>
+                  </strong>
+                  <div className="space-y-2 mt-1">
+                    {result.toneAndClarityIssues.map((issue, idx) => (
+                      <div key={idx} className="p-3 bg-white rounded-lg border border-amber-200/60 text-slate-800 space-y-1">
+                        <div className="text-[11px] font-mono text-rose-700 font-bold">
+                          &ldquo;{issue.originalSnippet}&rdquo;
+                        </div>
+                        <p className="text-slate-600 text-[11px]">{issue.issue}</p>
+                        <p className="text-slate-900 text-[11px] font-semibold">
+                          Suggested direction: {issue.suggestedImprovement}
+                        </p>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            </div>
-          )}
+                </div>
+              )}
 
-          {/* Key Strengths */}
-          {result.strengths && result.strengths.length > 0 && (
-            <div className="p-4 bg-emerald-50/70 border border-emerald-200/90 rounded-xl space-y-1.5 text-xs">
-              <strong className="text-emerald-950 font-bold block text-xs tracking-wide">
-                Key Strengths Identified:
-              </strong>
-              <ul className="list-disc list-inside text-emerald-900 space-y-0.5 leading-relaxed font-medium">
-                {result.strengths.map((s: string, i: number) => (
-                  <li key={i}>{s}</li>
-                ))}
-              </ul>
+              {/* Word Count & Brevity Advice */}
+              <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-xl space-y-1.5 text-xs">
+                <strong className="text-slate-900 font-bold block text-xs flex items-center gap-1.5">
+                  <FileText className="w-4 h-4 text-slate-600" />
+                  <span>Word Count &amp; Brevity Analysis:</span>
+                </strong>
+                <p className="text-slate-700 text-[11px]">{result.wordCountAnalysis}</p>
+                {result.reviewData?.concisenessAdvice && (
+                  <p className="text-slate-600 text-[11px] border-t border-slate-200/60 pt-1 mt-1">
+                    {result.reviewData.concisenessAdvice}
+                  </p>
+                )}
+              </div>
+
+              {/* Polish Checklist */}
+              {result.reviewData?.polishChecklist && result.reviewData.polishChecklist.length > 0 && (
+                <div className="p-4.5 bg-emerald-50/50 border border-emerald-200/70 rounded-xl space-y-2.5 text-xs">
+                  <strong className="text-emerald-950 font-bold block text-xs flex items-center gap-1.5">
+                    <CheckSquare className="w-4 h-4 text-emerald-600" />
+                    <span>Final Pre-Submission Polish Checklist:</span>
+                  </strong>
+                  <ul className="space-y-2">
+                    {result.reviewData.polishChecklist.map((item, idx) => (
+                      <li key={idx} className="flex items-start gap-2 text-emerald-900 font-medium">
+                        <input
+                          type="checkbox"
+                          defaultChecked={false}
+                          className="mt-0.5 rounded border-emerald-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+                        />
+                        <span className="text-xs leading-relaxed">{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           )}
 

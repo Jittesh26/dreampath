@@ -587,6 +587,91 @@ export async function aiEssayAssistant(params: {
   }
 
   try {
+    let modeInstruction = '';
+    if (action === 'brainstorm') {
+      modeInstruction = `ADVISORY MODE: BRAINSTORM
+You are helping the student uncover authentic personal stories, brainstorm ideas, map out missing requirements from the official prompt, and formulate possible narrative angles.
+STRICT INVARIANT: Because this is early brainstorming notes or bullet points, you MUST NEVER evaluate readiness as "strong_draft". Use "needs_development" or "good_foundation".
+
+Return pure JSON matching:
+{
+  "readiness": "needs_development | good_foundation",
+  "readinessLabel": "Needs Development | Good Foundation (Ideation)",
+  "readinessDescription": "Assessment of raw idea maturity",
+  "overallAssessment": "Encouraging evaluation of the student's initial thoughts and themes",
+  "strengths": ["Authentic theme or strong seed 1", "Seed 2"],
+  "probingQuestions": ["Reflective question 1 to elicit concrete real-life details", "Question 2"],
+  "suggestedOutline": ["Milestone 1: ...", "Milestone 2: ...", "Milestone 3: ...", "Milestone 4: ..."],
+  "promptCoverage": {
+    "covered": ["Themes touched on by the student"],
+    "needsSupport": ["Official scholarship requirements still missing"]
+  },
+  "brainstormData": {
+    "strongIdeas": ["Key strong ideas present in notes"],
+    "experiencesToExpand": ["Specific experiences worth detailing with STAR framework"],
+    "possibleAngles": ["Angle 1: ...", "Angle 2: ...", "Angle 3: ..."],
+    "missingAreas": ["Required areas from prompt not yet supported"],
+    "guidingQuestions": ["Guiding reflective questions"],
+    "starterOutline": ["Step 1: ...", "Step 2: ...", "Step 3: ...", "Step 4: ..."]
+  }
+}`;
+    } else if (action === 'structure') {
+      modeInstruction = `ADVISORY MODE: STRUCTURE
+You are evaluating the architectural structure, paragraph flow, logical progression, and proportional balance of the student's draft against the official scholarship prompt.
+
+Return pure JSON matching:
+{
+  "readiness": "needs_development | good_foundation | strong_draft",
+  "readinessLabel": "Needs Development | Good Foundation | Strong Draft",
+  "readinessDescription": "Editorial assessment of draft structure",
+  "overallAssessment": "Honest assessment of the draft's structural flow and prompt fulfillment",
+  "promptCoverage": {
+    "covered": ["Requirement 1 supported by student text", "..."],
+    "needsSupport": ["Requirement 2 missing or unsupported", "..."]
+  },
+  "structureEvaluation": [
+    { "section": "Opening & Hook", "status": "covered | partial | missing", "feedback": "..." },
+    { "section": "Evidence & Project Milestones", "status": "covered | partial | missing", "feedback": "..." },
+    { "section": "Connection to Scholarship", "status": "covered | partial | missing", "feedback": "..." },
+    { "section": "Future Goals & Impact", "status": "covered | partial | missing", "feedback": "..." }
+  ],
+  "flowIssues": ["Specific transitional or logical gap observed"],
+  "actionableRecommendations": ["Structural revision priority 1", "Priority 2"],
+  "suggestedOutline": ["Recommended paragraph progression"],
+  "structureData": {
+    "paragraphBalance": "Analysis of draft length and proportion allocated to introduction vs proof vs future goals",
+    "flowAnalysis": ["Analysis of logical flow and continuity between sections"],
+    "missingTransitions": ["Key missing transitions"],
+    "recommendedProgression": ["Recommended paragraph progression"],
+    "priorityStructuralRevisions": ["Top structural changes needed"]
+  }
+}`;
+    } else {
+      modeInstruction = `ADVISORY MODE: REVIEW & POLISH
+You are conducting a sentence-level and tone review. Evaluate humble confidence, active voice, clarity, conciseness, and elimination of cliches without altering the student's authentic voice.
+
+Return pure JSON matching:
+{
+  "readiness": "needs_development | good_foundation | strong_draft",
+  "readinessLabel": "Needs Development | Good Foundation | Strong Draft",
+  "readinessDescription": "Editorial assessment of linguistic polish",
+  "overallAssessment": "Assessment of sentence clarity, authenticity, and student voice",
+  "toneAndClarityIssues": [
+    { "originalSnippet": "...", "issue": "...", "suggestedImprovement": "..." }
+  ],
+  "strengths": ["Linguistic or stylistic strength 1", "Strength 2"],
+  "actionableRecommendations": ["Polishing action 1", "Action 2"],
+  "reviewData": {
+    "toneAssessment": "Analysis of voice and tone",
+    "clichesAndVaguePhrases": [
+      { "originalSnippet": "...", "issue": "...", "suggestedImprovement": "..." }
+    ],
+    "concisenessAdvice": "Practical brevity and active verb guidance",
+    "polishChecklist": ["Checklist item 1", "Checklist item 2", "Checklist item 3", "Checklist item 4"]
+  }
+}`;
+    }
+
     const prompt = `You are the DreamPath Scholarship Essay Writing Coach.
 You assist Malaysian students in writing authentic, compelling scholarship essays.
 
@@ -594,7 +679,6 @@ CONTEXT:
 Scholarship: ${scholarshipName}
 Provider: ${providerName}
 Official Prompt: "${promptText}"
-Advisory Mode: ${action} (brainstorm | structure | review)
 
 STUDENT DRAFT / INPUT:
 """
@@ -609,31 +693,7 @@ STRICT CORE PRINCIPLE & ETHICS:
 5. Provide honest, actionable feedback (Explain: What is wrong? Why does it matter? What should the student do next?).
 6. Avoid generic cliches ("deeply passionate", "make a meaningful impact"). Encourage natural, specific student voice.
 
-Return pure JSON matching this exact structure:
-{
-  "readiness": "needs_development | good_foundation | strong_draft",
-  "readinessLabel": "Needs Development | Good Foundation | Strong Draft",
-  "readinessDescription": "Editorial assessment of draft maturity (1-2 sentences)",
-  "overallAssessment": "Honest assessment of whether and how the draft addresses the prompt",
-  "promptCoverage": {
-    "covered": ["Requirement 1 supported by student text", "Requirement 2..."],
-    "needsSupport": ["Requirement 3 missing or unsupported", "Requirement 4..."]
-  },
-  "structureEvaluation": [
-    { "section": "Opening & Hook", "status": "covered | partial | missing", "feedback": "Specific feedback grounded in their text" },
-    { "section": "Evidence & Project Milestones", "status": "covered | partial | missing", "feedback": "..." },
-    { "section": "Connection to Scholarship", "status": "covered | partial | missing", "feedback": "..." },
-    { "section": "Future Goals & Impact", "status": "covered | partial | missing", "feedback": "..." }
-  ],
-  "flowIssues": ["Repetition, sudden transition, or unsupported claim..."],
-  "strengths": ["Specific strength 1", "Specific strength 2"],
-  "actionableRecommendations": ["Actionable recommendation 1", "Actionable recommendation 2"],
-  "probingQuestions": ["Reflective question 1 to help student discover their own real stories", "Question 2..."],
-  "suggestedOutline": ["Paragraph 1: ...", "Paragraph 2: ...", "Paragraph 3: ...", "Paragraph 4: ..."],
-  "toneAndClarityIssues": [
-    { "originalSnippet": "...", "issue": "...", "suggestedImprovement": "..." }
-  ]
-}`;
+${modeInstruction}`;
 
     const result = await aiRouter.generateText({
       prompt,
@@ -644,12 +704,20 @@ Return pure JSON matching this exact structure:
     if (result.error) throw new Error(result.error);
     const parsed = JSON.parse(result.text?.trim() || '{}');
 
+    // Brainstorm mode safeguard: ensure never strong_draft
+    let finalReadiness = parsed.readiness || fallback.readiness;
+    let finalReadinessLabel = parsed.readinessLabel || fallback.readinessLabel;
+    if (action === 'brainstorm' && finalReadiness === 'strong_draft') {
+      finalReadiness = 'good_foundation';
+      finalReadinessLabel = 'Good Foundation (Ideation)';
+    }
+
     return {
       mode: action,
       scholarshipName,
       essayPrompt: promptText,
-      readiness: parsed.readiness || fallback.readiness,
-      readinessLabel: parsed.readinessLabel || fallback.readinessLabel,
+      readiness: finalReadiness,
+      readinessLabel: finalReadinessLabel,
       readinessDescription: parsed.readinessDescription || fallback.readinessDescription,
       overallAssessment: parsed.overallAssessment || fallback.overallAssessment,
       feedback: parsed.overallAssessment || fallback.overallAssessment,
@@ -679,6 +747,9 @@ Return pure JSON matching this exact structure:
         ? parsed.toneAndClarityIssues
         : fallback.toneAndClarityIssues,
       wordCountAnalysis: fallback.wordCountAnalysis,
+      brainstormData: parsed.brainstormData || fallback.brainstormData,
+      structureData: parsed.structureData || fallback.structureData,
+      reviewData: parsed.reviewData || fallback.reviewData,
     };
   } catch {
     return {

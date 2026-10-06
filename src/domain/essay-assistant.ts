@@ -33,6 +33,30 @@ export interface ToneAndClarityIssue {
   suggestedImprovement: string;
 }
 
+export interface BrainstormGuidance {
+  strongIdeas: string[];
+  experiencesToExpand: string[];
+  possibleAngles: string[];
+  missingAreas: string[];
+  guidingQuestions: string[];
+  starterOutline: string[];
+}
+
+export interface StructureGuidance {
+  paragraphBalance: string;
+  flowAnalysis: string[];
+  missingTransitions: string[];
+  recommendedProgression: string[];
+  priorityStructuralRevisions: string[];
+}
+
+export interface ReviewGuidance {
+  toneAssessment: string;
+  clichesAndVaguePhrases: ToneAndClarityIssue[];
+  concisenessAdvice: string;
+  polishChecklist: string[];
+}
+
 export interface EssayAssistantResponse {
   mode: EssayMode;
   scholarshipName: string;
@@ -54,6 +78,9 @@ export interface EssayAssistantResponse {
   sampleDirection?: string;
   toneAndClarityIssues: ToneAndClarityIssue[];
   wordCountAnalysis?: string;
+  brainstormData?: BrainstormGuidance;
+  structureData?: StructureGuidance;
+  reviewData?: ReviewGuidance;
 }
 
 export interface ScholarshipPromptConfig {
@@ -236,23 +263,39 @@ export function generateDeterministicEssayGuidance(params: {
   let readinessDescription =
     'Your draft contains helpful initial ideas, but key prompt requirements are not yet supported by concrete personal examples.';
 
-  if (words >= 35 && (hasProject || hasNumbers)) {
-    if (mentionsProvider && (hasFutureGoals || mentionsSustainability)) {
-      readiness = 'strong_draft';
-      readinessLabel = 'Strong Draft';
+  if (action === 'brainstorm') {
+    // Brainstorming mode invariant: raw bullet points or brainstorming notes must NOT be marked as 'strong_draft'.
+    if (words >= 25 && (hasProject || hasNumbers || mentionsProvider)) {
+      readiness = 'good_foundation';
+      readinessLabel = 'Good Foundation (Ideation)';
       readinessDescription =
-        'Your draft directly addresses the core prompt with personal evidence and good structural flow. Focus now on sentence polish and conciseness.';
+        'You have identified promising authentic raw material and themes. Continue fleshing out concrete project actions before structuring paragraphs.';
     } else {
+      readiness = 'needs_development';
+      readinessLabel = 'Needs Development (Early Notes)';
+      readinessDescription =
+        'Your ideas provide an early starting point. Use the guiding questions below to unearth specific experiences, setbacks, and motivations.';
+    }
+  } else {
+    // Structure & Review modes
+    if (words >= 35 && (hasProject || hasNumbers)) {
+      if (mentionsProvider && (hasFutureGoals || mentionsSustainability)) {
+        readiness = 'strong_draft';
+        readinessLabel = 'Strong Draft';
+        readinessDescription =
+          'Your draft directly addresses the core prompt with personal evidence and good structural flow. Focus now on sentence polish and conciseness.';
+      } else {
+        readiness = 'good_foundation';
+        readinessLabel = 'Good Foundation';
+        readinessDescription =
+          'Your draft addresses the primary topic, but certain sections need deeper personal proof points and tighter alignment with the scholarship objectives.';
+      }
+    } else if (words >= 20 && (hasProject || hasNumbers || mentionsProvider)) {
       readiness = 'good_foundation';
       readinessLabel = 'Good Foundation';
       readinessDescription =
-        'Your draft addresses the primary topic, but certain sections need deeper personal proof points and tighter alignment with the scholarship objectives.';
+        'Your draft provides a good starting point, but needs more concrete details and clearer alignment with the prompt.';
     }
-  } else if (words >= 20 && (hasProject || hasNumbers || mentionsProvider)) {
-    readiness = 'good_foundation';
-    readinessLabel = 'Good Foundation';
-    readinessDescription =
-      'Your draft provides a good starting point, but needs more concrete details and clearer alignment with the prompt.';
   }
 
   // Prompt Coverage
@@ -426,6 +469,72 @@ export function generateDeterministicEssayGuidance(params: {
     overallAssessment = `Tone & clarity review for ${scholarshipName}: Aim for clean, active language that sounds like your authentic voice. Avoid inflated scholarship clichés and focus on clear, direct sentences.`;
   }
 
+  // Mode-Specific Structured Data
+  let brainstormData: BrainstormGuidance | undefined;
+  let structureData: StructureGuidance | undefined;
+  let reviewData: ReviewGuidance | undefined;
+
+  if (action === 'brainstorm') {
+    brainstormData = {
+      strongIdeas: strengths.length > 0 ? strengths : [
+        'Engages directly with the scholarship subject area',
+        'Provides initial ideas that can be anchored with specific personal milestones',
+      ],
+      experiencesToExpand: [
+        hasProject
+          ? 'Expand on your specific technical or team contribution during the project mentioned.'
+          : 'Recall an academic challenge, competition, or extracurricular project that tested your problem-solving abilities.',
+        mentionsProvider
+          ? `Explain why ${providerName}’s specific mission or work resonates with your future vision.`
+          : `Explore how your personal vision aligns with ${providerName}’s corporate or national goals.`,
+        'Identify a personal moment of setback and what you discovered about your own resilience.',
+      ],
+      possibleAngles: [
+        'The Applied Innovator: Focus on a hands-on project or problem you built/solved and how it sparked your intellectual curiosity.',
+        'The Community Problem-Solver: Connect your personal background and empathy to solving an acute challenge facing Malaysia.',
+        'The Growth Mindset: Detail how overcoming an unexpected hurdle shaped your dedication and long-term career drive.',
+      ],
+      missingAreas: needsSupport.length > 0 ? needsSupport : [
+        'Concrete evidence and personal milestone details',
+      ],
+      guidingQuestions: probingQuestions,
+      starterOutline: suggestedOutline,
+    };
+  } else if (action === 'structure') {
+    structureData = {
+      paragraphBalance: words < 80
+        ? `Current draft is ${words} words. For a balanced essay, aim for: 20% Introduction / Hook, 50% Evidence & Projects (STAR framework), 15% Sponsor Alignment, and 15% Vision for Malaysia.`
+        : `At ${words} words, ensure your middle paragraphs carry the greatest weight with concrete evidence, rather than spending disproportionate space on generic introductory remarks.`,
+      flowAnalysis: flowIssues.length > 0 ? flowIssues : [
+        'Paragraph transitions are functional. Verify that each paragraph begins with a strong topic sentence.',
+      ],
+      missingTransitions: [
+        'Bridge between personal motivation and your practical project evidence.',
+        'Link project accomplishments into your future vision and sponsor alignment.',
+      ],
+      recommendedProgression: suggestedOutline,
+      priorityStructuralRevisions: actionableRecommendations,
+    };
+  } else {
+    // Review (Polish)
+    reviewData = {
+      toneAssessment: lowerDraft.includes('deeply passionate') || lowerDraft.includes('best student')
+        ? 'Tone contains some exaggerated qualifiers. Strive for "humble confidence"—let your factual actions, timelines, and measurable results speak for themselves without subjective puffery.'
+        : 'Tone is sincere, authentic, and grounded. Continue refining sentence conciseness and active verb selection.',
+      clichesAndVaguePhrases: toneAndClarityIssues,
+      concisenessAdvice: words > 400
+        ? 'Draft is approaching length limit. Tighten nominalizations (e.g. change "make a contribution to" to "contribute to", "conduct an investigation into" to "investigate").'
+        : 'Keep sentences focused on a single core point. Prefer direct subject-verb structures to passive constructions.',
+      polishChecklist: [
+        'Replace passive voice constructions with active, decisive verbs.',
+        'Ensure all claims of impact are grounded in student-provided facts.',
+        'Eliminate filler phrases such as "in order to", "needless to say", and "deeply passionate".',
+        'Verify correct spelling of sponsor names, institutions, and technical terms.',
+        'Read aloud to check natural sentence cadence and genuine student voice.',
+      ],
+    };
+  }
+
   return {
     mode: action,
     scholarshipName,
@@ -443,5 +552,8 @@ export function generateDeterministicEssayGuidance(params: {
     suggestedOutline,
     toneAndClarityIssues,
     wordCountAnalysis,
+    brainstormData,
+    structureData,
+    reviewData,
   };
 }

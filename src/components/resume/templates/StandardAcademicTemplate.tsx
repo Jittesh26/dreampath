@@ -6,7 +6,7 @@ import {
   View,
   StyleSheet,
 } from '@react-pdf/renderer';
-import { ResumeContent } from '@/domain/resume';
+import { ResumeContent, formatEducationBadge } from '@/domain/resume';
 
 const styles = StyleSheet.create({
   page: {
@@ -228,10 +228,7 @@ export function StandardAcademicTemplate({ content }: { content: ResumeContent }
                 <View style={styles.entryHeader}>
                   <Text style={styles.entrySubtitle}>{edu.institution}</Text>
                   <Text style={styles.badgeText}>
-                    {[
-                      edu.educationLevel ? `[${edu.educationLevel}]` : '',
-                      edu.cgpa ? `CGPA: ${edu.cgpa}` : ''
-                    ].filter(Boolean).join(' • ')}
+                    {formatEducationBadge(edu)}
                   </Text>
                 </View>
 

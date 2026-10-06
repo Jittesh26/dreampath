@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   Mic,
   MicOff,
@@ -44,6 +44,9 @@ export default function InterviewPracticePage() {
   const [currentCategory, setCurrentCategory] = useState<InterviewCategory>('introduction');
   const [inputAnswer, setInputAnswer] = useState('');
   const [isRecording, setIsRecording] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [interimTranscript, setInterimTranscript] = useState<string>('');
+  const recognitionRef = useRef<any>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingNext, setIsLoadingNext] = useState(false);
 
@@ -112,7 +115,20 @@ export default function InterviewPracticePage() {
     finalReport,
   ]);
 
-  // Web Speech API Voice Recognition with graceful fallback
+  // Cleanup recognition on unmount
+  useEffect(() => {
+    return () => {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch {
+          // ignore
+        }
+      }
+    };
+  }, []);
+
+  // Web Speech API Voice Recognition with graceful non-blocking fallback
   const toggleVoiceRecording = () => {
     if (typeof window === 'undefined') return;
 
@@ -120,32 +136,81 @@ export default function InterviewPracticePage() {
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      alert('Voice dictation is not supported in this browser. Please type your response.');
+      setVoiceError(
+        'Voice dictation is supported in Chrome, Edge, and Safari. You can type your response directly into the text box below.'
+      );
       return;
     }
 
     if (isRecording) {
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {
+          // ignore
+        }
+      }
       setIsRecording(false);
+      setInterimTranscript('');
       return;
     }
 
     try {
+      setVoiceError(null);
       const recognition = new SpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
+      recognitionRef.current = recognition;
+      recognition.continuous = true;
+      recognition.interimResults = true;
       recognition.lang = 'en-US';
 
-      recognition.onstart = () => setIsRecording(true);
-      recognition.onend = () => setIsRecording(false);
-      recognition.onerror = () => setIsRecording(false);
+      recognition.onstart = () => {
+        setIsRecording(true);
+        setVoiceError(null);
+        setInterimTranscript('');
+      };
+
       recognition.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        setInputAnswer((prev) => (prev ? `${prev} ${transcript}` : transcript));
+        let interim = '';
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const item = event.results[i];
+          if (item.isFinal) {
+            const transcript = item[0].transcript.trim();
+            if (transcript) {
+              setInputAnswer((prev) => (prev ? `${prev} ${transcript}` : transcript));
+            }
+          } else {
+            interim += item[0].transcript;
+          }
+        }
+        setInterimTranscript(interim);
+      };
+
+      recognition.onerror = (event: any) => {
+        setIsRecording(false);
+        setInterimTranscript('');
+        const code = event?.error;
+        if (code === 'not-allowed' || code === 'service-not-allowed') {
+          setVoiceError('Microphone permission was denied. Please allow microphone access in your browser to use voice dictation.');
+        } else if (code === 'no-speech') {
+          setVoiceError('No speech was detected. You can speak again or type your answer.');
+        } else if (code === 'audio-capture') {
+          setVoiceError('No microphone could be detected on your device.');
+        } else if (code === 'network') {
+          setVoiceError('Network connection issue during voice recognition. Please type your response.');
+        } else if (code !== 'aborted') {
+          setVoiceError(`Voice input notice (${code || 'unknown'}). You can continue typing.`);
+        }
+      };
+
+      recognition.onend = () => {
+        setIsRecording(false);
+        setInterimTranscript('');
       };
 
       recognition.start();
     } catch {
       setIsRecording(false);
+      setVoiceError('Could not start microphone dictation. Please type your response directly.');
     }
   };
 
@@ -620,6 +685,38 @@ export default function InterviewPracticePage() {
             {/* Answer Input Area (Only active during 'answering' stage) */}
             {stage === 'answering' && (
               <form onSubmit={handleSendAnswer} className="space-y-3 pt-3 border-t border-slate-100">
+                {voiceError && (
+                  <div className="p-3 bg-amber-50 border border-amber-200/80 rounded-xl text-xs text-amber-900 flex items-center justify-between gap-2 animate-in fade-in duration-150">
+                    <div className="flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                      <span>{voiceError}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setVoiceError(null)}
+                      className="text-amber-800 hover:text-amber-950 font-bold text-[11px] underline cursor-pointer shrink-0"
+                    >
+                      Dismiss
+                    </button>
+                  </div>
+                )}
+
+                {isRecording && (
+                  <div className="p-2.5 bg-rose-50 border border-rose-200/80 rounded-xl flex items-center gap-2.5 text-xs text-rose-900 animate-in fade-in duration-150">
+                    <span className="relative flex h-2.5 w-2.5 shrink-0">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600"></span>
+                    </span>
+                    <span className="font-medium flex-1">
+                      {interimTranscript ? (
+                        <span>Listening: &ldquo;{interimTranscript}&rdquo;</span>
+                      ) : (
+                        <span>Listening... Speak clearly. Click &ldquo;Stop Dictation&rdquo; when done.</span>
+                      )}
+                    </span>
+                  </div>
+                )}
+
                 <div>
                   <textarea
                     rows={4}
@@ -637,12 +734,12 @@ export default function InterviewPracticePage() {
                     onClick={toggleVoiceRecording}
                     className={`px-3 py-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
                       isRecording
-                        ? 'bg-rose-50 border-rose-300 text-rose-700 animate-pulse'
+                        ? 'bg-rose-50 border-rose-300 text-rose-700 shadow-2xs'
                         : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-2xs'
                     }`}
                   >
                     {isRecording ? <MicOff className="w-4 h-4 text-rose-600" /> : <Mic className="w-4 h-4 text-slate-500" />}
-                    <span>{isRecording ? 'Listening... Click to stop' : 'Voice Input'}</span>
+                    <span>{isRecording ? 'Stop Dictation' : 'Voice Input'}</span>
                   </button>
 
                   <button

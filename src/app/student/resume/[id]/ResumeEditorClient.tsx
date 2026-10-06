@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from 'react';
 import { updateResume } from '@/app/actions/resume';
-import { ResumeContent } from '@/domain/resume';
+import { ResumeContent, formatEducationResult } from '@/domain/resume';
 import { GeneratedWording } from '@/domain/ai-interview';
 import { mergeResumeContent } from '@/domain/resume-merge';
 import Link from 'next/link';
@@ -11,6 +11,7 @@ import PDFPreviewModal from '@/components/resume/PDFPreviewModal';
 import { ATSCheckerModal } from '@/components/resume/ATSCheckerModal';
 import { ScholarshipTailoringModal } from '@/components/resume/ScholarshipTailoringModal';
 import { ShareResumeModal } from '@/components/resume/ShareResumeModal';
+import { TagInput } from '@/components/resume/TagInput';
 import { Card } from '@/components/ui/card';
 import {
   Sparkles,
@@ -169,8 +170,7 @@ export default function ResumeEditorClient({
   };
 
   // Skills Helpers
-  const handleSkillsChange = (category: 'technical' | 'languages' | 'soft', value: string) => {
-    const list = value.split(',').map(s => s.trim()).filter(Boolean);
+  const handleSkillsListChange = (category: 'technical' | 'languages' | 'soft', list: string[]) => {
     setContent(prev => ({
       ...prev,
       skills: {
@@ -407,23 +407,41 @@ export default function ResumeEditorClient({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="text-xs text-slate-500 block mb-1">Institution</label>
+                      <label className="text-xs text-slate-500 block mb-1">Education Level</label>
+                      <select
+                        value={edu.educationLevel || 'Bachelor'}
+                        onChange={e => handleUpdateEducation(edu.id, 'educationLevel', e.target.value)}
+                        className="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-primary/20"
+                      >
+                        <option value="SPM">SPM (Secondary / Form 5)</option>
+                        <option value="STPM">STPM (Form 6)</option>
+                        <option value="Foundation">Matrikulasi / Foundation / Asasi</option>
+                        <option value="Diploma">Diploma</option>
+                        <option value="Bachelor">Bachelor Degree</option>
+                        <option value="Master">Master Degree</option>
+                        <option value="PhD">Doctorate (PhD)</option>
+                        <option value="Other">Other Qualification</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="text-xs text-slate-500 block mb-1">Institution / School</label>
                       <input
                         type="text"
                         value={edu.institution}
                         onChange={e => handleUpdateEducation(edu.id, 'institution', e.target.value)}
-                        placeholder="e.g. Universiti Malaya"
+                        placeholder={edu.educationLevel === 'SPM' ? 'e.g. SMK Victoria / Kolej Islam Sultan Alam Shah' : 'e.g. Universiti Malaya'}
                         className="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800"
                       />
                     </div>
 
                     <div>
-                      <label className="text-xs text-slate-500 block mb-1">Qualification</label>
+                      <label className="text-xs text-slate-500 block mb-1">Qualification / Degree Title</label>
                       <input
                         type="text"
                         value={edu.qualification}
                         onChange={e => handleUpdateEducation(edu.id, 'qualification', e.target.value)}
-                        placeholder="e.g. Bachelor of Computer Science"
+                        placeholder={edu.educationLevel === 'SPM' ? 'e.g. Sijil Pelajaran Malaysia' : 'e.g. Bachelor of Computer Science'}
                         className="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800"
                       />
                     </div>
@@ -443,13 +461,15 @@ export default function ResumeEditorClient({
                       />
                     </div>
 
-                    <div>
-                      <label className="text-xs text-slate-500 block mb-1">CGPA / Grade</label>
+                    <div className="sm:col-span-2">
+                      <label className="text-xs text-slate-500 block mb-1">
+                        {edu.educationLevel === 'SPM' ? 'Overall Result / Grade' : 'CGPA'}
+                      </label>
                       <input
                         type="text"
                         value={edu.cgpa || ''}
                         onChange={e => handleUpdateEducation(edu.id, 'cgpa', e.target.value)}
-                        placeholder="e.g. 3.92 / 4.00"
+                        placeholder={edu.educationLevel === 'SPM' ? 'e.g. 9A+ or 8A+ 1A' : 'e.g. 3.92 / 4.00'}
                         className="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800"
                       />
                     </div>
@@ -585,19 +605,11 @@ export default function ResumeEditorClient({
                     </div>
 
                     <div>
-                      <label className="text-xs text-slate-500 block mb-1">Technologies Used (comma separated)</label>
-                      <input
-                        type="text"
-                        value={proj.technologies ? proj.technologies.join(', ') : ''}
-                        onChange={e =>
-                          handleUpdateProject(
-                            proj.id,
-                            'technologies',
-                            e.target.value.split(',').map(s => s.trim()).filter(Boolean)
-                          )
-                        }
-                        placeholder="e.g. Next.js, PostgreSQL, Tailwind"
-                        className="w-full rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs text-slate-800"
+                      <TagInput
+                        label="Technologies Used"
+                        placeholder="e.g. Next.js, PostgreSQL (press Enter or comma)"
+                        tags={proj.technologies || []}
+                        onChange={techs => handleUpdateProject(proj.id, 'technologies', techs)}
                       />
                     </div>
                   </div>
@@ -624,45 +636,30 @@ export default function ResumeEditorClient({
               <p className="text-xs text-slate-500">Categorized proficiencies for ATS scanning and review.</p>
             </div>
 
-            <div className="space-y-3">
-              <div>
-                <label className="text-xs font-semibold text-slate-600 block mb-1">
-                  Technical Skills (comma separated)
-                </label>
-                <input
-                  type="text"
-                  value={content.skills?.technical ? content.skills.technical.join(', ') : ''}
-                  onChange={e => handleSkillsChange('technical', e.target.value)}
-                  placeholder="e.g. Python, TypeScript, React, SQL, Docker, AWS"
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </div>
+            <div className="space-y-4">
+              <TagInput
+                label="Technical Skills"
+                placeholder="e.g. Python, TypeScript, React, SQL (press Enter or comma)"
+                tags={content.skills?.technical || []}
+                onChange={tags => handleSkillsListChange('technical', tags)}
+                helperText="Languages, frameworks, libraries, cloud tools, or engineering platforms."
+              />
 
-              <div>
-                <label className="text-xs font-semibold text-slate-600 block mb-1">
-                  Languages (comma separated)
-                </label>
-                <input
-                  type="text"
-                  value={content.skills?.languages ? content.skills.languages.join(', ') : ''}
-                  onChange={e => handleSkillsChange('languages', e.target.value)}
-                  placeholder="e.g. Bahasa Melayu (Native), English (Fluent / CEFR C1), Mandarin (Basic)"
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </div>
+              <TagInput
+                label="Languages"
+                placeholder="e.g. Bahasa Melayu (Native), English (Fluent) (press Enter or comma)"
+                tags={content.skills?.languages || []}
+                onChange={tags => handleSkillsListChange('languages', tags)}
+                helperText="Spoken and written language competencies with proficiency level."
+              />
 
-              <div>
-                <label className="text-xs font-semibold text-slate-600 block mb-1">
-                  Soft Skills / Competencies (comma separated)
-                </label>
-                <input
-                  type="text"
-                  value={content.skills?.soft ? content.skills.soft.join(', ') : ''}
-                  onChange={e => handleSkillsChange('soft', e.target.value)}
-                  placeholder="e.g. Leadership, Public Speaking, Agile/Scrum"
-                  className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/20"
-                />
-              </div>
+              <TagInput
+                label="Soft Skills & Competencies"
+                placeholder="e.g. Leadership, Public Speaking, Agile (press Enter or comma)"
+                tags={content.skills?.soft || []}
+                onChange={tags => handleSkillsListChange('soft', tags)}
+                helperText="Interpersonal, collaborative, problem-solving, or communication capabilities."
+              />
             </div>
           </Card>
         </div>
@@ -715,7 +712,11 @@ export default function ResumeEditorClient({
                       </div>
                       <div className="flex justify-between text-slate-600">
                         <span>{edu.institution || 'Institution'}</span>
-                        {edu.cgpa && <span className="font-semibold text-slate-700">CGPA: {edu.cgpa}</span>}
+                        {edu.cgpa && (
+                          <span className="font-semibold text-slate-700">
+                            {formatEducationResult(edu)}
+                          </span>
+                        )}
                       </div>
                     </div>
                   ))}

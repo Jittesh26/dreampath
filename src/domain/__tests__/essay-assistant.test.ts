@@ -179,4 +179,53 @@ describe('DreamPath Essay Assistant — Three Advisory Modes & Iterative Review'
     expect(res2.readiness).toBe('strong_draft');
     expect(res2.promptCoverage.covered.length).toBeGreaterThan(res1.promptCoverage.covered.length);
   });
+
+  it('11. Brainstorm mode invariant: raw bullet points or brainstorming notes never evaluate as strong_draft', () => {
+    const rawNotes =
+      '• Built robotics flood alarm project with 5 team members in 2025\n• Won 1st place in state competition\n• Want to apply to Gamuda Scholarship for civil engineering and sustainable tunneling';
+
+    const brainstormRes = generateDeterministicEssayGuidance({
+      action: 'brainstorm',
+      scholarshipName: 'Gamuda Scholarship',
+      providerName: 'Gamuda Berhad',
+      essayPrompt: 'Explain your passion for engineering and sustainable infrastructure',
+      studentDraft: rawNotes,
+    });
+
+    // Invariant: brainstorm mode should never evaluate as strong_draft
+    expect(brainstormRes.readiness).not.toBe('strong_draft');
+    expect(brainstormRes.readiness).toBe('good_foundation');
+    expect(brainstormRes.readinessLabel).toContain('Ideation');
+    expect(brainstormRes.brainstormData).toBeDefined();
+    expect(brainstormRes.brainstormData?.strongIdeas.length).toBeGreaterThan(0);
+    expect(brainstormRes.brainstormData?.experiencesToExpand.length).toBeGreaterThan(0);
+    expect(brainstormRes.brainstormData?.possibleAngles.length).toBeGreaterThan(0);
+  });
+
+  it('12. Populates distinct mode-specific structures for structure and review modes', () => {
+    const draft =
+      'In 2025, I led a school flood-warning sensor initiative. We assembled low-cost ultrasonic water level sensors that alerted 200 nearby residents. I aspire to join Gamuda to drive sustainable drainage infrastructure.';
+
+    const structureRes = generateDeterministicEssayGuidance({
+      action: 'structure',
+      scholarshipName: 'Gamuda Scholarship',
+      providerName: 'Gamuda Berhad',
+      essayPrompt: 'Explain your passion',
+      studentDraft: draft,
+    });
+    expect(structureRes.structureData).toBeDefined();
+    expect(structureRes.structureData?.paragraphBalance).toBeDefined();
+    expect(structureRes.structureData?.flowAnalysis.length).toBeGreaterThan(0);
+
+    const reviewRes = generateDeterministicEssayGuidance({
+      action: 'review',
+      scholarshipName: 'Gamuda Scholarship',
+      providerName: 'Gamuda Berhad',
+      essayPrompt: 'Explain your passion',
+      studentDraft: draft,
+    });
+    expect(reviewRes.reviewData).toBeDefined();
+    expect(reviewRes.reviewData?.toneAssessment).toBeDefined();
+    expect(reviewRes.reviewData?.polishChecklist.length).toBeGreaterThan(0);
+  });
 });
