@@ -590,6 +590,12 @@ export const initialUsers = [
     role: 'admin',
     createdAt: now,
   },
+  {
+    id: '981a3c44-aa33-4747-a846-24e30cc96f84',
+    email: 'jitteshamaran26@gmail.com',
+    role: 'admin',
+    createdAt: now,
+  },
 ];
 
 export const initialStudentProfiles = [

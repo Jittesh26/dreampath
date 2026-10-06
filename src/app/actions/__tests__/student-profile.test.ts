@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 import { db } from '@/db';
 import { studentProfiles, users } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -126,5 +126,14 @@ describe('Student Profile Persistence', () => {
     expect(saved?.cgpa).toBe('3.80');
     expect((saved?.spmResults as any)['Mathematics']).toBe('A');
     expect((saved?.spmResults as any)['Bahasa Melayu']).toBe('B+');
+  });
+
+  afterAll(async () => {
+    try {
+      await db.delete(studentProfiles).where(eq(studentProfiles.userId, mockStudentId));
+      await db.delete(users).where(eq(users.id, mockStudentId));
+    } catch {
+      // Best-effort cleanup
+    }
   });
 });

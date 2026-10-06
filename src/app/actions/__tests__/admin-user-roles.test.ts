@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 import { db } from '@/db';
 import { users } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
 
 // Mock next/headers and next/cache
 const mockCookieStore = {
@@ -18,6 +18,7 @@ vi.mock('next/cache', () => ({
 }));
 
 const mockAdminId = '88888888-8888-8888-8888-888888888888';
+const createdUserIds: string[] = [mockAdminId];
 const mockSupabaseAuth = {
   getUser: vi.fn().mockResolvedValue({
     data: { user: { id: mockAdminId, email: 'role-admin@dreampath.my' } },
@@ -54,6 +55,7 @@ describe('Admin User Role Management & Promotion', () => {
   it('allows an authenticated admin to promote a student to admin', async () => {
     const studentId = crypto.randomUUID();
     const studentEmail = `student-promote-${Date.now()}@test.my`;
+    createdUserIds.push(studentId);
 
     await db.insert(users).values({
       id: studentId,
@@ -71,6 +73,7 @@ describe('Admin User Role Management & Promotion', () => {
   it('allows demoting an admin to student when another admin exists', async () => {
     const secondAdminId = crypto.randomUUID();
     const secondAdminEmail = `admin-second-${Date.now()}@test.my`;
+    createdUserIds.push(secondAdminId);
 
     await db.insert(users).values({
       id: secondAdminId,
@@ -115,6 +118,7 @@ describe('Admin User Role Management & Promotion', () => {
   it('blocks non-admin users from invoking updateUserRole', async () => {
     const studentUserId = crypto.randomUUID();
     const studentUserEmail = `unauth-student-${Date.now()}@test.my`;
+    createdUserIds.push(studentUserId);
 
     await db.insert(users).values({
       id: studentUserId,
@@ -153,6 +157,14 @@ describe('Admin User Role Management & Promotion', () => {
   });
 
   afterAll(async () => {
+    try {
+      if (createdUserIds.length > 0) {
+        await db.delete(users).where(inArray(users.id, createdUserIds));
+      }
+    } catch {
+      // Best-effort cleanup
+    }
+
     // Re-verify that dedicated admin remains admin
     const [dedicatedAdmin] = await db.select().from(users).where(eq(users.email, 'jitteshamaran26@gmail.com'));
     if (dedicatedAdmin) {

@@ -73,19 +73,54 @@ export class MockDatabase {
   setTable(name: string, data: any[]) {
     (this as any)[name] = data;
   }
+
+  reset() {
+    this.users = [...initialUsers];
+    this.student_profiles = [...initialStudentProfiles];
+    this.providers = [...initialProviders];
+    this.scholarships = [...initialScholarships];
+    this.intakes = [...initialIntakes];
+    this.intake_versions = [...initialIntakeVersions];
+    this.requirements = [...initialRequirements];
+    this.data_reports = [];
+    this.applications = [];
+    this.resume_profiles = [];
+    this.resume_versions = [];
+    this.resume_facts = [];
+    this.interview_sessions = [];
+    this.interview_transcripts = [];
+    this.interview_entities = [];
+    this.interview_slots = [];
+    this.interview_facts = [];
+    this.interview_intents = [];
+  }
 }
 
 export const inMemoryStore = new MockDatabase();
 
+export function resetInMemoryStore() {
+  inMemoryStore.reset();
+}
+
+function flattenParamValues(item: any): any[] {
+  if (item === null || item === undefined) return [];
+  if (Array.isArray(item)) return item.flatMap(flattenParamValues);
+  if (typeof item === 'object') {
+    if (item.constructor?.name === 'Param' || ('value' in item && !item.queryChunks)) {
+      return flattenParamValues(item.value);
+    }
+  }
+  return [item];
+}
+
 // Evaluate a filter condition on a row
-function evaluateCondition(row: any, cond: any): boolean {
+export function evaluateCondition(row: any, cond: any): boolean {
   if (!cond) return true;
 
   // Handle Drizzle BinaryOperator / SQL objects
-  // BinaryOperator often has { operator, left, right }
   if (cond.operator && cond.left !== undefined) {
     const leftCol = getColumnName(cond.left);
-    const leftVal = leftCol ? row[leftCol] ?? row[leftCol.replace(/_([a-z])/g, (_, c) => c.toUpperCase())] : undefined;
+    const leftVal = leftCol ? row[leftCol] ?? row[leftCol.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase())] : undefined;
     let rightVal = cond.right;
     if (rightVal && typeof rightVal === 'object' && 'value' in rightVal) {
       rightVal = rightVal.value;
@@ -131,9 +166,56 @@ function evaluateCondition(row: any, cond: any): boolean {
 }
 
 function evaluateQueryChunks(row: any, chunks: any[]): boolean {
+  if (!chunks || chunks.length === 0) return true;
+
+  // If wrapped in parentheses: e.g. ['(', SQL, ')']
+  if (
+    chunks.length === 3 &&
+    (chunks[0] === '(' || chunks[0]?.value?.[0] === '(') &&
+    (chunks[2] === ')' || chunks[2]?.value?.[0] === ')') &&
+    chunks[1]?.queryChunks
+  ) {
+    return evaluateQueryChunks(row, chunks[1].queryChunks);
+  }
+
+  // Check for top-level logical operators (' or ' / ' and ')
+  const orIndices: number[] = [];
+  const andIndices: number[] = [];
+
+  for (let i = 0; i < chunks.length; i++) {
+    const raw = typeof chunks[i] === 'string' ? chunks[i] : Array.isArray(chunks[i]?.value) ? chunks[i].value.join('') : chunks[i]?.value;
+    const text = String(raw || '').trim().toLowerCase();
+    if (text === 'or') orIndices.push(i);
+    else if (text === 'and') andIndices.push(i);
+  }
+
+  if (orIndices.length > 0) {
+    const subGroups: any[][] = [];
+    let start = 0;
+    for (const idx of orIndices) {
+      subGroups.push(chunks.slice(start, idx));
+      start = idx + 1;
+    }
+    subGroups.push(chunks.slice(start));
+    return subGroups.some(grp => evaluateQueryChunks(row, grp));
+  }
+
+  if (andIndices.length > 0) {
+    const subGroups: any[][] = [];
+    let start = 0;
+    for (const idx of andIndices) {
+      subGroups.push(chunks.slice(start, idx));
+      start = idx + 1;
+    }
+    subGroups.push(chunks.slice(start));
+    return subGroups.every(grp => evaluateQueryChunks(row, grp));
+  }
+
+  // Leaf condition evaluation
   let colName: string | null = null;
+  let colTable: string | null = null;
   let op = '=';
-  let val: any = undefined;
+  const paramValues: any[] = [];
 
   for (let idx = 0; idx < chunks.length; idx++) {
     const chunk = chunks[idx];
@@ -147,49 +229,61 @@ function evaluateQueryChunks(row: any, chunks: any[]): boolean {
     // Column chunk
     if (chunk.name || chunk._?.name || chunk.columnType) {
       colName = getColumnName(chunk);
-      continue;
-    }
-
-    // Param chunk
-    if (chunk.constructor?.name === 'Param' || (chunk.value !== undefined && !Array.isArray(chunk.value))) {
-      val = chunk.value;
+      colTable = getTableName(chunk.table || chunk._?.table);
       continue;
     }
 
     // String tokens / StringChunk
-    if (typeof chunk === 'string' || Array.isArray(chunk.value) || typeof chunk.value === 'string') {
+    if (typeof chunk === 'string' || chunk.constructor?.name === 'StringChunk' || chunk.value !== undefined && Array.isArray(chunk.value) && typeof chunk.value[0] === 'string') {
       const raw = typeof chunk === 'string' ? chunk : Array.isArray(chunk.value) ? chunk.value.join('') : chunk.value;
       const text = String(raw).trim().toLowerCase();
-      if (text === 'ilike' || text === 'like') op = 'ilike';
-      else if (text === '=') op = '=';
-      else if (text === '!=' || text === '<>') op = '!=';
-      else if (text === 'in') op = 'in';
-      else if (text === 'not in') op = 'not in';
-      else if (text === '>=') op = '>=';
-      else if (text === '<=') op = '<=';
-      else if (text === '>') op = '>';
-      else if (text === '<') op = '<';
+      if (text.includes('ilike') || text.includes('like')) op = 'ilike';
+      else if (text.includes('not in')) op = 'not in';
+      else if (text.includes('in')) op = 'in';
+      else if (text.includes('!=') || text.includes('<>')) op = '!=';
+      else if (text.includes('>=')) op = '>=';
+      else if (text.includes('<=')) op = '<=';
+      else if (text.includes('>')) op = '>';
+      else if (text.includes('<')) op = '<';
+      else if (text.includes('=')) op = '=';
+      continue;
+    }
+
+    // Param chunk or list of params
+    if (chunk.constructor?.name === 'Param') {
+      paramValues.push(...flattenParamValues(chunk.value));
+      continue;
+    }
+    if (Array.isArray(chunk)) {
+      paramValues.push(...flattenParamValues(chunk));
       continue;
     }
   }
 
   if (colName) {
-    const camelCol = colName.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase());
-    const rowVal = row[colName] !== undefined ? row[colName] : row[camelCol];
-    if (op === '=') return rowVal == val;
-    if (op === '!=' || op === '<>') return rowVal != val;
+    let rowVal = undefined;
+    if (colTable && colTable !== 'unknown' && row[colTable] && row[colTable][colName] !== undefined) {
+      rowVal = row[colTable][colName];
+    } else {
+      const camelCol = colName.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase());
+      rowVal = row[colName] !== undefined ? row[colName] : row[camelCol];
+    }
+    if (op === '=') return rowVal == paramValues[0];
+    if (op === '!=' || op === '<>') return rowVal != paramValues[0];
     if (op === 'ilike') {
-      const pattern = String(val || '').replace(/%/g, '.*');
+      const pattern = String(paramValues[0] || '').replace(/%/g, '.*');
       return new RegExp(`^${pattern}$`, 'i').test(String(rowVal || ''));
     }
     if (op === 'in') {
-      const arr = Array.isArray(val) ? val : [];
-      return arr.includes(rowVal);
+      return paramValues.includes(rowVal);
     }
-    if (op === '>=') return Number(rowVal) >= Number(val);
-    if (op === '<=') return Number(rowVal) <= Number(val);
-    if (op === '>') return Number(rowVal) > Number(val);
-    if (op === '<') return Number(rowVal) < Number(val);
+    if (op === 'not in') {
+      return !paramValues.includes(rowVal);
+    }
+    if (op === '>=') return Number(rowVal) >= Number(paramValues[0]);
+    if (op === '<=') return Number(rowVal) <= Number(paramValues[0]);
+    if (op === '>') return Number(rowVal) > Number(paramValues[0]);
+    if (op === '<') return Number(rowVal) < Number(paramValues[0]);
   }
 
   return true;
@@ -289,6 +383,37 @@ export class MockSelectQueryBuilder {
       rows = rows.filter(row => evaluateCondition(row, this.whereCondition));
     }
 
+    // Apply orderBys
+    if (this.orderBys.length > 0) {
+      for (const ord of this.orderBys) {
+        let colName: string | null = null;
+        let isDesc = false;
+        if (ord && ord.queryChunks) {
+          for (const chunk of ord.queryChunks) {
+            const name = getColumnName(chunk);
+            if (name) colName = name;
+            const text = String(chunk?.value ?? chunk ?? '').toLowerCase();
+            if (text.includes('desc')) isDesc = true;
+          }
+        } else if (ord) {
+          colName = getColumnName(ord);
+        }
+
+        if (colName) {
+          const camel = colName.replace(/_([a-z0-9])/g, (_, c) => c.toUpperCase());
+          rows.sort((a, b) => {
+            const valA = a[colName] !== undefined ? a[colName] : a[camel];
+            const valB = b[colName] !== undefined ? b[colName] : b[camel];
+            if (valA === valB) return 0;
+            if (valA === undefined || valA === null) return 1;
+            if (valB === undefined || valB === null) return -1;
+            const cmp = valA > valB ? 1 : -1;
+            return isDesc ? -cmp : cmp;
+          });
+        }
+      }
+    }
+
     // Apply limit
     if (this.limitCount !== undefined) {
       rows = rows.slice(0, this.limitCount);
@@ -349,6 +474,7 @@ export class MockSelectQueryBuilder {
 export class MockInsertBuilder {
   private tableName: string;
   private insertValues: any[] = [];
+  private doNothingOnConflict = false;
 
   constructor(table: any) {
     this.tableName = getTableName(table);
@@ -363,11 +489,27 @@ export class MockInsertBuilder {
     return this;
   }
 
+  onConflictDoNothing() {
+    this.doNothingOnConflict = true;
+    return this;
+  }
+
   async execute(): Promise<any[]> {
     const table = inMemoryStore.getTable(this.tableName);
     const insertedItems: any[] = [];
 
     for (const val of this.insertValues) {
+      if (this.doNothingOnConflict) {
+        const existing = table.find(
+          (item: any) =>
+            (val.id && item.id === val.id) ||
+            (val.email && item.email && item.email.toLowerCase() === val.email.toLowerCase())
+        );
+        if (existing) {
+          continue;
+        }
+      }
+
       const item = {
         id: val.id || crypto.randomUUID(),
         ...val,
@@ -450,6 +592,10 @@ export class MockDeleteBuilder {
 
   where(condition: any) {
     this.whereCondition = condition;
+    return this;
+  }
+
+  returning() {
     return this;
   }
 

@@ -1,8 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 import { db } from '@/db';
 import { users } from '@/db/schema';
+import { inArray } from 'drizzle-orm';
 
 const mockUserId = '55555555-5555-5555-5555-555555555555';
+const createdUserIds: string[] = [mockUserId];
 const mockSupabaseAuth = {
   getUser: vi.fn(),
 };
@@ -69,6 +71,7 @@ describe('Unified Server-Side Auth User Retrieval (getAuthenticatedUser)', () =>
   it('returns authenticated admin identity and resolves role = admin', async () => {
     const adminEmail = `admin-header-${Date.now()}@dreampath.my`;
     const adminId = crypto.randomUUID();
+    createdUserIds.push(adminId);
 
     await db.insert(users).values({
       id: adminId,
@@ -97,6 +100,7 @@ describe('Unified Server-Side Auth User Retrieval (getAuthenticatedUser)', () =>
   it('falls back gracefully to email username when full_name is omitted', async () => {
     const emailOnly = `norazlan-${Date.now()}@gmail.com`;
     const userId = crypto.randomUUID();
+    createdUserIds.push(userId);
 
     await db.insert(users).values({
       id: userId,
@@ -118,5 +122,15 @@ describe('Unified Server-Side Auth User Retrieval (getAuthenticatedUser)', () =>
     const user = await getAuthenticatedUser();
     expect(user).not.toBeNull();
     expect(user?.name).toBe(emailOnly.split('@')[0]);
+  });
+
+  afterAll(async () => {
+    try {
+      if (createdUserIds.length > 0) {
+        await db.delete(users).where(inArray(users.id, createdUserIds));
+      }
+    } catch {
+      // Best-effort cleanup
+    }
   });
 });

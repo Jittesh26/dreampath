@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest';
 import { NextRequest } from 'next/server';
 
 // Mock next/navigation
@@ -50,7 +50,9 @@ import { login, register, logout } from '@/app/actions/auth';
 import { requireAdmin } from '@/app/actions/admin';
 import { db } from '@/db';
 import { users } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { eq, inArray } from 'drizzle-orm';
+
+const createdUserIds: string[] = [];
 
 describe('DreamPath Phase 0 — Authentication Security Hardening', () => {
   beforeEach(() => {
@@ -106,6 +108,7 @@ describe('DreamPath Phase 0 — Authentication Security Hardening', () => {
     it('defaults newly registered users with admin in email to student role', async () => {
       const adminLookingEmail = `admin-candidate-${Date.now()}@dreampath.my`;
       const generatedUserId = crypto.randomUUID();
+      createdUserIds.push(generatedUserId);
 
       mockSupabaseAuth.signUp.mockResolvedValueOnce({
         data: {
@@ -138,6 +141,7 @@ describe('DreamPath Phase 0 — Authentication Security Hardening', () => {
     it('redirects an authenticated user with admin in email to /student if their DB role is student', async () => {
       const studentId = crypto.randomUUID();
       const studentEmail = `admin-lookalike-${Date.now()}@example.com`;
+      createdUserIds.push(studentId);
 
       await db.insert(users).values({
         id: studentId,
@@ -235,6 +239,7 @@ describe('DreamPath Phase 0 — Authentication Security Hardening', () => {
     it('allows access to requireAdmin when Supabase user has role = admin in DB', async () => {
       const adminId = crypto.randomUUID();
       const adminEmail = `verified-admin-${Date.now()}@dreampath.my`;
+      createdUserIds.push(adminId);
 
       await db.insert(users).values({
         id: adminId,
@@ -258,6 +263,7 @@ describe('DreamPath Phase 0 — Authentication Security Hardening', () => {
     it('blocks legitimate Supabase student from passing requireAdmin', async () => {
       const studentId = crypto.randomUUID();
       const studentEmail = `verified-student-${Date.now()}@dreampath.my`;
+      createdUserIds.push(studentId);
 
       await db.insert(users).values({
         id: studentId,
@@ -344,5 +350,11 @@ describe('DreamPath Phase 0 — Authentication Security Hardening', () => {
       expect(response.status).toBe(307);
       expect(response.headers.get('location')).toBe('http://localhost:3000/student');
     });
+  });
+
+  afterAll(async () => {
+    if (createdUserIds.length > 0) {
+      await db.delete(users).where(inArray(users.id, createdUserIds));
+    }
   });
 });

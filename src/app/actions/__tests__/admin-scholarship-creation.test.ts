@@ -145,5 +145,6 @@ describe('Admin Complete Scholarship Management', () => {
     await db.delete(intakes).where(eq(intakes.id, intakeId));
     await db.delete(scholarships).where(eq(scholarships.id, scholarshipId));
     await db.delete(providers).where(eq(providers.id, fetchedScholarship.providers.id));
+    await db.delete(users).where(eq(users.id, mockAdminId));
   });
 });
