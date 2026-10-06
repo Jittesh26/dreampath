@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Mic,
   MicOff,
@@ -8,14 +8,21 @@ import {
   Loader2,
   CheckCircle2,
   RotateCcw,
+  ArrowRight,
+  Award,
+  Sparkles,
+  AlertCircle,
+  HelpCircle,
 } from 'lucide-react';
 
 import { PageHeader } from '@/components/design-system';
-
-interface Message {
-  role: 'interviewer' | 'student';
-  content: string;
-}
+import {
+  getAdaptiveQuestionBank,
+  InterviewFeedback,
+  InterviewFinalReport,
+  InterviewRound,
+  InterviewCategory,
+} from '@/domain/interview-simulator';
 
 const SCHOLARSHIPS = [
   { name: 'Gamuda Scholarship', provider: 'Gamuda Berhad' },
@@ -25,18 +32,85 @@ const SCHOLARSHIPS = [
   { name: 'JPA Program Ijazah Dalam Negara (PIDN)', provider: 'Jabatan Perkhidmatan Awam' },
 ];
 
+const TOTAL_QUESTIONS = 5;
+
 export default function InterviewPracticePage() {
   const [selectedScholarship, setSelectedScholarship] = useState(SCHOLARSHIPS[0]);
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: 'interviewer',
-      content: `Welcome to your mock interview panel for the ${SCHOLARSHIPS[0].name}. Please introduce yourself, your academic background, and why you are applying for this scholarship.`,
-    },
-  ]);
+  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(1);
+  const [stage, setStage] = useState<'answering' | 'reviewing' | 'completed'>('answering');
+  const [currentQuestion, setCurrentQuestion] = useState(
+    getAdaptiveQuestionBank(SCHOLARSHIPS[0].name)[0].question
+  );
+  const [currentCategory, setCurrentCategory] = useState<InterviewCategory>('introduction');
   const [inputAnswer, setInputAnswer] = useState('');
   const [isRecording, setIsRecording] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [feedback, setFeedback] = useState<any>(null);
+  const [isLoadingNext, setIsLoadingNext] = useState(false);
+
+  // Current round feedback & history
+  const [currentFeedback, setCurrentFeedback] = useState<InterviewFeedback | null>(null);
+  const [rounds, setRounds] = useState<InterviewRound[]>([]);
+  const [askedQuestions, setAskedQuestions] = useState<string[]>([
+    getAdaptiveQuestionBank(SCHOLARSHIPS[0].name)[0].question,
+  ]);
+  const [finalReport, setFinalReport] = useState<InterviewFinalReport | null>(null);
+
+  // Restore session from sessionStorage on client mount
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      try {
+        const saved = sessionStorage.getItem('dreampath_interview_sim_session');
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.scholarshipName) {
+            const matched = SCHOLARSHIPS.find((s) => s.name === parsed.scholarshipName) || SCHOLARSHIPS[0];
+            setSelectedScholarship(matched);
+          }
+          if (parsed.currentQuestionIndex) setCurrentQuestionIndex(parsed.currentQuestionIndex);
+          if (parsed.stage) setStage(parsed.stage);
+          if (parsed.currentQuestion) setCurrentQuestion(parsed.currentQuestion);
+          if (parsed.currentCategory) setCurrentCategory(parsed.currentCategory);
+          if (parsed.currentFeedback) setCurrentFeedback(parsed.currentFeedback);
+          if (Array.isArray(parsed.rounds)) setRounds(parsed.rounds);
+          if (Array.isArray(parsed.askedQuestions)) setAskedQuestions(parsed.askedQuestions);
+          if (parsed.finalReport) setFinalReport(parsed.finalReport);
+        }
+      } catch {
+        // ignore
+      }
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  // Save state to sessionStorage
+  useEffect(() => {
+    try {
+      const dataToSave = {
+        scholarshipName: selectedScholarship.name,
+        currentQuestionIndex,
+        stage,
+        currentQuestion,
+        currentCategory,
+        currentFeedback,
+        rounds,
+        askedQuestions,
+        finalReport,
+      };
+      sessionStorage.setItem('dreampath_interview_sim_session', JSON.stringify(dataToSave));
+    } catch {
+      // ignore
+    }
+  }, [
+    selectedScholarship,
+    currentQuestionIndex,
+    stage,
+    currentQuestion,
+    currentCategory,
+    currentFeedback,
+    rounds,
+    askedQuestions,
+    finalReport,
+  ]);
 
   // Web Speech API Voice Recognition with graceful fallback
   const toggleVoiceRecording = () => {
@@ -75,18 +149,26 @@ export default function InterviewPracticePage() {
     }
   };
 
+  /**
+   * 1. Submit Answer -> Evaluates answer honestly -> Displays review (does NOT fetch next question yet)
+   */
   const handleSendAnswer = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputAnswer.trim() || isSubmitting) return;
 
-    const userText = inputAnswer;
-    setInputAnswer('');
-    const newHistory: Message[] = [...messages, { role: 'student', content: userText }];
-    setMessages(newHistory);
+    const userText = inputAnswer.trim();
     setIsSubmitting(true);
 
     try {
-      // 1. Evaluate the answer
+      const questionHistory = [
+        ...rounds.flatMap((r) => [
+          { role: 'interviewer' as const, content: r.question },
+          { role: 'student' as const, content: r.answer || '' },
+        ]),
+        { role: 'interviewer' as const, content: currentQuestion },
+        { role: 'student' as const, content: userText },
+      ];
+
       const evalRes = await fetch('/api/ai/interview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -94,16 +176,91 @@ export default function InterviewPracticePage() {
           action: 'evaluate_answer',
           scholarshipName: selectedScholarship.name,
           providerName: selectedScholarship.provider,
-          questionHistory: newHistory,
+          questionHistory,
           currentAnswer: userText,
+          askedQuestions,
+          rounds,
         }),
       });
-      const evalData = await evalRes.json();
-      if (evalData.feedback) {
-        setFeedback(evalData.feedback);
-      }
 
-      // 2. Fetch the next panel question
+      const evalData = await evalRes.json();
+      const feedback: InterviewFeedback = evalData.feedback || {
+        clarityScore: 7,
+        structureScore: 7,
+        starMethodUsed: false,
+        overallAssessment:
+          'Your answer was received and reviewed by the panel. Strengthen your response by citing concrete results and connecting back to the sponsor values.',
+        strengths: ['Direct response to the prompt', 'Courteous and clear tone'],
+        improvements: ['Quantify outcomes with numbers or timeframes', 'Use the STAR format explicitly'],
+        interviewerImpression: 'The panel finds your potential sincere but seeks deeper empirical evidence.',
+        improvementGuidance: 'Give a specific real-world example highlighting the exact action you took.',
+      };
+
+      setCurrentFeedback(feedback);
+
+      // Save round
+      const updatedRound: InterviewRound = {
+        questionNumber: currentQuestionIndex,
+        category: currentCategory,
+        question: currentQuestion,
+        answer: userText,
+        feedback,
+      };
+
+      setRounds((prev) => [...prev, updatedRound]);
+      setStage('reviewing');
+    } catch {
+      // fallback feedback
+      const fallbackFeedback: InterviewFeedback = {
+        clarityScore: 7,
+        structureScore: 7,
+        starMethodUsed: false,
+        overallAssessment:
+          'Your answer was recorded. Focus on incorporating quantifiable results and concrete project experiences.',
+        strengths: ['Addressed the main question prompt', 'Professional demeanor'],
+        improvements: ['Include quantifiable metrics', 'Relate aspirations back to the provider'],
+        interviewerImpression: 'A solid initial answer that would benefit from more concrete proof points.',
+        improvementGuidance: 'Highlight specific outcomes you achieved in your studies or extracurriculars.',
+      };
+      setCurrentFeedback(fallbackFeedback);
+      setRounds((prev) => [
+        ...prev,
+        {
+          questionNumber: currentQuestionIndex,
+          category: currentCategory,
+          question: currentQuestion,
+          answer: userText,
+          feedback: fallbackFeedback,
+        },
+      ]);
+      setStage('reviewing');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  /**
+   * 2. Continue Interview -> Fetches the NEXT UNIQUE question only AFTER review is read
+   */
+  const handleContinueInterview = async () => {
+    if (isLoadingNext) return;
+
+    // Check if reached max questions: proceed to final evaluation
+    if (currentQuestionIndex >= TOTAL_QUESTIONS) {
+      await handleCompleteInterview();
+      return;
+    }
+
+    setIsLoadingNext(true);
+
+    try {
+      const questionHistory = rounds.flatMap((r) => [
+        { role: 'interviewer' as const, content: r.question },
+        { role: 'student' as const, content: r.answer || '' },
+      ]);
+
+      const lastAnswer = rounds[rounds.length - 1]?.answer || '';
+
       const nextQRes = await fetch('/api/ai/interview', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -111,33 +268,91 @@ export default function InterviewPracticePage() {
           action: 'next_question',
           scholarshipName: selectedScholarship.name,
           providerName: selectedScholarship.provider,
-          questionHistory: newHistory,
+          questionHistory,
+          askedQuestions,
+          currentAnswer: lastAnswer,
+          rounds,
         }),
       });
+
       const nextQData = await nextQRes.json();
-      if (nextQData.nextQuestion) {
-        setMessages((prev) => [
-          ...prev,
-          { role: 'interviewer', content: nextQData.nextQuestion },
-        ]);
-      }
+      const nextQ =
+        nextQData.nextQuestion ||
+        `Looking forward, how will your academic achievements enable you to contribute to Malaysia's development?`;
+
+      // Update session state
+      setCurrentQuestion(nextQ);
+      setCurrentCategory(nextQData.category || 'project_experience');
+      setAskedQuestions((prev) => [...prev, nextQ]);
+      setCurrentQuestionIndex((prev) => prev + 1);
+      setInputAnswer('');
+      setCurrentFeedback(null);
+      setStage('answering');
     } catch {
       // fallback
+      const nextBankQ =
+        getAdaptiveQuestionBank(selectedScholarship.name)[currentQuestionIndex]?.question ||
+        `Where do you see yourself five years post-graduation within Malaysia's developing economy?`;
+
+      setCurrentQuestion(nextBankQ);
+      setAskedQuestions((prev) => [...prev, nextBankQ]);
+      setCurrentQuestionIndex((prev) => prev + 1);
+      setInputAnswer('');
+      setCurrentFeedback(null);
+      setStage('answering');
     } finally {
-      setIsSubmitting(false);
+      setIsLoadingNext(false);
     }
   };
 
+  /**
+   * 3. End of interview -> Produces final overall evaluation report
+   */
+  const handleCompleteInterview = async () => {
+    setIsLoadingNext(true);
+    try {
+      const res = await fetch('/api/ai/interview', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'final_evaluation',
+          scholarshipName: selectedScholarship.name,
+          providerName: selectedScholarship.provider,
+          rounds,
+        }),
+      });
+      const data = await res.json();
+      if (data.finalReport) {
+        setFinalReport(data.finalReport);
+      }
+      setStage('completed');
+    } catch {
+      setStage('completed');
+    } finally {
+      setIsLoadingNext(false);
+    }
+  };
+
+  /**
+   * Reset session completely
+   */
   const resetInterview = (scholarship = selectedScholarship) => {
     setSelectedScholarship(scholarship);
-    setMessages([
-      {
-        role: 'interviewer',
-        content: `Welcome to your mock interview panel for the ${scholarship.name}. Please introduce yourself, your academic background, and why you are applying for this scholarship.`,
-      },
-    ]);
-    setFeedback(null);
+    const initialQuestion = getAdaptiveQuestionBank(scholarship.name)[0].question;
+    setCurrentQuestionIndex(1);
+    setCurrentQuestion(initialQuestion);
+    setCurrentCategory('introduction');
+    setCurrentFeedback(null);
+    setRounds([]);
+    setAskedQuestions([initialQuestion]);
+    setFinalReport(null);
     setInputAnswer('');
+    setStage('answering');
+    try {
+      sessionStorage.removeItem('dreampath_interview_sim_session');
+    } catch {
+      // ignore
+    }
   };
 
   return (
@@ -155,7 +370,7 @@ export default function InterviewPracticePage() {
           <button
             type="button"
             onClick={() => resetInterview()}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-2xs"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shadow-2xs cursor-pointer"
           >
             <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
             <span>Reset Session</span>
@@ -175,7 +390,7 @@ export default function InterviewPracticePage() {
               const matched = SCHOLARSHIPS.find((s) => s.name === e.target.value);
               if (matched) resetInterview(matched);
             }}
-            className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600"
+            className="px-3.5 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 cursor-pointer"
           >
             {SCHOLARSHIPS.map((s) => (
               <option key={s.name} value={s.name}>
@@ -187,131 +402,404 @@ export default function InterviewPracticePage() {
 
         <div className="text-xs text-slate-500 font-medium flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-200/60">
           <span className="inline-block w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span>Panel active: <strong className="text-slate-900">{selectedScholarship.provider}</strong></span>
+          <span>
+            Panel active: <strong className="text-slate-900">{selectedScholarship.provider}</strong>
+          </span>
         </div>
       </div>
 
       {/* Interview Dialogue Box */}
-      <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-4">
+      <div className="bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs space-y-5">
         <div className="flex items-center justify-between pb-3 border-b border-slate-100 text-xs">
-          <span className="font-bold text-slate-900">
-            Interview Stream — {selectedScholarship.name}
-          </span>
+          <div className="flex items-center gap-2">
+            <span className="font-bold text-slate-900">
+              Mock Panel Stream — {selectedScholarship.name}
+            </span>
+            <span className="px-2 py-0.5 bg-blue-50 text-blue-700 font-bold text-[10px] rounded-full border border-blue-200/60">
+              {stage === 'completed' ? 'Interview Completed' : `Question ${currentQuestionIndex} of ${TOTAL_QUESTIONS}`}
+            </span>
+          </div>
           <span className="text-slate-400 font-mono text-[11px] font-semibold">
-            {messages.filter((m) => m.role === 'student').length} answers submitted
+            {rounds.length} answers evaluated
           </span>
         </div>
 
-        {/* Message Stream */}
-        <div className="space-y-4 max-h-96 overflow-y-auto pr-1">
-          {messages.map((m, idx) => (
-            <div
-              key={idx}
-              className={`p-4 rounded-xl text-xs leading-relaxed transition-all ${
-                m.role === 'interviewer'
-                  ? 'bg-slate-50 border border-slate-200/90 text-slate-800'
-                  : 'bg-blue-50/60 border border-blue-200/90 text-slate-900 ml-4 sm:ml-8'
-              }`}
-            >
-              <div className="flex items-center justify-between mb-1.5 text-[11px] font-bold tracking-wide">
-                <span className={m.role === 'interviewer' ? 'text-slate-900 uppercase text-[10px] tracking-wider' : 'text-blue-700 uppercase text-[10px] tracking-wider'}>
-                  {m.role === 'interviewer' ? 'Official Panel Question' : 'Your Response'}
+        {/* Previous Completed Rounds (Scrollable history) */}
+        {rounds.length > 0 && stage !== 'completed' && (
+          <div className="space-y-4 max-h-72 overflow-y-auto pr-1 border-b border-slate-100 pb-4">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 px-1">
+              Previous Interview Rounds
+            </p>
+            {rounds.slice(0, currentQuestionIndex - 1).map((r, idx) => (
+              <div key={idx} className="space-y-2 border-l-2 border-slate-200 pl-3">
+                <div className="p-3 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-800">
+                  <span className="text-[10px] font-bold text-slate-500 block uppercase mb-1">
+                    Question {r.questionNumber} of {TOTAL_QUESTIONS}
+                  </span>
+                  <p>{r.question}</p>
+                </div>
+                {r.answer && (
+                  <div className="p-3 bg-blue-50/50 border border-blue-200/70 rounded-xl text-xs text-slate-900 ml-4">
+                    <span className="text-[10px] font-bold text-blue-700 block uppercase mb-1">
+                      Your Response
+                    </span>
+                    <p className="whitespace-pre-wrap">{r.answer}</p>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Current Active Round (when not completed) */}
+        {stage !== 'completed' && (
+          <div className="space-y-4">
+            {/* Current Panel Question */}
+            <div className="p-4.5 rounded-xl text-xs leading-relaxed bg-slate-50 border border-slate-200/90 text-slate-800 shadow-2xs">
+              <div className="flex items-center justify-between mb-2 text-[11px] font-bold tracking-wide">
+                <span className="text-slate-900 uppercase text-[10px] tracking-wider flex items-center gap-1.5 font-bold">
+                  <span className="w-2 h-2 rounded-full bg-blue-600 inline-block" />
+                  Official Panel Question • Question {currentQuestionIndex} of {TOTAL_QUESTIONS}
+                </span>
+                <span className="text-slate-400 font-mono text-[10px]">
+                  Mock Panel Coach
                 </span>
               </div>
-              <p className="whitespace-pre-wrap">{m.content}</p>
-            </div>
-          ))}
-
-          {isSubmitting && (
-            <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-500 flex items-center gap-2">
-              <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
-              <span>Evaluating your response against panel rubrics...</span>
-            </div>
-          )}
-        </div>
-
-        {/* Live Answer Feedback Card if present */}
-        {feedback && (
-          <div className="p-4.5 bg-emerald-50/70 border border-emerald-200/90 rounded-xl space-y-2.5 text-xs animate-in fade-in duration-150">
-            <div className="flex items-center justify-between border-b border-emerald-200/60 pb-2">
-              <span className="font-bold text-emerald-950 flex items-center gap-1.5">
-                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                Panel Evaluation Feedback
-              </span>
-              <div className="flex items-center gap-3 font-mono text-[11px] font-bold text-emerald-900">
-                <span>Clarity: {feedback.clarityScore}/10</span>
-                <span>•</span>
-                <span>Structure: {feedback.structureScore}/10</span>
-              </div>
+              <p className="text-slate-900 text-sm font-medium leading-relaxed">
+                {currentQuestion}
+              </p>
             </div>
 
-            {feedback.strengths && feedback.strengths.length > 0 && (
-              <div>
-                <strong className="text-emerald-900 block text-[11px] uppercase tracking-wider mb-1 font-bold">Key Strengths:</strong>
-                <ul className="list-disc list-inside text-emerald-900 space-y-0.5 font-medium">
-                  {feedback.strengths.map((s: string, i: number) => (
-                    <li key={i}>{s}</li>
-                  ))}
-                </ul>
+            {/* In 'reviewing' stage: show student's submitted answer */}
+            {stage === 'reviewing' && rounds[rounds.length - 1]?.answer && (
+              <div className="p-4 rounded-xl text-xs leading-relaxed bg-blue-50/60 border border-blue-200/90 text-slate-900 ml-4 sm:ml-8 animate-in fade-in duration-150">
+                <div className="flex items-center justify-between mb-1.5 text-[11px] font-bold tracking-wide">
+                  <span className="text-blue-700 uppercase text-[10px] tracking-wider font-bold">
+                    Your Response
+                  </span>
+                </div>
+                <p className="whitespace-pre-wrap font-normal leading-relaxed">
+                  {rounds[rounds.length - 1].answer}
+                </p>
               </div>
             )}
 
-            {feedback.improvements && feedback.improvements.length > 0 && (
-              <div>
-                <strong className="text-amber-950 block text-[11px] uppercase tracking-wider mb-1 font-bold">Refinement Opportunities:</strong>
-                <ul className="list-disc list-inside text-amber-900 space-y-0.5 font-medium">
-                  {feedback.improvements.map((imp: string, i: number) => (
-                    <li key={i}>{imp}</li>
-                  ))}
-                </ul>
+            {/* Loading indicator during evaluation */}
+            {isSubmitting && (
+              <div className="p-4 bg-slate-50 border border-slate-200/80 rounded-xl text-xs text-slate-600 flex items-center gap-2 animate-pulse">
+                <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                <span>Evaluating your response against panel rubrics...</span>
               </div>
             )}
 
-            {feedback.sampleBetterAnswer && (
-              <div className="p-3 bg-white border border-emerald-200/90 rounded-lg text-slate-700 mt-2">
-                <strong className="text-slate-900 block text-[11px] mb-1 font-bold">Suggested Model Phrasing:</strong>
-                <p className="italic text-slate-600 text-xs leading-relaxed">{feedback.sampleBetterAnswer}</p>
+            {/* Live Honest Answer Feedback Card */}
+            {stage === 'reviewing' && currentFeedback && (
+              <div className="p-5 bg-emerald-50/70 border border-emerald-200/90 rounded-xl space-y-4 text-xs animate-in fade-in duration-150">
+                {/* Header & Scores */}
+                <div className="flex items-center justify-between border-b border-emerald-200/60 pb-3">
+                  <span className="font-bold text-emerald-950 flex items-center gap-1.5 text-sm">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    Panel Evaluation Feedback
+                  </span>
+                  <div className="flex items-center gap-3 font-mono text-[11px] font-bold text-emerald-900">
+                    <span className="bg-emerald-100/70 px-2 py-0.5 rounded-md">
+                      Clarity: {currentFeedback.clarityScore}/10
+                    </span>
+                    <span className="bg-emerald-100/70 px-2 py-0.5 rounded-md">
+                      Structure: {currentFeedback.structureScore}/10
+                    </span>
+                    {currentFeedback.starMethodUsed && (
+                      <span className="bg-blue-100 text-blue-800 px-2 py-0.5 rounded-md">
+                        STAR Applied
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Overall Assessment */}
+                {currentFeedback.overallAssessment && (
+                  <div className="text-emerald-950 leading-relaxed font-medium bg-white/70 p-3 rounded-lg border border-emerald-200/50">
+                    <strong className="block text-[11px] uppercase tracking-wider text-emerald-900 mb-1 font-bold">
+                      Overall Assessment:
+                    </strong>
+                    <p>{currentFeedback.overallAssessment}</p>
+                  </div>
+                )}
+
+                {/* Key Strengths (2-4 points) */}
+                {currentFeedback.strengths && currentFeedback.strengths.length > 0 && (
+                  <div>
+                    <strong className="text-emerald-900 block text-[11px] uppercase tracking-wider mb-1.5 font-bold flex items-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                      What You Did Well:
+                    </strong>
+                    <ul className="list-disc list-inside text-emerald-950 space-y-1 font-medium pl-1">
+                      {currentFeedback.strengths.map((s: string, i: number) => (
+                        <li key={i}>{s}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Refinement Opportunities (2-4 points) */}
+                {currentFeedback.improvements && currentFeedback.improvements.length > 0 && (
+                  <div>
+                    <strong className="text-amber-950 block text-[11px] uppercase tracking-wider mb-1.5 font-bold flex items-center gap-1">
+                      <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                      What Could Be Improved:
+                    </strong>
+                    <ul className="list-disc list-inside text-amber-900 space-y-1 font-medium pl-1">
+                      {currentFeedback.improvements.map((imp: string, i: number) => (
+                        <li key={i}>{imp}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {/* Interviewer's Impression */}
+                {currentFeedback.interviewerImpression && (
+                  <div className="bg-slate-50/80 p-3 rounded-lg border border-slate-200/70 text-slate-800">
+                    <strong className="block text-[11px] uppercase tracking-wider text-slate-700 mb-1 font-bold flex items-center gap-1">
+                      <HelpCircle className="w-3.5 h-3.5 text-slate-500" />
+                      Interviewer&apos;s Impression:
+                    </strong>
+                    <p className="leading-relaxed">{currentFeedback.interviewerImpression}</p>
+                  </div>
+                )}
+
+                {/* Practical Improvement Guidance */}
+                {currentFeedback.improvementGuidance && (
+                  <div className="text-slate-700 leading-relaxed">
+                    <strong className="block text-[11px] uppercase tracking-wider text-slate-900 mb-1 font-bold">
+                      How to Make It Stronger:
+                    </strong>
+                    <p>{currentFeedback.improvementGuidance}</p>
+                  </div>
+                )}
+
+                {/* Suggested Model Phrasing (if provided) */}
+                {currentFeedback.sampleBetterAnswer && (
+                  <div className="p-3.5 bg-white border border-emerald-200/90 rounded-xl text-slate-700 mt-2 shadow-2xs">
+                    <strong className="text-slate-900 block text-[11px] mb-1 font-bold">
+                      Suggested Direction / Phrasing Example:
+                    </strong>
+                    <p className="italic text-slate-600 text-xs leading-relaxed">
+                      &ldquo;{currentFeedback.sampleBetterAnswer}&rdquo;
+                    </p>
+                  </div>
+                )}
+
+                {/* Continue Interview Button (Transitions only after student reviews) */}
+                <div className="pt-2 border-t border-emerald-200/60 flex items-center justify-end">
+                  <button
+                    type="button"
+                    onClick={handleContinueInterview}
+                    disabled={isLoadingNext}
+                    className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl inline-flex items-center gap-2 transition-all shadow-xs cursor-pointer disabled:opacity-50"
+                  >
+                    {isLoadingNext ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        <span>Preparing Next Question...</span>
+                      </>
+                    ) : (
+                      <>
+                        <span>
+                          {currentQuestionIndex < TOTAL_QUESTIONS
+                            ? `Continue Interview (Question ${currentQuestionIndex + 1} of ${TOTAL_QUESTIONS})`
+                            : 'View Final Interview Evaluation'}
+                        </span>
+                        <ArrowRight className="w-3.5 h-3.5" />
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
+            )}
+
+            {/* Answer Input Area (Only active during 'answering' stage) */}
+            {stage === 'answering' && (
+              <form onSubmit={handleSendAnswer} className="space-y-3 pt-3 border-t border-slate-100">
+                <div>
+                  <textarea
+                    rows={4}
+                    value={inputAnswer}
+                    onChange={(e) => setInputAnswer(e.target.value)}
+                    placeholder="Type your response using the STAR method (Situation, Task, Action, Result)... Mention concrete examples, project names, and specific achievements."
+                    disabled={isSubmitting}
+                    className="w-full p-3.5 bg-slate-50/80 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 placeholder:text-slate-400 leading-relaxed resize-y font-normal"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={toggleVoiceRecording}
+                    className={`px-3 py-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                      isRecording
+                        ? 'bg-rose-50 border-rose-300 text-rose-700 animate-pulse'
+                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-2xs'
+                    }`}
+                  >
+                    {isRecording ? <MicOff className="w-4 h-4 text-rose-600" /> : <Mic className="w-4 h-4 text-slate-500" />}
+                    <span>{isRecording ? 'Listening... Click to stop' : 'Voice Input'}</span>
+                  </button>
+
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || !inputAnswer.trim()}
+                    className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all disabled:opacity-50 shadow-xs cursor-pointer"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Submit Answer</span>
+                  </button>
+                </div>
+              </form>
             )}
           </div>
         )}
 
-        {/* Answer Input Bar */}
-        <form onSubmit={handleSendAnswer} className="space-y-3 pt-3 border-t border-slate-100">
-          <div>
-            <textarea
-              rows={3}
-              value={inputAnswer}
-              onChange={(e) => setInputAnswer(e.target.value)}
-              placeholder="Type your response using the STAR method (Situation, Task, Action, Result)..."
-              className="w-full p-3.5 bg-slate-50/80 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 placeholder:text-slate-400 leading-relaxed resize-y font-normal"
-            />
-          </div>
+        {/* End-of-Interview Comprehensive Final Evaluation Report */}
+        {stage === 'completed' && (
+          <div className="space-y-5 animate-in fade-in duration-200">
+            <div className="p-6 bg-slate-50/90 border border-slate-200/90 rounded-2xl space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-blue-50 border border-blue-200/70 text-blue-700 flex items-center justify-center">
+                    <Award className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold text-slate-950">
+                      Overall Interview Performance Report
+                    </h3>
+                    <p className="text-[11px] text-slate-500">
+                      Mock Panel Evaluation for {selectedScholarship.name} ({selectedScholarship.provider})
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold uppercase tracking-wider bg-slate-200/70 text-slate-700 px-2.5 py-1 rounded-full">
+                  Practice Session Completed
+                </span>
+              </div>
 
-          <div className="flex items-center justify-between">
-            <button
-              type="button"
-              onClick={toggleVoiceRecording}
-              className={`px-3 py-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
-                isRecording
-                  ? 'bg-rose-50 border-rose-300 text-rose-700 animate-pulse'
-                  : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-2xs'
-              }`}
-            >
-              {isRecording ? <MicOff className="w-4 h-4 text-rose-600" /> : <Mic className="w-4 h-4 text-slate-500" />}
-              <span>{isRecording ? 'Listening... Click to stop' : 'Voice Input'}</span>
-            </button>
+              {/* Overall performance summary */}
+              <div className="p-4 bg-white rounded-xl border border-slate-200/70 text-xs text-slate-800 leading-relaxed">
+                <strong className="block text-[11px] uppercase tracking-wider text-slate-900 mb-1 font-bold">
+                  Executive Performance Summary:
+                </strong>
+                <p>
+                  {finalReport?.overallPerformance ||
+                    `You successfully completed all ${TOTAL_QUESTIONS} rounds of the mock scholarship interview. You exhibited genuine interest and strong commitment to your field of study.`}
+                </p>
+              </div>
 
-            <button
-              type="submit"
-              disabled={isSubmitting || !inputAnswer.trim()}
-              className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all disabled:opacity-50 shadow-xs cursor-pointer"
-            >
-              <Send className="w-3.5 h-3.5" />
-              <span>Submit Answer</span>
-            </button>
+              {/* Strongest Areas & Areas to Improve */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="p-4 bg-white rounded-xl border border-slate-200/70 text-xs space-y-2">
+                  <strong className="text-emerald-950 block text-[11px] uppercase tracking-wider font-bold flex items-center gap-1.5">
+                    <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                    Strongest Areas:
+                  </strong>
+                  <ul className="list-disc list-inside text-slate-700 space-y-1 font-medium">
+                    {(
+                      finalReport?.strongestAreas || [
+                        'Demonstrated authentic academic passion',
+                        'Structured narrative delivery',
+                        'Clear polite demeanor throughout',
+                      ]
+                    ).map((area, i) => (
+                      <li key={i}>{area}</li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="p-4 bg-white rounded-xl border border-slate-200/70 text-xs space-y-2">
+                  <strong className="text-amber-950 block text-[11px] uppercase tracking-wider font-bold flex items-center gap-1.5">
+                    <AlertCircle className="w-3.5 h-3.5 text-amber-600" />
+                    Key Areas to Improve:
+                  </strong>
+                  <ul className="list-disc list-inside text-slate-700 space-y-1 font-medium">
+                    {(
+                      finalReport?.areasToImprove || [
+                        'Quantify accomplishments with concrete numbers and timelines',
+                        'Deepen knowledge of the sponsor foundation’s core initiatives',
+                        'Keep answers focused to avoid preamble',
+                      ]
+                    ).map((area, i) => (
+                      <li key={i}>{area}</li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              {/* Rubric Evaluation Grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                <div className="p-3 bg-white rounded-xl border border-slate-200/70 text-xs">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
+                    Communication
+                  </span>
+                  <span className="font-bold text-slate-900">
+                    {finalReport?.communicationRating || 'Clear & Developing'}
+                  </span>
+                </div>
+                <div className="p-3 bg-white rounded-xl border border-slate-200/70 text-xs">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
+                    Answer Quality
+                  </span>
+                  <span className="font-bold text-slate-900">
+                    {finalReport?.answerQuality || 'Structured & Thoughtful'}
+                  </span>
+                </div>
+                <div className="p-3 bg-white rounded-xl border border-slate-200/70 text-xs">
+                  <span className="text-[10px] uppercase font-bold text-slate-400 block mb-0.5">
+                    Professionalism
+                  </span>
+                  <span className="font-bold text-slate-900">
+                    {finalReport?.professionalism || 'High — respectful & authentic'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Recommended Practice Areas */}
+              <div className="p-4 bg-white rounded-xl border border-slate-200/70 text-xs space-y-2">
+                <strong className="text-slate-900 block text-[11px] uppercase tracking-wider font-bold">
+                  Recommended Practice Areas Before Your Official Panel:
+                </strong>
+                <ul className="list-disc list-inside text-slate-700 space-y-1 font-medium">
+                  {(
+                    finalReport?.recommendedPracticeAreas || [
+                      'Prepare 3 go-to signature stories (1 technical project, 1 teamwork conflict, 1 personal setback) using the STAR framework',
+                      'Review the sponsor’s official sustainability or corporate impact report to cite specific ongoing initiatives',
+                      'Practice timed 90-second responses aloud to build concise delivery under panel scrutiny',
+                    ]
+                  ).map((rec, i) => (
+                    <li key={i}>{rec}</li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Practice Disclaimer */}
+              <div className="p-3 bg-slate-100/70 rounded-xl text-[11px] text-slate-500 flex items-start gap-2 border border-slate-200/50">
+                <span className="font-bold text-slate-700 shrink-0">Practice Simulator Note:</span>
+                <span>
+                  This session is an AI mock interview practice tool designed to strengthen your personal articulation and STAR structure. It does not represent an official assessment by {selectedScholarship.provider} or guarantee scholarship selection.
+                </span>
+              </div>
+
+              {/* Restart button */}
+              <div className="pt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => resetInterview()}
+                  className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl inline-flex items-center gap-2 transition-all shadow-xs cursor-pointer"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                  <span>Start Another Practice Session</span>
+                </button>
+              </div>
+            </div>
           </div>
-        </form>
+        )}
       </div>
     </div>
   );

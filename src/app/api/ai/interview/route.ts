@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   try {
     const body = await req.json();
-    const { action, scholarshipName, providerName, questionHistory, currentAnswer } = body;
+    const { action, scholarshipName, providerName, questionHistory, currentAnswer, askedQuestions, rounds } = body;
 
     const result = await aiInterviewSimulator({
       action: action || 'next_question',
@@ -17,6 +17,8 @@ export async function POST(req: NextRequest) {
       providerName: providerName || 'Scholarship Foundation',
       questionHistory: Array.isArray(questionHistory) ? questionHistory : [],
       currentAnswer,
+      askedQuestions: Array.isArray(askedQuestions) ? askedQuestions : undefined,
+      rounds: Array.isArray(rounds) ? rounds : undefined,
     });
 
     return NextResponse.json(result);

@@ -1,5 +1,15 @@
 import { aiRouter } from './router';
 import { GoogleGenAI } from '@google/genai';
+import {
+  isExactOrSemanticDuplicate,
+  selectNextUnusedQuestion,
+  generateDeterministicFeedback,
+  generateDeterministicFinalReport,
+  InterviewFeedback,
+  InterviewFinalReport,
+  InterviewRound,
+  InterviewCategory,
+} from '@/domain/interview-simulator';
 
 /**
  * Server-side Gemini AI Service for DreamPath
@@ -618,101 +628,207 @@ Rules:
  * Interactive mock interview roleplaying an official scholarship panel.
  */
 export async function aiInterviewSimulator(params: {
-  action: 'next_question' | 'evaluate_answer';
+  action: 'next_question' | 'evaluate_answer' | 'final_evaluation';
   scholarshipName: string;
   providerName: string;
   questionHistory: Array<{ role: 'interviewer' | 'student'; content: string }>;
   currentAnswer?: string;
+  askedQuestions?: string[];
+  rounds?: InterviewRound[];
 }): Promise<{
   nextQuestion?: string;
-  feedback?: {
-    clarityScore: number; // 1-10
-    structureScore: number; // 1-10
-    starMethodUsed: boolean;
-    strengths: string[];
-    improvements: string[];
-    sampleBetterAnswer: string;
-  };
+  category?: InterviewCategory;
+  feedback?: InterviewFeedback;
+  finalReport?: InterviewFinalReport;
 }> {
   const { action, scholarshipName, providerName, questionHistory, currentAnswer } = params;
   const ai = getAIClient();
 
-  if (!ai) {
-    if (action === 'next_question') {
-      const defaultQuestions = [
-        `Welcome to the ${scholarshipName} interview. Could you introduce yourself and explain why you chose this field of study?`,
-        `How do you plan to contribute to ${providerName}'s mission after graduating?`,
-        'Describe a significant challenge you faced in a team project and how you resolved it.',
-        'Where do you see yourself in five years within Malaysia’s developing economy?',
-      ];
-      const nextIdx = Math.min(questionHistory.filter(q => q.role === 'interviewer').length, defaultQuestions.length - 1);
-      return { nextQuestion: defaultQuestions[nextIdx] };
-    } else {
-      return {
-        feedback: {
-          clarityScore: 8,
-          structureScore: 7,
-          starMethodUsed: true,
-          strengths: ['Direct response to the prompt', 'Relevant academic focus'],
-          improvements: ['Quantify results using concrete data', 'Link personal aspirations back to provider values'],
-          sampleBetterAnswer: 'Use the STAR format: Situation, Task, Action you took, and the quantifiable Result achieved.',
-        },
-      };
+  // Aggregate all asked questions across all parameters to ensure zero duplicates
+  const explicitAsked = Array.isArray(params.askedQuestions) ? params.askedQuestions : [];
+  const historyAsked = (questionHistory || [])
+    .filter((q) => q.role === 'interviewer' && q.content)
+    .map((q) => q.content);
+  const roundsAsked = (params.rounds || []).map((r) => r.question);
+  const allAskedQuestions = Array.from(new Set([...explicitAsked, ...historyAsked, ...roundsAsked]));
+
+  const studentAnswers = (questionHistory || [])
+    .filter((q) => q.role === 'student')
+    .map((q) => q.content);
+  const lastStudentAnswer = currentAnswer || studentAnswers[studentAnswers.length - 1] || '';
+  const lastInterviewerQuestion = allAskedQuestions[allAskedQuestions.length - 1] || `Welcome to the ${scholarshipName} interview.`;
+
+  // Final evaluation report generation
+  if (action === 'final_evaluation') {
+    const rounds = params.rounds || [];
+    if (!ai) {
+      return { finalReport: generateDeterministicFinalReport(rounds, scholarshipName) };
+    }
+    try {
+      const prompt = `You are an executive scholarship selection panelist delivering a final interview performance review for a candidate who just completed a practice interview for the ${scholarshipName} (${providerName}).
+Candidate's complete interview trajectory:
+${JSON.stringify(rounds, null, 2)}
+
+Provide an honest, constructive final evaluation report in pure JSON:
+{
+  "finalReport": {
+    "overallPerformance": "Executive summary of interview readiness and maturity (3-4 sentences)",
+    "strongestAreas": ["Key strength 1", "Key strength 2", "Key strength 3"],
+    "areasToImprove": ["Area 1 needing concrete improvement", "Area 2", "Area 3"],
+    "communicationRating": "Rating label e.g. Strong & Articulate",
+    "answerQuality": "Rating label e.g. Well-Structured & Evidence-Based",
+    "specificityRating": "Rating label e.g. Good empirical grounding",
+    "professionalism": "Rating label e.g. High — respectful and authentic",
+    "scholarshipMotivation": "Assessment of genuine alignment with the scholarship mission",
+    "examplesAndEvidence": "Summary of STAR storytelling and concrete projects demonstrated",
+    "recommendedPracticeAreas": ["Practice recommendation 1", "Practice recommendation 2", "Practice recommendation 3"]
+  }
+}`;
+
+      const result = await aiRouter.generateText({
+        prompt,
+        systemPrompt: undefined,
+        jsonSchema: true,
+        timeoutMs: 8000,
+      });
+      if (result.error) throw new Error(result.error);
+      const parsed = JSON.parse(result.text?.trim() || '{}');
+      if (parsed.finalReport) return { finalReport: parsed.finalReport };
+      return { finalReport: generateDeterministicFinalReport(rounds, scholarshipName) };
+    } catch {
+      return { finalReport: generateDeterministicFinalReport(rounds, scholarshipName) };
     }
   }
 
-  try {
-    if (action === 'next_question') {
-      const prompt = `You are a distinguished panelist interviewing a Malaysian student for the ${scholarshipName} by ${providerName}.
+  // Next question generation with anti-duplicate enforcement
+  if (action === 'next_question') {
+    if (!ai) {
+      const fallback = selectNextUnusedQuestion({
+        scholarshipName,
+        askedQuestions: allAskedQuestions,
+        previousAnswer: lastStudentAnswer,
+      });
+      return { nextQuestion: fallback.question, category: fallback.category };
+    }
+
+    try {
+      const prompt = `You are a distinguished, realistic panelist interviewing a Malaysian student for the ${scholarshipName} by ${providerName}.
 Past interview dialogue:
 ${JSON.stringify(questionHistory, null, 2)}
 
-Provide the next realistic interview question in pure JSON:
+Questions ALREADY ASKED in this interview session (STRICT NEGATIVE CONSTRAINT: DO NOT repeat or ask semantically similar versions of any of these):
+${allAskedQuestions.map((q, i) => `${i + 1}. ${q}`).join('\n')}
+
+STRICT RULES:
+1. You MUST generate a NEW, UNIQUE interview question.
+2. DO NOT re-ask why the student chose this scholarship or re-ask their self-introduction.
+3. Advance to a distinct topic (e.g. follow up on a specific project or achievement mentioned by the student, ask about resolving teamwork conflict, overcoming an engineering/academic failure, or long-term vision for Malaysia).
+4. Return pure JSON:
 {
-  "nextQuestion": "The question text"
+  "nextQuestion": "The question text",
+  "category": "project_experience"
 }`;
 
       const result = await aiRouter.generateText({
-      prompt: prompt,
-      systemPrompt: undefined,
-      jsonSchema: true,
-      timeoutMs: 6000
-    });
-    if (result.error) throw new Error(result.error);
-    const response = { text: result.text };
-      return JSON.parse(response.text?.trim() || '{}');
-    } else {
-      const prompt = `You are a scholarship interview coach evaluating a student's answer for the ${scholarshipName} (${providerName}).
-Question and answer context:
-${JSON.stringify(questionHistory, null, 2)}
-Student's latest answer:
+        prompt,
+        systemPrompt: undefined,
+        jsonSchema: true,
+        timeoutMs: 6000,
+      });
+      if (result.error) throw new Error(result.error);
+      const parsed = JSON.parse(result.text?.trim() || '{}');
+      const candidate = parsed.nextQuestion?.trim();
+
+      if (candidate && !isExactOrSemanticDuplicate(candidate, allAskedQuestions)) {
+        return {
+          nextQuestion: candidate,
+          category: parsed.category || 'project_experience',
+        };
+      }
+
+      // Duplicate detected or empty: fallback to adaptive bank guaranteed unique
+      const fallback = selectNextUnusedQuestion({
+        scholarshipName,
+        askedQuestions: allAskedQuestions,
+        previousAnswer: lastStudentAnswer,
+      });
+      return { nextQuestion: fallback.question, category: fallback.category };
+    } catch {
+      const fallback = selectNextUnusedQuestion({
+        scholarshipName,
+        askedQuestions: allAskedQuestions,
+        previousAnswer: lastStudentAnswer,
+      });
+      return { nextQuestion: fallback.question, category: fallback.category };
+    }
+  }
+
+  // Answer evaluation (honest, realistic rubrics, no fake praise)
+  if (!ai) {
+    return {
+      feedback: generateDeterministicFeedback({
+        question: lastInterviewerQuestion,
+        answer: currentAnswer || '',
+        scholarshipName,
+        providerName,
+      }),
+    };
+  }
+
+  try {
+    const prompt = `You are an honest scholarship interview evaluator and coach for the ${scholarshipName} panel (${providerName}).
+Evaluate the student's answer constructively and honestly.
+DO NOT provide false or empty praise (e.g. "Excellent answer! Perfect!"). If the answer is generic, unevidenced, or brief, state so clearly.
+Evaluate what the student ACTUALLY said. Do not invent achievements or assume facts not stated.
+
+Question asked:
+"${lastInterviewerQuestion}"
+
+Student's answer:
 "${currentAnswer || ''}"
 
-Evaluate the answer. Return pure JSON:
+Return pure JSON:
 {
   "feedback": {
-    "clarityScore": 8,
-    "structureScore": 8,
-    "starMethodUsed": true,
-    "strengths": ["...", "..."],
-    "improvements": ["...", "..."],
-    "sampleBetterAnswer": "A polished alternative demonstrating how to articulate the same authentic experience more effectively"
+    "clarityScore": 7,
+    "structureScore": 7,
+    "starMethodUsed": false,
+    "overallAssessment": "Short honest assessment (2-3 sentences)",
+    "strengths": ["Specific point 1", "Specific point 2"],
+    "improvements": ["Constructive point 1", "Constructive point 2"],
+    "interviewerImpression": "Briefly explain how a real scholarship panel perceives this answer",
+    "improvementGuidance": "Practical guidance on how the student can make it stronger",
+    "sampleBetterAnswer": "A polished alternative demonstrating how to articulate the same authentic experience more effectively (optional)"
   }
 }`;
 
-      const result = await aiRouter.generateText({
-      prompt: prompt,
+    const result = await aiRouter.generateText({
+      prompt,
       systemPrompt: undefined,
       jsonSchema: true,
-      timeoutMs: 6000
+      timeoutMs: 6000,
     });
     if (result.error) throw new Error(result.error);
-    const response = { text: result.text };
-      return JSON.parse(response.text?.trim() || '{}');
+    const parsed = JSON.parse(result.text?.trim() || '{}');
+    if (parsed.feedback) {
+      return { feedback: parsed.feedback };
     }
+    return {
+      feedback: generateDeterministicFeedback({
+        question: lastInterviewerQuestion,
+        answer: currentAnswer || '',
+        scholarshipName,
+        providerName,
+      }),
+    };
   } catch {
     return {
-      nextQuestion: `What inspired you to apply specifically for the ${scholarshipName}?`,
+      feedback: generateDeterministicFeedback({
+        question: lastInterviewerQuestion,
+        answer: currentAnswer || '',
+        scholarshipName,
+        providerName,
+      }),
     };
   }
 }
