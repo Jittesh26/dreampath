@@ -11,16 +11,27 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { action, scholarshipName, providerName, essayPrompt, studentDraft } = body;
 
+    const trimmedDraft = (studentDraft || '').trim();
+    if (!trimmedDraft) {
+      return NextResponse.json(
+        { error: 'Add some notes, rough ideas, or a draft first so the assistant can analyze your writing.' },
+        { status: 400 }
+      );
+    }
+
     const result = await aiEssayAssistant({
       action: action || 'brainstorm',
       scholarshipName: scholarshipName || 'Malaysian Tertiary Scholarship',
       providerName: providerName || 'Scholarship Provider',
-      essayPrompt,
-      studentDraft,
+      essayPrompt: essayPrompt || 'Personal Statement',
+      studentDraft: trimmedDraft,
     });
 
     return NextResponse.json(result);
   } catch (err: any) {
-    return NextResponse.json({ error: err.message || 'Essay assistant error' }, { status: 500 });
+    return NextResponse.json(
+      { error: err.message || "We couldn't analyse your draft right now. Your draft has not been lost. Please try again." },
+      { status: 500 }
+    );
   }
 }
