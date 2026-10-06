@@ -35,7 +35,10 @@ export default async function StudentProfilePage() {
         subtitle="Keep your academic results, CGPA, and household income up to date. DreamPath uses these confirmed facts for deterministic eligibility checks across all scholarships."
       />
 
-      <StudentProfileForm initialProfile={profile} />
+      <StudentProfileForm
+        key={profile?.updatedAt ? new Date(profile.updatedAt).toISOString() : 'new'}
+        initialProfile={profile}
+      />
     </div>
   );
 }

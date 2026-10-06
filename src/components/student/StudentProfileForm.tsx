@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useTransition } from 'react';
 import { updateStudentProfile } from '@/app/actions/student';
-import { Sparkles, CheckCircle2, Upload, Loader2, X } from 'lucide-react';
+import { Sparkles, CheckCircle2, AlertCircle, Upload, Loader2, X } from 'lucide-react';
 
 const SPM_GRADES = ['A+', 'A', 'A-', 'B+', 'B', 'C+', 'C', 'D', 'E', 'G'];
 
@@ -21,6 +21,45 @@ export function StudentProfileForm({
   const [spmAddMath, setSpmAddMath] = useState(initialSpm['Additional Mathematics'] || '');
   const [spmBm, setSpmBm] = useState(initialSpm['Bahasa Melayu'] || '');
   const [spmEng, setSpmEng] = useState(initialSpm['English'] || '');
+
+  // Form Submission & Feedback State
+  const [isSaving, startTransition] = useTransition();
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    setFeedback(null);
+
+    const spmResults: Record<string, string> = {};
+    if (spmMath) spmResults['Mathematics'] = spmMath;
+    if (spmAddMath) spmResults['Additional Mathematics'] = spmAddMath;
+    if (spmBm) spmResults['Bahasa Melayu'] = spmBm;
+    if (spmEng) spmResults['English'] = spmEng;
+
+    startTransition(async () => {
+      try {
+        const res = await updateStudentProfile({
+          citizenship,
+          bumiputeraStatus: bumiputeraStatus === 'true',
+          incomeBand,
+          cgpa: cgpa ? cgpa : null,
+          spmResults,
+        });
+
+        if (res?.success) {
+          setFeedback({
+            type: 'success',
+            message: 'Academic profile saved successfully! Deterministic eligibility checks are now up to date.',
+          });
+        }
+      } catch (err: any) {
+        setFeedback({
+          type: 'error',
+          message: err.message || 'Failed to save academic profile. Please try again.',
+        });
+      }
+    });
+  };
 
   // Magic Autofill Modal State
   const [isAutofillOpen, setIsAutofillOpen] = useState(false);
@@ -91,7 +130,7 @@ export function StudentProfileForm({
       </div>
 
       {/* Main Profile Form */}
-      <form action={updateStudentProfile} className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-6">
+      <form onSubmit={handleSubmit} className="bg-white border border-slate-200/90 rounded-2xl p-6 sm:p-8 shadow-2xs space-y-6">
         <div className="border-b border-slate-100 pb-4">
           <h3 className="font-sans text-xl font-black text-slate-950 tracking-tight">
             Academic Credentials &amp; Demographics
@@ -100,6 +139,35 @@ export function StudentProfileForm({
             Confirmed profile fields used by the deterministic eligibility evaluation engine.
           </p>
         </div>
+
+        {/* Status Feedback Alert */}
+        {feedback && (
+          <div
+            role="alert"
+            className={`p-4 rounded-xl border flex items-center justify-between text-xs font-medium transition-all ${
+              feedback.type === 'success'
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                : 'bg-rose-50 text-rose-800 border-rose-200'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              {feedback.type === 'success' ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+              ) : (
+                <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+              )}
+              <span>{feedback.message}</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setFeedback(null)}
+              className="text-slate-400 hover:text-slate-700 cursor-pointer"
+              aria-label="Dismiss message"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 text-xs">
           <div className="space-y-1.5">
@@ -232,12 +300,26 @@ export function StudentProfileForm({
         </div>
 
         {/* Submit */}
-        <div className="pt-4 border-t border-slate-100 flex justify-end">
+        <div className="pt-4 border-t border-slate-100 flex items-center justify-between">
+          <p className="text-[11px] text-slate-400 font-medium">
+            Saves directly to your authoritative academic profile.
+          </p>
           <button
             type="submit"
-            className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-all shadow-sm cursor-pointer"
+            disabled={isSaving}
+            className="px-6 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-all shadow-sm cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
           >
-            Save Authoritative Profile
+            {isSaving ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                <span>Saving Profile...</span>
+              </>
+            ) : (
+              <>
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Save Authoritative Profile</span>
+              </>
+            )}
           </button>
         </div>
       </form>

@@ -6,29 +6,65 @@ import { studentProfiles, applications, users } from '@/db/schema';
 import { eq, and } from 'drizzle-orm';
 import { createClient } from '@/lib/supabase/server';
 
-export async function updateStudentProfile(formData: FormData) {
+export type StudentProfileInput = {
+  citizenship?: string;
+  bumiputeraStatus?: boolean;
+  incomeBand?: string;
+  cgpa?: string | null;
+  spmResults?: Record<string, string>;
+};
+
+export async function updateStudentProfile(formDataOrInput: FormData | StudentProfileInput) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
   if (!user) throw new Error('Unauthorized');
 
-  const citizenship = formData.get('citizenship') as string;
-  const bumiputeraStatus = formData.get('bumiputeraStatus') === 'true';
-  const incomeBand = formData.get('incomeBand') as string;
-  const cgpaRaw = formData.get('cgpa') as string;
-  const cgpa = cgpaRaw ? cgpaRaw : null;
+  // Ensure user exists in users table to prevent foreign key errors
+  try {
+    const [dbUser] = await db.select().from(users).where(eq(users.id, user.id));
+    if (!dbUser) {
+      await db.insert(users).values({
+        id: user.id,
+        email: user.email || 'student@dreampath.my',
+        role: 'student',
+      }).onConflictDoNothing();
+    }
+  } catch {
+    // ignore
+  }
 
-  // SPM subjects
-  const math = formData.get('spm_math') as string;
-  const addMath = formData.get('spm_addmath') as string;
-  const bm = formData.get('spm_bm') as string;
-  const eng = formData.get('spm_eng') as string;
+  let citizenship: string;
+  let bumiputeraStatus: boolean;
+  let incomeBand: string;
+  let cgpa: string | null;
+  let spmResults: Record<string, string>;
 
-  const spmResults: Record<string, string> = {};
-  if (math) spmResults['Mathematics'] = math;
-  if (addMath) spmResults['Additional Mathematics'] = addMath;
-  if (bm) spmResults['Bahasa Melayu'] = bm;
-  if (eng) spmResults['English'] = eng;
+  if (formDataOrInput instanceof FormData) {
+    citizenship = (formDataOrInput.get('citizenship') as string) || 'Malaysian';
+    bumiputeraStatus = formDataOrInput.get('bumiputeraStatus') === 'true';
+    incomeBand = (formDataOrInput.get('incomeBand') as string) || 'M40';
+    const cgpaRaw = formDataOrInput.get('cgpa') as string;
+    cgpa = cgpaRaw ? cgpaRaw : null;
+
+    // SPM subjects
+    const math = formDataOrInput.get('spm_math') as string;
+    const addMath = formDataOrInput.get('spm_addmath') as string;
+    const bm = formDataOrInput.get('spm_bm') as string;
+    const eng = formDataOrInput.get('spm_eng') as string;
+
+    spmResults = {};
+    if (math) spmResults['Mathematics'] = math;
+    if (addMath) spmResults['Additional Mathematics'] = addMath;
+    if (bm) spmResults['Bahasa Melayu'] = bm;
+    if (eng) spmResults['English'] = eng;
+  } else {
+    citizenship = formDataOrInput.citizenship || 'Malaysian';
+    bumiputeraStatus = formDataOrInput.bumiputeraStatus === true;
+    incomeBand = formDataOrInput.incomeBand || 'M40';
+    cgpa = formDataOrInput.cgpa ?? null;
+    spmResults = formDataOrInput.spmResults || {};
+  }
 
   // Upsert pattern
   const [existing] = await db.select().from(studentProfiles).where(eq(studentProfiles.userId, user.id));
@@ -57,6 +93,8 @@ export async function updateStudentProfile(formData: FormData) {
 
   revalidatePath('/student/profile');
   revalidatePath('/student');
+
+  return { success: true, message: 'Profile saved successfully.' };
 }
 
 export async function updateApplicationStatus(appId: string, newStatus: string) {
