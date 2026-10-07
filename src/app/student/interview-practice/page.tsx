@@ -157,9 +157,23 @@ export default function InterviewPracticePage() {
       (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
-      setVoiceError(
-        'Voice input is not supported in this browser. Please use Chrome, Edge, or Safari, or type your response directly.'
-      );
+      const ua = typeof navigator !== 'undefined' ? navigator.userAgent.toLowerCase() : '';
+      const isFirefox = ua.includes('firefox');
+      const isBrave = typeof (navigator as any)?.brave !== 'undefined';
+
+      if (isFirefox) {
+        setVoiceError(
+          'Firefox does not support the native Web Speech API by default. Please open DreamPath in Google Chrome or Microsoft Edge to use voice input, or type your response directly.'
+        );
+      } else if (isBrave) {
+        setVoiceError(
+          'Brave blocks speech recognition by default. Please enable Google Services for speech in Brave settings, open in Google Chrome/Edge, or type your response directly.'
+        );
+      } else {
+        setVoiceError(
+          'Voice input is not supported in this browser. Please open DreamPath in Google Chrome, Microsoft Edge, or Safari, or type your response directly.'
+        );
+      }
       return;
     }
 
