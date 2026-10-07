@@ -43,15 +43,10 @@ export default function InterviewPracticePage() {
   );
   const [currentCategory, setCurrentCategory] = useState<InterviewCategory>('introduction');
   const [inputAnswer, setInputAnswer] = useState('');
-  const [isRecording, setIsRecording] = useState(false);
-  const [isTranscribing, setIsTranscribing] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
-  const [interimTranscript, setInterimTranscript] = useState<string>('');
   const recognitionRef = useRef<any>(null);
-  const mediaStreamRef = useRef<MediaStream | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const isRecordingRef = useRef<boolean>(false);
+  const isListeningRef = useRef<boolean>(false);
   const baseTextRef = useRef<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingNext, setIsLoadingNext] = useState(false);
@@ -121,21 +116,10 @@ export default function InterviewPracticePage() {
     finalReport,
   ]);
 
-  // Stop media stream tracks cleanly
-  const stopMediaStream = () => {
-    if (mediaStreamRef.current) {
-      try {
-        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
-      } catch {
-        // ignore
-      }
-      mediaStreamRef.current = null;
-    }
-  };
-
-  // Cleanup recognition and media recording on unmount
+  // Cleanup speech recognition on unmount
   useEffect(() => {
     return () => {
+      isListeningRef.current = false;
       if (recognitionRef.current) {
         try {
           recognitionRef.current.abort();
@@ -143,27 +127,17 @@ export default function InterviewPracticePage() {
           // ignore
         }
       }
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        try {
-          mediaRecorderRef.current.stop();
-        } catch {
-          // ignore
-        }
-      }
-      stopMediaStream();
     };
   }, []);
 
-  // Multi-tier Voice Dictation: words appear in the text field in real time as the user speaks
+  // Native Speech-to-Text Dictation (Web Speech API) - words stream directly into inputAnswer
   const toggleVoiceRecording = async () => {
     if (typeof window === 'undefined') return;
 
-    // IF ALREADY RECORDING: STOP RECORDING
-    if (isRecording || isRecordingRef.current) {
-      isRecordingRef.current = false;
-      setIsRecording(false);
-      setInterimTranscript('');
-
+    // IF ALREADY LISTENING: STOP LISTENING
+    if (isListening || isListeningRef.current) {
+      isListeningRef.current = false;
+      setIsListening(false);
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
@@ -171,26 +145,25 @@ export default function InterviewPracticePage() {
           // ignore
         }
       }
-
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        try {
-          mediaRecorderRef.current.stop();
-        } catch {
-          // ignore
-        }
-      } else {
-        stopMediaStream();
-      }
       return;
     }
 
     // STARTING VOICE INPUT
     setVoiceError(null);
-    setInterimTranscript('');
-    audioChunksRef.current = [];
     baseTextRef.current = inputAnswer;
 
-    // 1. Verify mediaDevices capability
+    // 1. Check Web Speech API support
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognition) {
+      setVoiceError(
+        'Voice input is not supported in this browser. Please use Chrome, Edge, or Safari, or type your response directly.'
+      );
+      return;
+    }
+
+    // 2. Request mic permission explicitly
     if (!navigator?.mediaDevices?.getUserMedia) {
       setVoiceError(
         'Microphone access is not supported by your browser or connection. Please use a secure connection (HTTPS / localhost) or type your response directly.'
@@ -198,10 +171,6 @@ export default function InterviewPracticePage() {
       return;
     }
 
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    // 2. Request mic permission explicitly - PROMPTS BROWSER FOR PERMISSION
     let stream: MediaStream | null = null;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -219,180 +188,93 @@ export default function InterviewPracticePage() {
       return;
     }
 
-    // PRIMARY PATH: Browser has Web Speech API (Chrome, Edge, Safari) -> Live Real-Time Dictation
-    if (SpeechRecognition) {
-      // Release getUserMedia audio track so SpeechRecognition has full exclusive access to the microphone hardware!
-      if (stream) {
-        stream.getTracks().forEach((track) => {
-          try {
-            track.stop();
-          } catch {
-            // ignore
-          }
-        });
-      }
-
-      try {
-        const recognition = new SpeechRecognition();
-        recognitionRef.current = recognition;
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = 'en-US';
-
-        recognition.onstart = () => {
-          setIsRecording(true);
-          isRecordingRef.current = true;
-          setVoiceError(null);
-        };
-
-        recognition.onresult = (event: any) => {
-          let sessionFinal = '';
-          let sessionInterim = '';
-
-          for (let i = 0; i < event.results.length; ++i) {
-            const item = event.results[i];
-            if (item.isFinal) {
-              sessionFinal += item[0].transcript + ' ';
-            } else {
-              sessionInterim += item[0].transcript;
-            }
-          }
-
-          const currentSpoken = `${sessionFinal}${sessionInterim}`.trim();
-          const base = baseTextRef.current ? baseTextRef.current.trim() : '';
-          const fullText = base ? `${base} ${currentSpoken}` : currentSpoken;
-
-          // LIVE UPDATE INTO THE TEXT FIELD AS YOU TALK!
-          setInputAnswer(fullText);
-          setInterimTranscript(sessionInterim || currentSpoken);
-        };
-
-        recognition.onerror = (event: any) => {
-          const code = event?.error;
-          if (code === 'no-speech') {
-            return;
-          }
-          if (code === 'not-allowed' || code === 'service-not-allowed') {
-            setVoiceError('Microphone permission was denied. Please allow microphone access in your browser.');
-            isRecordingRef.current = false;
-            setIsRecording(false);
-            return;
-          }
-          console.warn('[SpeechRecognition] notice:', code);
-        };
-
-        recognition.onend = () => {
-          // If still marked as recording, keep continuous listening active
-          if (isRecordingRef.current) {
-            try {
-              recognition.start();
-            } catch {
-              // ignore
-            }
-          }
-        };
-
-        recognition.start();
-        isRecordingRef.current = true;
-        setIsRecording(true);
-        return;
-      } catch (speechErr: any) {
-        console.warn('SpeechRecognition initialization warning, falling back to MediaRecorder:', speechErr);
-      }
-    }
-
-    // FALLBACK PATH: Web Speech API unavailable (Firefox / Brave) -> MediaRecorder
-    if (!stream) {
-      try {
-        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      } catch {
-        return;
-      }
-    }
-    mediaStreamRef.current = stream;
-
-    let chosenMimeType = 'audio/webm';
-    if (typeof MediaRecorder !== 'undefined') {
-      const candidates = [
-        'audio/webm;codecs=opus',
-        'audio/webm',
-        'audio/mp4',
-        'audio/ogg;codecs=opus',
-        'audio/ogg',
-        'audio/wav',
-      ];
-      for (const c of candidates) {
-        if (MediaRecorder.isTypeSupported(c)) {
-          chosenMimeType = c;
-          break;
+    // Release getUserMedia tracks immediately so SpeechRecognition has full exclusive access to the microphone hardware
+    if (stream) {
+      stream.getTracks().forEach((track) => {
+        try {
+          track.stop();
+        } catch {
+          // ignore
         }
-      }
+      });
     }
 
     try {
-      const mediaRecorder = new MediaRecorder(stream, chosenMimeType ? { mimeType: chosenMimeType } : undefined);
-      mediaRecorderRef.current = mediaRecorder;
+      const recognition = new SpeechRecognition();
+      recognitionRef.current = recognition;
+      recognition.continuous = true;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
 
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data && event.data.size > 0) {
-          audioChunksRef.current.push(event.data);
-        }
+      recognition.onstart = () => {
+        setIsListening(true);
+        isListeningRef.current = true;
+        setVoiceError(null);
       };
 
-      mediaRecorder.onstop = async () => {
-        stopMediaStream();
+      recognition.onresult = (event: any) => {
+        let sessionFinal = '';
+        let sessionInterim = '';
 
-        const chunks = audioChunksRef.current;
-        if (!chunks || chunks.length === 0) return;
-
-        const audioBlob = new Blob(chunks, { type: chosenMimeType });
-        if (audioBlob.size < 1200) return;
-
-        setIsTranscribing(true);
-        try {
-          const reader = new FileReader();
-          const base64Promise = new Promise<string>((resolve, reject) => {
-            reader.onloadend = () => {
-              const dataUrl = reader.result as string;
-              const base64Data = dataUrl.split(',')[1] || '';
-              resolve(base64Data);
-            };
-            reader.onerror = reject;
-          });
-          reader.readAsDataURL(audioBlob);
-          const audioBase64 = await base64Promise;
-
-          if (audioBase64) {
-            const res = await fetch('/api/ai/interview', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                action: 'transcribe_audio',
-                audioBase64,
-                mimeType: chosenMimeType,
-              }),
-            });
-
-            const data = await res.json();
-            if (data.transcription && data.transcription.trim()) {
-              const spokenText = data.transcription.trim();
-              const base = baseTextRef.current ? baseTextRef.current.trim() : '';
-              setInputAnswer(base ? `${base} ${spokenText}` : spokenText);
-              setVoiceError(null);
-            }
+        for (let i = 0; i < event.results.length; ++i) {
+          const item = event.results[i];
+          if (item.isFinal) {
+            sessionFinal += item[0].transcript + ' ';
+          } else {
+            sessionInterim += item[0].transcript;
           }
-        } catch (transcribeErr: any) {
-          console.warn('[Voice Dictation] AI transcription warning:', transcribeErr);
-        } finally {
-          setIsTranscribing(false);
+        }
+
+        const spoken = `${sessionFinal}${sessionInterim}`.trim();
+        const base = baseTextRef.current ? baseTextRef.current.trim() : '';
+        const fullText = base ? `${base} ${spoken}` : spoken;
+
+        // Directly update textarea in real time as the user speaks!
+        setInputAnswer(fullText);
+      };
+
+      recognition.onerror = (event: any) => {
+        const code = event?.error;
+        if (code === 'no-speech') {
+          return;
+        }
+        if (code === 'not-allowed' || code === 'service-not-allowed') {
+          setVoiceError('Microphone permission was denied. Please allow microphone access in your browser.');
+          isListeningRef.current = false;
+          setIsListening(false);
+          return;
+        }
+        if (code === 'audio-capture') {
+          setVoiceError('Microphone capture error. Ensure no other application is using the microphone.');
+          isListeningRef.current = false;
+          setIsListening(false);
+          return;
+        }
+        console.warn('[SpeechRecognition] notice:', code);
+      };
+
+      recognition.onend = () => {
+        // Restart if still intended to be listening
+        if (isListeningRef.current) {
+          try {
+            recognition.start();
+          } catch {
+            isListeningRef.current = false;
+            setIsListening(false);
+          }
+        } else {
+          setIsListening(false);
         }
       };
 
-      mediaRecorder.start(250);
-      isRecordingRef.current = true;
-      setIsRecording(true);
-    } catch (recErr) {
-      console.warn('MediaRecorder error:', recErr);
+      recognition.start();
+      isListeningRef.current = true;
+      setIsListening(true);
+    } catch (speechErr: any) {
+      console.warn('SpeechRecognition initialization error:', speechErr);
+      setVoiceError('Could not start speech recognition. Please type your response directly.');
+      isListeningRef.current = false;
+      setIsListening(false);
     }
   };
 
@@ -596,16 +478,12 @@ export default function InterviewPracticePage() {
     setInputAnswer('');
     setStage('answering');
 
-    // Clean up any ongoing recording or transcription
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      try { mediaRecorderRef.current.stop(); } catch {}
-    }
-    stopMediaStream();
+    // Clean up any ongoing speech recognition
+    isListeningRef.current = false;
     if (recognitionRef.current) {
       try { recognitionRef.current.abort(); } catch {}
     }
-    setIsRecording(false);
-    setIsTranscribing(false);
+    setIsListening(false);
     setVoiceError(null);
 
     try {
@@ -896,26 +774,15 @@ export default function InterviewPracticePage() {
                   </div>
                 )}
 
-                {isRecording && (
+                {isListening && (
                   <div className="p-2.5 bg-rose-50 border border-rose-200/80 rounded-xl flex items-center gap-2.5 text-xs text-rose-900 animate-in fade-in duration-150">
                     <span className="relative flex h-2.5 w-2.5 shrink-0">
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600"></span>
                     </span>
                     <span className="font-medium flex-1">
-                      {interimTranscript ? (
-                        <span>Live dictation: &ldquo;{interimTranscript}&rdquo;</span>
-                      ) : (
-                        <span>Listening... Start speaking — your words will appear live in the text box below. Click &ldquo;Stop Dictation&rdquo; when finished.</span>
-                      )}
+                      Listening... Speak clearly. Tap microphone button again to stop.
                     </span>
-                  </div>
-                )}
-
-                {isTranscribing && (
-                  <div className="p-2.5 bg-blue-50 border border-blue-200/80 rounded-xl flex items-center gap-2.5 text-xs text-blue-900 animate-in fade-in duration-150">
-                    <Loader2 className="w-4 h-4 animate-spin text-blue-600 shrink-0" />
-                    <span className="font-medium">Transcribing your voice response with AI...</span>
                   </div>
                 )}
 
@@ -925,7 +792,7 @@ export default function InterviewPracticePage() {
                     value={inputAnswer}
                     onChange={(e) => setInputAnswer(e.target.value)}
                     placeholder="Type your response using the STAR method (Situation, Task, Action, Result)... Mention concrete examples, project names, and specific achievements."
-                    disabled={isSubmitting || isTranscribing}
+                    disabled={isSubmitting}
                     className="w-full p-3.5 bg-slate-50/80 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 placeholder:text-slate-400 leading-relaxed resize-y font-normal"
                   />
                 </div>
@@ -934,28 +801,24 @@ export default function InterviewPracticePage() {
                   <button
                     type="button"
                     onClick={toggleVoiceRecording}
-                    disabled={isTranscribing}
+                    disabled={isSubmitting}
                     className={`px-3 py-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 ${
-                      isRecording
+                      isListening
                         ? 'bg-rose-50 border-rose-300 text-rose-700 shadow-2xs'
-                        : isTranscribing
-                        ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-2xs'
                         : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-2xs'
                     }`}
                   >
-                    {isRecording ? (
+                    {isListening ? (
                       <MicOff className="w-4 h-4 text-rose-600" />
-                    ) : isTranscribing ? (
-                      <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
                     ) : (
                       <Mic className="w-4 h-4 text-slate-500" />
                     )}
-                    <span>{isRecording ? 'Stop Dictation' : isTranscribing ? 'Transcribing...' : 'Voice Input'}</span>
+                    <span>{isListening ? 'Stop Listening' : 'Voice Input'}</span>
                   </button>
 
                   <button
                     type="submit"
-                    disabled={isSubmitting || isTranscribing || !inputAnswer.trim()}
+                    disabled={isSubmitting || !inputAnswer.trim()}
                     className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all disabled:opacity-50 shadow-xs cursor-pointer"
                   >
                     <Send className="w-3.5 h-3.5" />
