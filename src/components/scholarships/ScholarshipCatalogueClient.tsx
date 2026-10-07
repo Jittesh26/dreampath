@@ -364,7 +364,7 @@ export function ScholarshipCatalogueClient({
         </aside>
 
         {/* Right Opportunities List (Feed) */}
-        <section className="md:col-span-8 lg:col-span-9 space-y-4">
+        <section className="md:col-span-8 lg:col-span-9 space-y-4 min-w-0">
           {/* Active Filter Pills Bar */}
           <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500 pb-1">
             <div className="flex flex-wrap items-center gap-2">

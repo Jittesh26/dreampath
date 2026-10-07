@@ -293,22 +293,22 @@ export function ScholarshipDiscovery({
               return (
                 <div
                   key={item.id}
-                  className="flex flex-col justify-between bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs hover:shadow-lg hover:border-blue-300 transition-all group"
+                  className="flex flex-col justify-between bg-white border border-slate-200/90 rounded-2xl p-6 shadow-2xs hover:shadow-lg hover:border-blue-300 transition-all group min-w-0 overflow-hidden"
                 >
-                  <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-4 min-w-0">
                     {/* Top Meta Row */}
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2.5">
+                    <div className="flex items-start justify-between gap-2.5 min-w-0">
+                      <div className="flex items-center gap-2.5 min-w-0 flex-1">
                         <div
                           className={`w-9 h-9 rounded-lg ${attrs.providerMonogram.bgClass} text-white font-bold text-[13px] flex items-center justify-center shadow-xs shrink-0`}
                         >
                           {attrs.providerMonogram.text}
                         </div>
-                        <div className="flex flex-col">
-                          <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wide line-clamp-1">
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wide truncate block" title={item.providerName}>
                             {item.providerName}
                           </span>
-                          <span className="text-[10px] text-slate-400 font-medium">
+                          <span className="text-[10px] text-slate-400 font-medium truncate block">
                             {attrs.providerMonogram.tierTag}
                           </span>
                         </div>
@@ -316,7 +316,7 @@ export function ScholarshipDiscovery({
 
                       {/* Prominent Urgency Pill */}
                       <span
-                        className={`px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 border ${attrs.deadlineUrgency.badgeClass}`}
+                        className={`px-2.5 py-1 rounded-full text-[11px] font-bold shrink-0 whitespace-nowrap border ${attrs.deadlineUrgency.badgeClass}`}
                       >
                         {attrs.deadlineUrgency.label}
                       </span>
