@@ -51,8 +51,8 @@ export default function InterviewPracticePage() {
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
-  const hasCapturedSpeechRef = useRef<boolean>(false);
-  const mimeTypeRef = useRef<string>('audio/webm');
+  const isRecordingRef = useRef<boolean>(false);
+  const baseTextRef = useRef<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingNext, setIsLoadingNext] = useState(false);
 
@@ -154,16 +154,16 @@ export default function InterviewPracticePage() {
     };
   }, []);
 
-  // Multi-tier Voice Dictation: requests mic permission explicitly and falls back seamlessly
+  // Multi-tier Voice Dictation: words appear in the text field in real time as the user speaks
   const toggleVoiceRecording = async () => {
     if (typeof window === 'undefined') return;
 
     // IF ALREADY RECORDING: STOP RECORDING
-    if (isRecording) {
+    if (isRecording || isRecordingRef.current) {
+      isRecordingRef.current = false;
       setIsRecording(false);
       setInterimTranscript('');
 
-      // Stop speech recognition
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
@@ -172,7 +172,6 @@ export default function InterviewPracticePage() {
         }
       }
 
-      // Stop media recorder (will trigger onstop handler to finalize audio if needed)
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
         try {
           mediaRecorderRef.current.stop();
@@ -185,13 +184,13 @@ export default function InterviewPracticePage() {
       return;
     }
 
-    // STARTING RECORDING
+    // STARTING VOICE INPUT
     setVoiceError(null);
     setInterimTranscript('');
-    hasCapturedSpeechRef.current = false;
     audioChunksRef.current = [];
+    baseTextRef.current = inputAnswer;
 
-    // 1. Verify browser mediaDevices support
+    // 1. Verify mediaDevices capability
     if (!navigator?.mediaDevices?.getUserMedia) {
       setVoiceError(
         'Microphone access is not supported by your browser or connection. Please use a secure connection (HTTPS / localhost) or type your response directly.'
@@ -199,11 +198,13 @@ export default function InterviewPracticePage() {
       return;
     }
 
-    // 2. Request microphone permission explicitly - THIS PROMPTS THE USER FOR MICROPHONE ACCESS
-    let stream: MediaStream;
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    // 2. Request mic permission explicitly - PROMPTS BROWSER FOR PERMISSION
+    let stream: MediaStream | null = null;
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      mediaStreamRef.current = stream;
     } catch (err: any) {
       const errName = err?.name || '';
       if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
@@ -218,7 +219,98 @@ export default function InterviewPracticePage() {
       return;
     }
 
-    // 3. Determine supported MIME type for MediaRecorder
+    // PRIMARY PATH: Browser has Web Speech API (Chrome, Edge, Safari) -> Live Real-Time Dictation
+    if (SpeechRecognition) {
+      // Release getUserMedia audio track so SpeechRecognition has full exclusive access to the microphone hardware!
+      if (stream) {
+        stream.getTracks().forEach((track) => {
+          try {
+            track.stop();
+          } catch {
+            // ignore
+          }
+        });
+      }
+
+      try {
+        const recognition = new SpeechRecognition();
+        recognitionRef.current = recognition;
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        recognition.onstart = () => {
+          setIsRecording(true);
+          isRecordingRef.current = true;
+          setVoiceError(null);
+        };
+
+        recognition.onresult = (event: any) => {
+          let sessionFinal = '';
+          let sessionInterim = '';
+
+          for (let i = 0; i < event.results.length; ++i) {
+            const item = event.results[i];
+            if (item.isFinal) {
+              sessionFinal += item[0].transcript + ' ';
+            } else {
+              sessionInterim += item[0].transcript;
+            }
+          }
+
+          const currentSpoken = `${sessionFinal}${sessionInterim}`.trim();
+          const base = baseTextRef.current ? baseTextRef.current.trim() : '';
+          const fullText = base ? `${base} ${currentSpoken}` : currentSpoken;
+
+          // LIVE UPDATE INTO THE TEXT FIELD AS YOU TALK!
+          setInputAnswer(fullText);
+          setInterimTranscript(sessionInterim || currentSpoken);
+        };
+
+        recognition.onerror = (event: any) => {
+          const code = event?.error;
+          if (code === 'no-speech') {
+            return;
+          }
+          if (code === 'not-allowed' || code === 'service-not-allowed') {
+            setVoiceError('Microphone permission was denied. Please allow microphone access in your browser.');
+            isRecordingRef.current = false;
+            setIsRecording(false);
+            return;
+          }
+          console.warn('[SpeechRecognition] notice:', code);
+        };
+
+        recognition.onend = () => {
+          // If still marked as recording, keep continuous listening active
+          if (isRecordingRef.current) {
+            try {
+              recognition.start();
+            } catch {
+              // ignore
+            }
+          }
+        };
+
+        recognition.start();
+        isRecordingRef.current = true;
+        setIsRecording(true);
+        return;
+      } catch (speechErr: any) {
+        console.warn('SpeechRecognition initialization warning, falling back to MediaRecorder:', speechErr);
+      }
+    }
+
+    // FALLBACK PATH: Web Speech API unavailable (Firefox / Brave) -> MediaRecorder
+    if (!stream) {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      } catch {
+        return;
+      }
+    }
+    mediaStreamRef.current = stream;
+
     let chosenMimeType = 'audio/webm';
     if (typeof MediaRecorder !== 'undefined') {
       const candidates = [
@@ -236,147 +328,72 @@ export default function InterviewPracticePage() {
         }
       }
     }
-    mimeTypeRef.current = chosenMimeType;
 
-    // 4. Initialize MediaRecorder (universal audio fallback for all browsers)
-    if (typeof MediaRecorder !== 'undefined') {
-      try {
-        const mediaRecorder = new MediaRecorder(stream, chosenMimeType ? { mimeType: chosenMimeType } : undefined);
-        mediaRecorderRef.current = mediaRecorder;
+    try {
+      const mediaRecorder = new MediaRecorder(stream, chosenMimeType ? { mimeType: chosenMimeType } : undefined);
+      mediaRecorderRef.current = mediaRecorder;
 
-        mediaRecorder.ondataavailable = (event) => {
-          if (event.data && event.data.size > 0) {
-            audioChunksRef.current.push(event.data);
-          }
-        };
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
 
-        mediaRecorder.onstop = async () => {
-          stopMediaStream();
+      mediaRecorder.onstop = async () => {
+        stopMediaStream();
 
-          // If Web Speech API already transcribed the speech live, we do not need server AI
-          if (hasCapturedSpeechRef.current) {
-            return;
-          }
+        const chunks = audioChunksRef.current;
+        if (!chunks || chunks.length === 0) return;
 
-          const chunks = audioChunksRef.current;
-          if (!chunks || chunks.length === 0) {
-            return;
-          }
+        const audioBlob = new Blob(chunks, { type: chosenMimeType });
+        if (audioBlob.size < 1200) return;
 
-          const audioBlob = new Blob(chunks, { type: mimeTypeRef.current });
-          if (audioBlob.size < 1200) {
-            return;
-          }
+        setIsTranscribing(true);
+        try {
+          const reader = new FileReader();
+          const base64Promise = new Promise<string>((resolve, reject) => {
+            reader.onloadend = () => {
+              const dataUrl = reader.result as string;
+              const base64Data = dataUrl.split(',')[1] || '';
+              resolve(base64Data);
+            };
+            reader.onerror = reject;
+          });
+          reader.readAsDataURL(audioBlob);
+          const audioBase64 = await base64Promise;
 
-          setIsTranscribing(true);
-          try {
-            const reader = new FileReader();
-            const base64Promise = new Promise<string>((resolve, reject) => {
-              reader.onloadend = () => {
-                const dataUrl = reader.result as string;
-                const base64Data = dataUrl.split(',')[1] || '';
-                resolve(base64Data);
-              };
-              reader.onerror = reject;
+          if (audioBase64) {
+            const res = await fetch('/api/ai/interview', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: 'transcribe_audio',
+                audioBase64,
+                mimeType: chosenMimeType,
+              }),
             });
-            reader.readAsDataURL(audioBlob);
-            const audioBase64 = await base64Promise;
 
-            if (audioBase64) {
-              const res = await fetch('/api/ai/interview', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  action: 'transcribe_audio',
-                  audioBase64,
-                  mimeType: mimeTypeRef.current,
-                }),
-              });
-
-              const data = await res.json();
-              if (data.transcription && data.transcription.trim()) {
-                const spokenText = data.transcription.trim();
-                setInputAnswer((prev) => (prev ? `${prev} ${spokenText}` : spokenText));
-                setVoiceError(null);
-              } else if (!hasCapturedSpeechRef.current) {
-                setVoiceError('No speech was detected in the audio. You can speak again or type your answer.');
-              }
+            const data = await res.json();
+            if (data.transcription && data.transcription.trim()) {
+              const spokenText = data.transcription.trim();
+              const base = baseTextRef.current ? baseTextRef.current.trim() : '';
+              setInputAnswer(base ? `${base} ${spokenText}` : spokenText);
+              setVoiceError(null);
             }
-          } catch (transcribeErr: any) {
-            console.warn('[Voice Dictation] AI transcription warning:', transcribeErr);
-            if (!hasCapturedSpeechRef.current) {
-              setVoiceError('Voice transcription could not be completed. You can continue typing directly.');
-            }
-          } finally {
-            setIsTranscribing(false);
           }
-        };
+        } catch (transcribeErr: any) {
+          console.warn('[Voice Dictation] AI transcription warning:', transcribeErr);
+        } finally {
+          setIsTranscribing(false);
+        }
+      };
 
-        mediaRecorder.start(250);
-      } catch (recErr) {
-        console.warn('[Voice Dictation] MediaRecorder start warning:', recErr);
-      }
+      mediaRecorder.start(250);
+      isRecordingRef.current = true;
+      setIsRecording(true);
+    } catch (recErr) {
+      console.warn('MediaRecorder error:', recErr);
     }
-
-    // 5. Initialize Web Speech API for real-time live typing (if supported by browser)
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (SpeechRecognition) {
-      try {
-        const recognition = new SpeechRecognition();
-        recognitionRef.current = recognition;
-        recognition.continuous = true;
-        recognition.interimResults = true;
-        recognition.lang = 'en-US';
-
-        recognition.onstart = () => {
-          setIsRecording(true);
-          setVoiceError(null);
-          setInterimTranscript('');
-        };
-
-        recognition.onresult = (event: any) => {
-          let interim = '';
-          for (let i = event.resultIndex; i < event.results.length; ++i) {
-            const item = event.results[i];
-            if (item.isFinal) {
-              const transcript = item[0].transcript.trim();
-              if (transcript) {
-                setInputAnswer((prev) => (prev ? `${prev} ${transcript}` : transcript));
-                hasCapturedSpeechRef.current = true;
-              }
-            } else {
-              interim += item[0].transcript;
-            }
-          }
-          setInterimTranscript(interim);
-        };
-
-        recognition.onerror = (event: any) => {
-          const code = event?.error;
-          console.warn('[Voice Dictation] Web Speech API event notice:', code);
-          if (code === 'not-allowed') {
-            setVoiceError('Microphone permission was denied. Please allow microphone access in your browser to speak.');
-            setIsRecording(false);
-            if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-              try { mediaRecorderRef.current.stop(); } catch {}
-            }
-            stopMediaStream();
-          }
-        };
-
-        recognition.onend = () => {
-          // Keep active state governed by user toggle unless stopped
-        };
-
-        recognition.start();
-      } catch (speechErr) {
-        console.warn('[Voice Dictation] Web Speech API start notice:', speechErr);
-      }
-    }
-
-    setIsRecording(true);
   };
 
   /**
@@ -887,9 +904,9 @@ export default function InterviewPracticePage() {
                     </span>
                     <span className="font-medium flex-1">
                       {interimTranscript ? (
-                        <span>Listening: &ldquo;{interimTranscript}&rdquo;</span>
+                        <span>Live dictation: &ldquo;{interimTranscript}&rdquo;</span>
                       ) : (
-                        <span>Listening to your microphone... Speak clearly. Click &ldquo;Stop Dictation&rdquo; when done.</span>
+                        <span>Listening... Start speaking — your words will appear live in the text box below. Click &ldquo;Stop Dictation&rdquo; when finished.</span>
                       )}
                     </span>
                   </div>
