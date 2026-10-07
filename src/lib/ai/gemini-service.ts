@@ -968,3 +968,55 @@ Return pure JSON:
     };
   }
 }
+
+/**
+ * Audio Speech-to-Text Transcription Service
+ * Transcribes student spoken responses from MediaRecorder blobs when browser Web Speech API is absent or unavailable.
+ */
+export async function aiTranscribeAudio(params: {
+  audioBase64: string;
+  mimeType: string;
+}): Promise<{ transcription: string }> {
+  const { audioBase64, mimeType } = params;
+  if (!audioBase64) return { transcription: '' };
+
+  const ai = getAIClient();
+  if (!ai) {
+    return { transcription: '' };
+  }
+
+  const models = ['gemini-3.5-transcribe', 'gemini-3.8-flash', 'gemini-flash-latest'];
+  for (const model of models) {
+    try {
+      const res = await ai.models.generateContent({
+        model,
+        contents: [
+          {
+            role: 'user',
+            parts: [
+              {
+                inlineData: {
+                  mimeType: mimeType || 'audio/webm',
+                  data: audioBase64,
+                },
+              },
+              {
+                text: 'Transcribe this spoken interview answer into English. Return ONLY the verbatim transcribed words. Do not wrap in quotes or add preamble or notes. If silent or unintelligible, return an empty string.',
+              },
+            ],
+          },
+        ],
+      });
+
+      const candidateText = res.text?.trim() || '';
+      if (candidateText && candidateText.toLowerCase() !== 'silence') {
+        return { transcription: candidateText };
+      }
+    } catch (e: any) {
+      console.warn(`[AI Transcribe] Model ${model} warning:`, e?.message || e);
+    }
+  }
+
+  return { transcription: '' };
+}
+

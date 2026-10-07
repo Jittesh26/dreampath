@@ -44,9 +44,15 @@ export default function InterviewPracticePage() {
   const [currentCategory, setCurrentCategory] = useState<InterviewCategory>('introduction');
   const [inputAnswer, setInputAnswer] = useState('');
   const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const [voiceError, setVoiceError] = useState<string | null>(null);
   const [interimTranscript, setInterimTranscript] = useState<string>('');
   const recognitionRef = useRef<any>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const hasCapturedSpeechRef = useRef<boolean>(false);
+  const mimeTypeRef = useRef<string>('audio/webm');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingNext, setIsLoadingNext] = useState(false);
 
@@ -115,7 +121,19 @@ export default function InterviewPracticePage() {
     finalReport,
   ]);
 
-  // Cleanup recognition on unmount
+  // Stop media stream tracks cleanly
+  const stopMediaStream = () => {
+    if (mediaStreamRef.current) {
+      try {
+        mediaStreamRef.current.getTracks().forEach((track) => track.stop());
+      } catch {
+        // ignore
+      }
+      mediaStreamRef.current = null;
+    }
+  };
+
+  // Cleanup recognition and media recording on unmount
   useEffect(() => {
     return () => {
       if (recognitionRef.current) {
@@ -125,24 +143,27 @@ export default function InterviewPracticePage() {
           // ignore
         }
       }
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        try {
+          mediaRecorderRef.current.stop();
+        } catch {
+          // ignore
+        }
+      }
+      stopMediaStream();
     };
   }, []);
 
-  // Web Speech API Voice Recognition with graceful non-blocking fallback
-  const toggleVoiceRecording = () => {
+  // Multi-tier Voice Dictation: requests mic permission explicitly and falls back seamlessly
+  const toggleVoiceRecording = async () => {
     if (typeof window === 'undefined') return;
 
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      setVoiceError(
-        'Voice dictation is supported in Chrome, Edge, and Safari. You can type your response directly into the text box below.'
-      );
-      return;
-    }
-
+    // IF ALREADY RECORDING: STOP RECORDING
     if (isRecording) {
+      setIsRecording(false);
+      setInterimTranscript('');
+
+      // Stop speech recognition
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
@@ -150,68 +171,212 @@ export default function InterviewPracticePage() {
           // ignore
         }
       }
-      setIsRecording(false);
-      setInterimTranscript('');
+
+      // Stop media recorder (will trigger onstop handler to finalize audio if needed)
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        try {
+          mediaRecorderRef.current.stop();
+        } catch {
+          // ignore
+        }
+      } else {
+        stopMediaStream();
+      }
       return;
     }
 
-    try {
-      setVoiceError(null);
-      const recognition = new SpeechRecognition();
-      recognitionRef.current = recognition;
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = 'en-US';
+    // STARTING RECORDING
+    setVoiceError(null);
+    setInterimTranscript('');
+    hasCapturedSpeechRef.current = false;
+    audioChunksRef.current = [];
 
-      recognition.onstart = () => {
-        setIsRecording(true);
-        setVoiceError(null);
-        setInterimTranscript('');
-      };
-
-      recognition.onresult = (event: any) => {
-        let interim = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          const item = event.results[i];
-          if (item.isFinal) {
-            const transcript = item[0].transcript.trim();
-            if (transcript) {
-              setInputAnswer((prev) => (prev ? `${prev} ${transcript}` : transcript));
-            }
-          } else {
-            interim += item[0].transcript;
-          }
-        }
-        setInterimTranscript(interim);
-      };
-
-      recognition.onerror = (event: any) => {
-        setIsRecording(false);
-        setInterimTranscript('');
-        const code = event?.error;
-        if (code === 'not-allowed' || code === 'service-not-allowed') {
-          setVoiceError('Microphone permission was denied. Please allow microphone access in your browser to use voice dictation.');
-        } else if (code === 'no-speech') {
-          setVoiceError('No speech was detected. You can speak again or type your answer.');
-        } else if (code === 'audio-capture') {
-          setVoiceError('No microphone could be detected on your device.');
-        } else if (code === 'network') {
-          setVoiceError('Network connection issue during voice recognition. Please type your response.');
-        } else if (code !== 'aborted') {
-          setVoiceError(`Voice input notice (${code || 'unknown'}). You can continue typing.`);
-        }
-      };
-
-      recognition.onend = () => {
-        setIsRecording(false);
-        setInterimTranscript('');
-      };
-
-      recognition.start();
-    } catch {
-      setIsRecording(false);
-      setVoiceError('Could not start microphone dictation. Please type your response directly.');
+    // 1. Verify browser mediaDevices support
+    if (!navigator?.mediaDevices?.getUserMedia) {
+      setVoiceError(
+        'Microphone access is not supported by your browser or connection. Please use a secure connection (HTTPS / localhost) or type your response directly.'
+      );
+      return;
     }
+
+    // 2. Request microphone permission explicitly - THIS PROMPTS THE USER FOR MICROPHONE ACCESS
+    let stream: MediaStream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+    } catch (err: any) {
+      const errName = err?.name || '';
+      if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
+        setVoiceError(
+          'Microphone permission was denied. Please allow microphone access in your browser address bar to speak your response.'
+        );
+      } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
+        setVoiceError('No microphone could be detected on your device. Please plug in a microphone or type your response.');
+      } else {
+        setVoiceError(`Microphone access notice (${err?.message || 'unknown'}). You can type your response directly.`);
+      }
+      return;
+    }
+
+    // 3. Determine supported MIME type for MediaRecorder
+    let chosenMimeType = 'audio/webm';
+    if (typeof MediaRecorder !== 'undefined') {
+      const candidates = [
+        'audio/webm;codecs=opus',
+        'audio/webm',
+        'audio/mp4',
+        'audio/ogg;codecs=opus',
+        'audio/ogg',
+        'audio/wav',
+      ];
+      for (const c of candidates) {
+        if (MediaRecorder.isTypeSupported(c)) {
+          chosenMimeType = c;
+          break;
+        }
+      }
+    }
+    mimeTypeRef.current = chosenMimeType;
+
+    // 4. Initialize MediaRecorder (universal audio fallback for all browsers)
+    if (typeof MediaRecorder !== 'undefined') {
+      try {
+        const mediaRecorder = new MediaRecorder(stream, chosenMimeType ? { mimeType: chosenMimeType } : undefined);
+        mediaRecorderRef.current = mediaRecorder;
+
+        mediaRecorder.ondataavailable = (event) => {
+          if (event.data && event.data.size > 0) {
+            audioChunksRef.current.push(event.data);
+          }
+        };
+
+        mediaRecorder.onstop = async () => {
+          stopMediaStream();
+
+          // If Web Speech API already transcribed the speech live, we do not need server AI
+          if (hasCapturedSpeechRef.current) {
+            return;
+          }
+
+          const chunks = audioChunksRef.current;
+          if (!chunks || chunks.length === 0) {
+            return;
+          }
+
+          const audioBlob = new Blob(chunks, { type: mimeTypeRef.current });
+          if (audioBlob.size < 1200) {
+            return;
+          }
+
+          setIsTranscribing(true);
+          try {
+            const reader = new FileReader();
+            const base64Promise = new Promise<string>((resolve, reject) => {
+              reader.onloadend = () => {
+                const dataUrl = reader.result as string;
+                const base64Data = dataUrl.split(',')[1] || '';
+                resolve(base64Data);
+              };
+              reader.onerror = reject;
+            });
+            reader.readAsDataURL(audioBlob);
+            const audioBase64 = await base64Promise;
+
+            if (audioBase64) {
+              const res = await fetch('/api/ai/interview', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  action: 'transcribe_audio',
+                  audioBase64,
+                  mimeType: mimeTypeRef.current,
+                }),
+              });
+
+              const data = await res.json();
+              if (data.transcription && data.transcription.trim()) {
+                const spokenText = data.transcription.trim();
+                setInputAnswer((prev) => (prev ? `${prev} ${spokenText}` : spokenText));
+                setVoiceError(null);
+              } else if (!hasCapturedSpeechRef.current) {
+                setVoiceError('No speech was detected in the audio. You can speak again or type your answer.');
+              }
+            }
+          } catch (transcribeErr: any) {
+            console.warn('[Voice Dictation] AI transcription warning:', transcribeErr);
+            if (!hasCapturedSpeechRef.current) {
+              setVoiceError('Voice transcription could not be completed. You can continue typing directly.');
+            }
+          } finally {
+            setIsTranscribing(false);
+          }
+        };
+
+        mediaRecorder.start(250);
+      } catch (recErr) {
+        console.warn('[Voice Dictation] MediaRecorder start warning:', recErr);
+      }
+    }
+
+    // 5. Initialize Web Speech API for real-time live typing (if supported by browser)
+    const SpeechRecognition =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (SpeechRecognition) {
+      try {
+        const recognition = new SpeechRecognition();
+        recognitionRef.current = recognition;
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.lang = 'en-US';
+
+        recognition.onstart = () => {
+          setIsRecording(true);
+          setVoiceError(null);
+          setInterimTranscript('');
+        };
+
+        recognition.onresult = (event: any) => {
+          let interim = '';
+          for (let i = event.resultIndex; i < event.results.length; ++i) {
+            const item = event.results[i];
+            if (item.isFinal) {
+              const transcript = item[0].transcript.trim();
+              if (transcript) {
+                setInputAnswer((prev) => (prev ? `${prev} ${transcript}` : transcript));
+                hasCapturedSpeechRef.current = true;
+              }
+            } else {
+              interim += item[0].transcript;
+            }
+          }
+          setInterimTranscript(interim);
+        };
+
+        recognition.onerror = (event: any) => {
+          const code = event?.error;
+          console.warn('[Voice Dictation] Web Speech API event notice:', code);
+          if (code === 'not-allowed') {
+            setVoiceError('Microphone permission was denied. Please allow microphone access in your browser to speak.');
+            setIsRecording(false);
+            if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+              try { mediaRecorderRef.current.stop(); } catch {}
+            }
+            stopMediaStream();
+          }
+        };
+
+        recognition.onend = () => {
+          // Keep active state governed by user toggle unless stopped
+        };
+
+        recognition.start();
+      } catch (speechErr) {
+        console.warn('[Voice Dictation] Web Speech API start notice:', speechErr);
+      }
+    }
+
+    setIsRecording(true);
   };
 
   /**
@@ -413,6 +578,19 @@ export default function InterviewPracticePage() {
     setFinalReport(null);
     setInputAnswer('');
     setStage('answering');
+
+    // Clean up any ongoing recording or transcription
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      try { mediaRecorderRef.current.stop(); } catch {}
+    }
+    stopMediaStream();
+    if (recognitionRef.current) {
+      try { recognitionRef.current.abort(); } catch {}
+    }
+    setIsRecording(false);
+    setIsTranscribing(false);
+    setVoiceError(null);
+
     try {
       sessionStorage.removeItem('dreampath_interview_sim_session');
     } catch {
@@ -711,9 +889,16 @@ export default function InterviewPracticePage() {
                       {interimTranscript ? (
                         <span>Listening: &ldquo;{interimTranscript}&rdquo;</span>
                       ) : (
-                        <span>Listening... Speak clearly. Click &ldquo;Stop Dictation&rdquo; when done.</span>
+                        <span>Listening to your microphone... Speak clearly. Click &ldquo;Stop Dictation&rdquo; when done.</span>
                       )}
                     </span>
+                  </div>
+                )}
+
+                {isTranscribing && (
+                  <div className="p-2.5 bg-blue-50 border border-blue-200/80 rounded-xl flex items-center gap-2.5 text-xs text-blue-900 animate-in fade-in duration-150">
+                    <Loader2 className="w-4 h-4 animate-spin text-blue-600 shrink-0" />
+                    <span className="font-medium">Transcribing your voice response with AI...</span>
                   </div>
                 )}
 
@@ -723,7 +908,7 @@ export default function InterviewPracticePage() {
                     value={inputAnswer}
                     onChange={(e) => setInputAnswer(e.target.value)}
                     placeholder="Type your response using the STAR method (Situation, Task, Action, Result)... Mention concrete examples, project names, and specific achievements."
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || isTranscribing}
                     className="w-full p-3.5 bg-slate-50/80 border border-slate-200 rounded-xl text-xs text-slate-900 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-600/20 focus:border-blue-600 placeholder:text-slate-400 leading-relaxed resize-y font-normal"
                   />
                 </div>
@@ -732,19 +917,28 @@ export default function InterviewPracticePage() {
                   <button
                     type="button"
                     onClick={toggleVoiceRecording}
-                    className={`px-3 py-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer ${
+                    disabled={isTranscribing}
+                    className={`px-3 py-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 ${
                       isRecording
                         ? 'bg-rose-50 border-rose-300 text-rose-700 shadow-2xs'
+                        : isTranscribing
+                        ? 'bg-blue-50 border-blue-200 text-blue-700 shadow-2xs'
                         : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-2xs'
                     }`}
                   >
-                    {isRecording ? <MicOff className="w-4 h-4 text-rose-600" /> : <Mic className="w-4 h-4 text-slate-500" />}
-                    <span>{isRecording ? 'Stop Dictation' : 'Voice Input'}</span>
+                    {isRecording ? (
+                      <MicOff className="w-4 h-4 text-rose-600" />
+                    ) : isTranscribing ? (
+                      <Loader2 className="w-4 h-4 animate-spin text-blue-600" />
+                    ) : (
+                      <Mic className="w-4 h-4 text-slate-500" />
+                    )}
+                    <span>{isRecording ? 'Stop Dictation' : isTranscribing ? 'Transcribing...' : 'Voice Input'}</span>
                   </button>
 
                   <button
                     type="submit"
-                    disabled={isSubmitting || !inputAnswer.trim()}
+                    disabled={isSubmitting || isTranscribing || !inputAnswer.trim()}
                     className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 transition-all disabled:opacity-50 shadow-xs cursor-pointer"
                   >
                     <Send className="w-3.5 h-3.5" />
