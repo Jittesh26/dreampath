@@ -86,7 +86,10 @@ export const applications = pgTable('applications', {
   id: uuid('id').primaryKey().defaultRandom(),
   userId: uuid('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   intakeId: uuid('intake_id').references(() => intakes.id, { onDelete: 'restrict' }).notNull(),
-  status: varchar('status', { length: 50 }).default('saved').notNull(), // saved, applied, under_review, awarded, rejected, waitlisted
+  status: varchar('status', { length: 50 }).default('not_started').notNull(), // not_started, preparing, in_progress, submitted, shortlisted, interview, accepted, rejected, withdrawn
+  notes: text('notes'),
+  submissionDate: date('submission_date'),
+  interviewDate: date('interview_date'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

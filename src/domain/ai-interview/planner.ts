@@ -53,6 +53,17 @@ export class DeterministicPlanner {
       const intentKey = makeIntentKey('education', primaryEdu.normalizedKey, slot);
       const slotRecord = ledger.getSlot(primaryEdu.id, slot);
 
+      // Special timeline check: if start_year is unknown, but expected_graduation, end_year, or standing year is known,
+      // consider the education timeline complete.
+      if (slot === 'start_year' && (!slotRecord || slotRecord.state === 'unknown')) {
+        const hasGrad = ledger.isSlotKnown(primaryEdu.id, 'expected_graduation') || ledger.isSlotKnown(primaryEdu.id, 'end_year');
+        const hasStanding = ledger.isSlotKnown(primaryEdu.id, 'year');
+        if (hasGrad || hasStanding) {
+          ledger.resolveIntent(intentKey);
+          continue;
+        }
+      }
+
       // If slot is unknown and intent not yet resolved, this is our next question
       if (!slotRecord || slotRecord.state === 'unknown') {
         if (!ledger.isIntentResolved(intentKey)) {
@@ -69,9 +80,9 @@ export class DeterministicPlanner {
     }
 
     // 3. WORK EXPERIENCE SECTION (Priority 2)
-    // Check if work experience was declared none
+    // Check if work experience was declared none or skipped
     const expDeclaredNone = ledger.slots.get('experience|general|declared_none');
-    const isExpDeclaredNone = expDeclaredNone?.state === 'declared_none';
+    const isExpDeclaredNone = expDeclaredNone?.state === 'declared_none' || expDeclaredNone?.state === 'skipped';
 
     const experienceEntities = ledger.getEntitiesByType('experience');
 
@@ -90,6 +101,8 @@ export class DeterministicPlanner {
       } else {
         // If an experience entity was created (e.g. experience|health_lane), check its slots
         for (const exp of experienceEntities) {
+          if (ledger.getSlot(exp.id, 'declared_none')?.state === 'declared_none') continue;
+
           for (const slot of CORE_EXPERIENCE_SLOTS) {
             const intentKey = makeIntentKey('experience', exp.normalizedKey, slot);
             const slotRecord = ledger.getSlot(exp.id, slot);
@@ -112,36 +125,43 @@ export class DeterministicPlanner {
     }
 
     // 4. PROJECTS SECTION (Priority 3)
+    const projDeclaredNone = ledger.slots.get('project|general|declared_none');
+    const isProjDeclaredNone = projDeclaredNone?.state === 'declared_none' || projDeclaredNone?.state === 'skipped';
+
     const projectEntities = ledger.getEntitiesByType('project');
 
-    if (projectEntities.length === 0) {
-      const intentKey = 'project|general|overview';
-      if (!ledger.isIntentResolved(intentKey)) {
-        return {
-          intentKey,
-          isComplete: false,
-          slotName: 'overview',
-          suggestedPrompt: "Tell me about any university, academic, or personal technical projects you've built or contributed to.",
-          topic: 'project',
-        };
-      }
-    } else {
-      // Check slots for volunteered projects (e.g. project|campusfind)
-      for (const proj of projectEntities) {
-        for (const slot of CORE_PROJECT_SLOTS) {
-          const intentKey = makeIntentKey('project', proj.normalizedKey, slot);
-          const slotRecord = ledger.getSlot(proj.id, slot);
+    if (!isProjDeclaredNone) {
+      if (projectEntities.length === 0) {
+        const intentKey = 'project|general|overview';
+        if (!ledger.isIntentResolved(intentKey)) {
+          return {
+            intentKey,
+            isComplete: false,
+            slotName: 'overview',
+            suggestedPrompt: "Tell me about any university, academic, or personal technical projects you've built or contributed to.",
+            topic: 'project',
+          };
+        }
+      } else {
+        // Check slots for volunteered projects (e.g. project|campusfind)
+        for (const proj of projectEntities) {
+          if (ledger.getSlot(proj.id, 'declared_none')?.state === 'declared_none') continue;
 
-          if (!slotRecord || slotRecord.state === 'unknown') {
-            if (!ledger.isIntentResolved(intentKey)) {
-              return {
-                intentKey,
-                isComplete: false,
-                targetEntityId: proj.id,
-                slotName: slot,
-                suggestedPrompt: this.getTemplateForIntent(intentKey, proj.displayName),
-                topic: 'project',
-              };
+          for (const slot of CORE_PROJECT_SLOTS) {
+            const intentKey = makeIntentKey('project', proj.normalizedKey, slot);
+            const slotRecord = ledger.getSlot(proj.id, slot);
+
+            if (!slotRecord || slotRecord.state === 'unknown') {
+              if (!ledger.isIntentResolved(intentKey)) {
+                return {
+                  intentKey,
+                  isComplete: false,
+                  targetEntityId: proj.id,
+                  slotName: slot,
+                  suggestedPrompt: this.getTemplateForIntent(intentKey, proj.displayName),
+                  topic: 'project',
+                };
+              }
             }
           }
         }

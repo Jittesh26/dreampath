@@ -862,4 +862,175 @@ describe('Approved Resume AI Architecture & Regression Tests', () => {
       expect(content.personal?.photoUrl).toBeUndefined();
     });
   });
+
+  // --------------------------------------------------------------------------
+  // Intelligent Conversational Resume AI Assistant Tests
+  // --------------------------------------------------------------------------
+  describe('Intelligent Conversational Resume AI Assistant Tests', () => {
+    it('extracts all multi-field education details in a single conversational turn and never repeats questions', () => {
+      const melbourneLedger = new InterviewLedger({
+        id: `session_melbourne_${crypto.randomUUID()}`,
+        resumeVersionId: crypto.randomUUID(),
+        resumeProfileId: crypto.randomUUID(),
+        currentTurn: 0,
+        isComplete: false,
+        currentIntentKey: 'education|general|overview',
+        summary: null,
+      });
+
+      const userInput =
+        "I'm currently a third-year Bachelor of Computer Science student at the University of Melbourne, graduating December 2027. I'm majoring in Software Engineering with a minor in Data Science. My CGPA is 3.8/4.0 and I've been on the Dean's List for four semesters.";
+
+      // 1. Initial plan was asking about education
+      const planBefore = planner.planNextIntent(melbourneLedger);
+      expect(planBefore.intentKey).toBe('education|general|overview');
+
+      // 2. User provides full response
+      melbourneLedger.addTranscript('student', userInput);
+      extractor.extract(userInput, melbourneLedger);
+
+      // 3. Verify extracted entity
+      const eduEntity = melbourneLedger.getEntity('education|unimelb') || melbourneLedger.getEntity('education|university_of_melbourne');
+      expect(eduEntity).toBeDefined();
+      expect(eduEntity!.displayName).toContain('University of Melbourne');
+
+      // 4. Verify all slots captured
+      expect(melbourneLedger.isSlotKnown(eduEntity!.id, 'institution')).toBe(true);
+      expect(melbourneLedger.isSlotKnown(eduEntity!.id, 'degree')).toBe(true);
+      expect(melbourneLedger.isSlotKnown(eduEntity!.id, 'field_of_study')).toBe(true);
+      expect(melbourneLedger.isSlotKnown(eduEntity!.id, 'minor')).toBe(true);
+      expect(melbourneLedger.isSlotKnown(eduEntity!.id, 'year')).toBe(true);
+      expect(melbourneLedger.isSlotKnown(eduEntity!.id, 'expected_graduation')).toBe(true);
+      expect(melbourneLedger.isSlotKnown(eduEntity!.id, 'cgpa')).toBe(true);
+      expect(melbourneLedger.isSlotKnown(eduEntity!.id, 'academic_achievements')).toBe(true);
+
+      const facts = melbourneLedger.getFactsForEntity(eduEntity!.id);
+      expect(facts.find((f) => f.slot === 'institution')?.value).toBe('University of Melbourne');
+      expect(facts.find((f) => f.slot === 'degree')?.value).toBe('Bachelor of Computer Science');
+      expect(facts.find((f) => f.slot === 'field_of_study')?.value).toBe('Software Engineering');
+      expect(facts.find((f) => f.slot === 'minor')?.value).toBe('Data Science');
+      expect(facts.find((f) => f.slot === 'cgpa')?.value).toBe('3.8/4.0');
+      expect(facts.find((f) => f.slot === 'expected_graduation')?.value).toBe('December 2027');
+
+      // 5. Verify structured profile
+      const structuredProfile = melbourneLedger.getStructuredProfile();
+      expect(structuredProfile.education.length).toBe(1);
+      const eduProfile = structuredProfile.education[0];
+      expect(eduProfile.institution).toBe('University of Melbourne');
+      expect(eduProfile.degree).toBe('Bachelor of Computer Science');
+      expect(eduProfile.major).toBe('Software Engineering');
+      expect(eduProfile.minor).toBe('Data Science');
+      expect(eduProfile.cgpa).toBe('3.8/4.0');
+      expect(eduProfile.expected_graduation).toBe('December 2027');
+      expect(eduProfile.academic_achievements).toBeDefined();
+
+      // 6. Next question MUST NOT ask for university, degree, or education
+      const planAfter = planner.planNextIntent(melbourneLedger);
+      expect(planAfter.intentKey).not.toContain('institution');
+      expect(planAfter.intentKey).not.toContain('degree');
+      expect(planAfter.intentKey).not.toContain('cgpa');
+      expect(planAfter.intentKey).not.toContain('field_of_study');
+      expect(planAfter.intentKey).not.toContain('education');
+      expect(planAfter.topic).toBe('experience');
+      expect(planAfter.suggestedPrompt).toContain('work experience');
+    });
+
+    it('handles corrections seamlessly by updating records and superseding old values', () => {
+      const corrLedger = new InterviewLedger({
+        id: `session_corr_${crypto.randomUUID()}`,
+        resumeVersionId: crypto.randomUUID(),
+        resumeProfileId: crypto.randomUUID(),
+        currentTurn: 0,
+        isComplete: false,
+        currentIntentKey: 'education|general|overview',
+        summary: null,
+      });
+
+      // User first provides initial details
+      extractor.extract("I study Computer Science at Universiti Malaya with a CGPA of 3.80.", corrLedger);
+      const edu = corrLedger.getEntity('education|um');
+      expect(edu).toBeDefined();
+      expect(corrLedger.getSlot(edu!.id, 'cgpa')?.value).toBe('3.80');
+
+      // User provides correction: "Actually my CGPA is 3.91, not 3.98"
+      extractor.extract("Actually my CGPA is 3.91, not 3.98", corrLedger);
+
+      // Verify the slot value is updated to 3.91
+      expect(corrLedger.getSlot(edu!.id, 'cgpa')?.value).toBe('3.91');
+
+      // Verify in structured profile
+      const profile = corrLedger.getStructuredProfile();
+      expect(profile.education[0].cgpa).toBe('3.91');
+
+      // User provides another correction: "Change my graduation year to 2028"
+      extractor.extract("Change my graduation year to 2028", corrLedger);
+      const profile2 = corrLedger.getStructuredProfile();
+      expect(profile2.education[0].end_year).toBe('2028');
+    });
+
+    it('handles skips and optional categories gracefully without repeating questions', () => {
+      const skipLedger = new InterviewLedger({
+        id: `session_skip_${crypto.randomUUID()}`,
+        resumeVersionId: crypto.randomUUID(),
+        resumeProfileId: crypto.randomUUID(),
+        currentTurn: 0,
+        isComplete: false,
+        currentIntentKey: 'experience|general|overview',
+        summary: null,
+      });
+
+      // Education is already completed
+      extractor.extract("I am pursuing a Bachelor of Computer Science at Universiti Malaya with a CGPA of 3.8 and expected graduation in 2027.", skipLedger);
+
+      // Planner now asks for work experience
+      const planExp = planner.planNextIntent(skipLedger);
+      expect(planExp.intentKey).toBe('experience|general|overview');
+
+      // Student declares no work experience
+      extractor.extract("I don't have any work experience yet.", skipLedger);
+
+      // Next plan MUST skip experience and move to projects
+      const planProj = planner.planNextIntent(skipLedger);
+      expect(planProj.topic).toBe('project');
+      expect(planProj.intentKey).toBe('project|general|overview');
+
+      // Student skips projects
+      skipLedger.session.currentIntentKey = 'project|general|overview';
+      extractor.extract("skip", skipLedger);
+
+      // Next plan MUST move to skills
+      const planSkills = planner.planNextIntent(skipLedger);
+      expect(planSkills.topic).toBe('skill');
+      expect(planSkills.intentKey).toBe('skill|self|technical');
+    });
+
+    it('synthesizes resume cleanly without placeholders', () => {
+      const synthLedger = new InterviewLedger({
+        id: `session_synth_${crypto.randomUUID()}`,
+        resumeVersionId: crypto.randomUUID(),
+        resumeProfileId: crypto.randomUUID(),
+        currentTurn: 0,
+        isComplete: false,
+        currentIntentKey: null,
+        summary: null,
+      });
+
+      extractor.extract(
+        "I'm a Bachelor of Computer Science student at University of Melbourne graduating Dec 2027 with a CGPA of 3.8. My skills are Python and TypeScript.",
+        synthLedger
+      );
+
+      const content = synthesizeResumeFromLedger(synthLedger);
+      expect(content.education).toHaveLength(1);
+      expect(content.education![0].institution).toBe('University of Melbourne');
+      expect(content.education![0].qualification).toBe('Bachelor of Computer Science');
+      expect(content.education![0].cgpa).toBe('3.8');
+
+      // Validate JSON contains NO bracket placeholders
+      const jsonStr = JSON.stringify(content);
+      expect(jsonStr).not.toContain('[Insert');
+      expect(jsonStr).not.toContain('[Your');
+      expect(jsonStr).not.toContain('[Company');
+    });
+  });
 });

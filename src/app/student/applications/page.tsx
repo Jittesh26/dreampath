@@ -18,10 +18,15 @@ export default async function ApplicationsPage() {
       .select({
         id: applications.id,
         status: applications.status,
+        notes: applications.notes,
+        submissionDate: applications.submissionDate,
+        interviewDate: applications.interviewDate,
+        createdAt: applications.createdAt,
         updatedAt: applications.updatedAt,
         scholarshipId: scholarships.id,
         scholarshipName: scholarships.name,
         providerName: providers.name,
+        providerUrl: providers.url,
         closeDate: intakes.closeDate,
       })
       .from(applications)
@@ -34,10 +39,15 @@ export default async function ApplicationsPage() {
     myApps = raw.map((r) => ({
       id: r.id,
       status: r.status,
+      notes: r.notes,
+      submissionDate: r.submissionDate,
+      interviewDate: r.interviewDate,
+      createdAt: r.createdAt,
       updatedAt: r.updatedAt,
       scholarshipId: r.scholarshipId,
       scholarshipName: r.scholarshipName,
       providerName: r.providerName,
+      providerUrl: r.providerUrl,
       closeDate: r.closeDate,
     }));
   } catch {

@@ -1,9 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
-  Mic,
-  MicOff,
   Send,
   Loader2,
   CheckCircle2,
@@ -43,11 +41,6 @@ export default function InterviewPracticePage() {
   );
   const [currentCategory, setCurrentCategory] = useState<InterviewCategory>('introduction');
   const [inputAnswer, setInputAnswer] = useState('');
-  const [isListening, setIsListening] = useState(false);
-  const [voiceError, setVoiceError] = useState<string | null>(null);
-  const recognitionRef = useRef<any>(null);
-  const isListeningRef = useRef<boolean>(false);
-  const baseTextRef = useRef<string>('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingNext, setIsLoadingNext] = useState(false);
 
@@ -116,181 +109,7 @@ export default function InterviewPracticePage() {
     finalReport,
   ]);
 
-  // Cleanup speech recognition on unmount
-  useEffect(() => {
-    return () => {
-      isListeningRef.current = false;
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.abort();
-        } catch {
-          // ignore
-        }
-      }
-    };
-  }, []);
 
-  // Native Speech-to-Text Dictation (Web Speech API) - words stream directly into inputAnswer
-  const toggleVoiceRecording = async () => {
-    if (typeof window === 'undefined') return;
-
-    // IF ALREADY LISTENING: STOP LISTENING
-    if (isListening || isListeningRef.current) {
-      isListeningRef.current = false;
-      setIsListening(false);
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.stop();
-        } catch {
-          // ignore
-        }
-      }
-      return;
-    }
-
-    // STARTING VOICE INPUT
-    setVoiceError(null);
-    baseTextRef.current = inputAnswer;
-
-    // 1. Check Web Speech API support
-    const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
-    if (!SpeechRecognition) {
-      const ua = typeof navigator !== 'undefined' ? navigator.userAgent.toLowerCase() : '';
-      const isFirefox = ua.includes('firefox');
-      const isBrave = typeof (navigator as any)?.brave !== 'undefined';
-
-      if (isFirefox) {
-        setVoiceError(
-          'Firefox does not support the native Web Speech API by default. Please open DreamPath in Google Chrome or Microsoft Edge to use voice input, or type your response directly.'
-        );
-      } else if (isBrave) {
-        setVoiceError(
-          'Brave blocks speech recognition by default. Please enable Google Services for speech in Brave settings, open in Google Chrome/Edge, or type your response directly.'
-        );
-      } else {
-        setVoiceError(
-          'Voice input is not supported in this browser. Please open DreamPath in Google Chrome, Microsoft Edge, or Safari, or type your response directly.'
-        );
-      }
-      return;
-    }
-
-    // 2. Request mic permission explicitly
-    if (!navigator?.mediaDevices?.getUserMedia) {
-      setVoiceError(
-        'Microphone access is not supported by your browser or connection. Please use a secure connection (HTTPS / localhost) or type your response directly.'
-      );
-      return;
-    }
-
-    let stream: MediaStream | null = null;
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-    } catch (err: any) {
-      const errName = err?.name || '';
-      if (errName === 'NotAllowedError' || errName === 'PermissionDeniedError') {
-        setVoiceError(
-          'Microphone permission was denied. Please allow microphone access in your browser address bar to speak your response.'
-        );
-      } else if (errName === 'NotFoundError' || errName === 'DevicesNotFoundError') {
-        setVoiceError('No microphone could be detected on your device. Please plug in a microphone or type your response.');
-      } else {
-        setVoiceError(`Microphone access notice (${err?.message || 'unknown'}). You can type your response directly.`);
-      }
-      return;
-    }
-
-    // Release getUserMedia tracks immediately so SpeechRecognition has full exclusive access to the microphone hardware
-    if (stream) {
-      stream.getTracks().forEach((track) => {
-        try {
-          track.stop();
-        } catch {
-          // ignore
-        }
-      });
-    }
-
-    try {
-      const recognition = new SpeechRecognition();
-      recognitionRef.current = recognition;
-      recognition.continuous = true;
-      recognition.interimResults = true;
-      recognition.lang = 'en-US';
-
-      recognition.onstart = () => {
-        setIsListening(true);
-        isListeningRef.current = true;
-        setVoiceError(null);
-      };
-
-      recognition.onresult = (event: any) => {
-        let sessionFinal = '';
-        let sessionInterim = '';
-
-        for (let i = 0; i < event.results.length; ++i) {
-          const item = event.results[i];
-          if (item.isFinal) {
-            sessionFinal += item[0].transcript + ' ';
-          } else {
-            sessionInterim += item[0].transcript;
-          }
-        }
-
-        const spoken = `${sessionFinal}${sessionInterim}`.trim();
-        const base = baseTextRef.current ? baseTextRef.current.trim() : '';
-        const fullText = base ? `${base} ${spoken}` : spoken;
-
-        // Directly update textarea in real time as the user speaks!
-        setInputAnswer(fullText);
-      };
-
-      recognition.onerror = (event: any) => {
-        const code = event?.error;
-        if (code === 'no-speech') {
-          return;
-        }
-        if (code === 'not-allowed' || code === 'service-not-allowed') {
-          setVoiceError('Microphone permission was denied. Please allow microphone access in your browser.');
-          isListeningRef.current = false;
-          setIsListening(false);
-          return;
-        }
-        if (code === 'audio-capture') {
-          setVoiceError('Microphone capture error. Ensure no other application is using the microphone.');
-          isListeningRef.current = false;
-          setIsListening(false);
-          return;
-        }
-        console.warn('[SpeechRecognition] notice:', code);
-      };
-
-      recognition.onend = () => {
-        // Restart if still intended to be listening
-        if (isListeningRef.current) {
-          try {
-            recognition.start();
-          } catch {
-            isListeningRef.current = false;
-            setIsListening(false);
-          }
-        } else {
-          setIsListening(false);
-        }
-      };
-
-      recognition.start();
-      isListeningRef.current = true;
-      setIsListening(true);
-    } catch (speechErr: any) {
-      console.warn('SpeechRecognition initialization error:', speechErr);
-      setVoiceError('Could not start speech recognition. Please type your response directly.');
-      isListeningRef.current = false;
-      setIsListening(false);
-    }
-  };
 
   /**
    * 1. Submit Answer -> Evaluates answer honestly -> Displays review (does NOT fetch next question yet)
@@ -492,13 +311,6 @@ export default function InterviewPracticePage() {
     setInputAnswer('');
     setStage('answering');
 
-    // Clean up any ongoing speech recognition
-    isListeningRef.current = false;
-    if (recognitionRef.current) {
-      try { recognitionRef.current.abort(); } catch {}
-    }
-    setIsListening(false);
-    setVoiceError(null);
 
     try {
       sessionStorage.removeItem('dreampath_interview_sim_session');
@@ -772,34 +584,6 @@ export default function InterviewPracticePage() {
             {/* Answer Input Area (Only active during 'answering' stage) */}
             {stage === 'answering' && (
               <form onSubmit={handleSendAnswer} className="space-y-3 pt-3 border-t border-slate-100">
-                {voiceError && (
-                  <div className="p-3 bg-amber-50 border border-amber-200/80 rounded-xl text-xs text-amber-900 flex items-center justify-between gap-2 animate-in fade-in duration-150">
-                    <div className="flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
-                      <span>{voiceError}</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setVoiceError(null)}
-                      className="text-amber-800 hover:text-amber-950 font-bold text-[11px] underline cursor-pointer shrink-0"
-                    >
-                      Dismiss
-                    </button>
-                  </div>
-                )}
-
-                {isListening && (
-                  <div className="p-2.5 bg-rose-50 border border-rose-200/80 rounded-xl flex items-center gap-2.5 text-xs text-rose-900 animate-in fade-in duration-150">
-                    <span className="relative flex h-2.5 w-2.5 shrink-0">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-rose-600"></span>
-                    </span>
-                    <span className="font-medium flex-1">
-                      Listening... Speak clearly. Tap microphone button again to stop.
-                    </span>
-                  </div>
-                )}
-
                 <div>
                   <textarea
                     rows={4}
@@ -811,25 +595,7 @@ export default function InterviewPracticePage() {
                   />
                 </div>
 
-                <div className="flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={toggleVoiceRecording}
-                    disabled={isSubmitting}
-                    className={`px-3 py-2 rounded-xl border text-xs font-semibold flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50 ${
-                      isListening
-                        ? 'bg-rose-50 border-rose-300 text-rose-700 shadow-2xs'
-                        : 'bg-white border-slate-200 text-slate-700 hover:bg-slate-50 shadow-2xs'
-                    }`}
-                  >
-                    {isListening ? (
-                      <MicOff className="w-4 h-4 text-rose-600" />
-                    ) : (
-                      <Mic className="w-4 h-4 text-slate-500" />
-                    )}
-                    <span>{isListening ? 'Stop Listening' : 'Voice Input'}</span>
-                  </button>
-
+                <div className="flex items-center justify-end">
                   <button
                     type="submit"
                     disabled={isSubmitting || !inputAnswer.trim()}

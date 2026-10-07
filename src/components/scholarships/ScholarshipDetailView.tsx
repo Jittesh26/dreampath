@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   ShieldCheck,
@@ -13,10 +13,12 @@ import {
   Send,
   Loader2,
   FileCheck,
+  ArrowRight,
 } from 'lucide-react';
 import { StatusBadge } from '@/components/design-system';
 import { ReportMistakeForm } from '@/components/ReportMistakeForm';
 import { extractScholarshipAttributes } from '@/domain/scholarship-attributes';
+import { saveScholarshipApplication, getTrackedScholarshipIds } from '@/app/actions/student';
 
 interface DetailProps {
   id: string;
@@ -76,20 +78,51 @@ export function ScholarshipDetailView({
     providerName
   );
 
-  const toggleSave = () => {
+  useEffect(() => {
+    let mounted = true;
+    const checkTracked = async () => {
+      try {
+        const ids = await getTrackedScholarshipIds();
+        if (mounted && ids.includes(id)) {
+          setIsSaved(true);
+          return;
+        }
+      } catch {
+        // ignore
+      }
+      try {
+        const saved = JSON.parse(localStorage.getItem('dreampath_saved_scholarships') || '[]');
+        if (mounted && saved.includes(id)) {
+          setIsSaved(true);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    checkTracked();
+    return () => {
+      mounted = false;
+    };
+  }, [id]);
+
+  const toggleSave = async () => {
+    const nextSaved = !isSaved;
+    setIsSaved(nextSaved);
+
     try {
       const saved = JSON.parse(localStorage.getItem('dreampath_saved_scholarships') || '[]');
-      let updated: string[];
-      if (saved.includes(id)) {
-        updated = saved.filter((sId: string) => sId !== id);
-        setIsSaved(false);
-      } else {
-        updated = [...saved, id];
-        setIsSaved(true);
-      }
+      const updated = nextSaved ? [...saved, id] : saved.filter((sId: string) => sId !== id);
       localStorage.setItem('dreampath_saved_scholarships', JSON.stringify(updated));
     } catch {
-      setIsSaved(!isSaved);
+      // ignore
+    }
+
+    if (nextSaved) {
+      try {
+        await saveScholarshipApplication(id, 'not_started');
+      } catch {
+        // keep optimistic state
+      }
     }
   };
 
@@ -238,16 +271,25 @@ export function ScholarshipDetailView({
               <Share2 className="w-3.5 h-3.5 text-slate-500" />
               <span>{isCopied ? 'Link Copied!' : 'Share Dossier'}</span>
             </button>
+            {isSaved && (
+              <Link
+                href="/student/applications"
+                className="inline-flex items-center gap-1 text-xs font-bold text-blue-700 hover:text-blue-900 px-3 py-1.5 rounded-xl border border-blue-200 bg-blue-50 hover:bg-blue-100 transition-colors shadow-2xs cursor-pointer"
+              >
+                <span>View in Tracker</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </Link>
+            )}
             <button
               onClick={toggleSave}
               className={`inline-flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-xl border font-semibold transition-colors cursor-pointer shadow-2xs ${
                 isSaved
-                  ? 'bg-amber-50 border-amber-300 text-amber-800'
+                  ? 'bg-emerald-50 border-emerald-300 text-emerald-800'
                   : 'bg-white border-slate-200 text-slate-700 hover:text-slate-900'
               }`}
             >
               <Bookmark className="w-3.5 h-3.5 fill-current" />
-              <span>{isSaved ? 'Saved to Tracker' : 'Save'}</span>
+              <span>{isSaved ? 'Tracked ✓' : 'Add to Tracker'}</span>
             </button>
           </div>
         </div>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Bookmark, CheckCircle2, ArrowRight } from 'lucide-react';
+import { saveScholarshipApplication } from '@/app/actions/student';
 
 interface ScholarshipCardProps {
   id: string;
@@ -46,19 +47,22 @@ export function ScholarshipCard({
   const toggleSave = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    const nextSaved = !isSaved;
+    setIsSaved(nextSaved);
     try {
       const saved = JSON.parse(localStorage.getItem('dreampath_saved_scholarships') || '[]');
-      let updated: string[];
-      if (saved.includes(id)) {
-        updated = saved.filter((sId: string) => sId !== id);
-        setIsSaved(false);
-      } else {
-        updated = [...saved, id];
-        setIsSaved(true);
-      }
+      const updated = nextSaved ? [...saved, id] : saved.filter((sId: string) => sId !== id);
       localStorage.setItem('dreampath_saved_scholarships', JSON.stringify(updated));
     } catch {
-      setIsSaved(!isSaved);
+      // ignore
+    }
+
+    if (nextSaved) {
+      try {
+        saveScholarshipApplication(id, 'not_started');
+      } catch {
+        // ignore
+      }
     }
   };
 

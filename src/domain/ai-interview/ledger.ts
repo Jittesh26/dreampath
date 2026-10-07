@@ -10,6 +10,7 @@ import {
   InterviewTranscript,
   InterviewSessionData,
   InterviewLedgerSnapshot,
+  StructuredResumeProfile,
 } from './types';
 import { ChatMessage } from '../ai-interview';
 
@@ -199,6 +200,11 @@ export class InterviewLedger {
     return s?.state === 'known' || s?.state === 'inferred';
   }
 
+  isSlotResolved(entityId: string, slotName: string): boolean {
+    const s = this.getSlot(entityId, slotName);
+    return s?.state === 'known' || s?.state === 'inferred' || s?.state === 'declared_none' || s?.state === 'skipped';
+  }
+
   // -------------------------------------------------------------
   // Fact Provenance Management
   // -------------------------------------------------------------
@@ -211,6 +217,17 @@ export class InterviewLedger {
     confidence?: string;
     sourceFactIds?: string[];
   }): InterviewFact {
+    // For scalar slots (not additive arrays like technologies or achievements),
+    // mark previous active facts for this slot as superseded so corrections replace old data.
+    const additiveSlots = new Set(['technologies', 'contributions', 'achievements', 'technical', 'languages']);
+    if (!additiveSlots.has(params.slot)) {
+      for (const existingFact of this.facts.values()) {
+        if (existingFact.entityId === params.entityId && existingFact.slot === params.slot && existingFact.status === 'active') {
+          existingFact.status = 'superseded';
+        }
+      }
+    }
+
     const factId = `fact_${Math.random().toString(36).slice(2, 11)}`;
     const fact: InterviewFact = {
       id: factId,
@@ -328,5 +345,210 @@ export class InterviewLedger {
     if (!currentKey) return 'general';
     const parts = currentKey.split('|');
     return parts[0] || 'general';
+  }
+
+  getStructuredProfile(): StructuredResumeProfile {
+    const profile: StructuredResumeProfile = {
+      personal_information: {},
+      education: [],
+      work_experience: [],
+      projects: [],
+      skills: {
+        technical: [],
+        soft: [],
+        languages: [],
+      },
+      certifications: [],
+      achievements: [],
+      extracurriculars: [],
+      leadership: [],
+      volunteer_experience: [],
+      languages: [],
+      awards: [],
+      interests: [],
+      references: [],
+    };
+
+    // 1. Personal
+    const personalFacts = this.getFactsForEntity('personal|self');
+    for (const f of personalFacts) {
+      if (f.slot === 'fullName') profile.personal_information.fullName = String(f.value);
+      if (f.slot === 'email') profile.personal_information.email = String(f.value);
+      if (f.slot === 'phone') profile.personal_information.phone = String(f.value);
+      if (f.slot === 'location') profile.personal_information.location = String(f.value);
+      if (f.slot === 'linkedin') profile.personal_information.linkedin = String(f.value);
+      if (f.slot === 'github') profile.personal_information.github = String(f.value);
+      if (f.slot === 'portfolio') profile.personal_information.portfolio = String(f.value);
+      if (f.slot === 'photoUrl') profile.personal_information.photoUrl = String(f.value);
+      if (f.slot === 'professionalSummary') profile.personal_information.professionalSummary = String(f.value);
+    }
+
+    // 2. Education
+    const eduEntities = this.getEntitiesByType('education');
+    for (const edu of eduEntities) {
+      const facts = this.getFactsForEntity(edu.id);
+      const factMap = new Map(facts.map((f) => [f.slot, f.value]));
+
+      const institution = factMap.get('institution') != null ? String(factMap.get('institution')) : edu.displayName;
+      const degree = factMap.get('degree') != null ? String(factMap.get('degree')) : '';
+      const major = factMap.get('field_of_study') != null ? String(factMap.get('field_of_study')) : (factMap.get('major') != null ? String(factMap.get('major')) : undefined);
+      const minor = factMap.get('minor') != null ? String(factMap.get('minor')) : undefined;
+      const year = factMap.get('year') != null ? String(factMap.get('year')) : (factMap.get('academic_standing') != null ? String(factMap.get('academic_standing')) : undefined);
+      const expectedGrad = factMap.get('expected_graduation') != null ? String(factMap.get('expected_graduation')) : undefined;
+      const startYear = factMap.get('start_year') != null ? String(factMap.get('start_year')) : undefined;
+      const endYear = factMap.get('end_year') != null ? String(factMap.get('end_year')) : expectedGrad;
+      const cgpa = factMap.get('cgpa') != null ? String(factMap.get('cgpa')) : undefined;
+
+      const rawAchievements = factMap.get('academic_achievements');
+      const achievements: string[] = Array.isArray(rawAchievements)
+        ? rawAchievements.map(String)
+        : rawAchievements ? [String(rawAchievements)] : [];
+
+      profile.education.push({
+        institution,
+        degree,
+        major,
+        minor,
+        year,
+        expected_graduation: expectedGrad,
+        start_year: startYear,
+        end_year: endYear,
+        cgpa,
+        academic_achievements: achievements.length > 0 ? achievements : undefined,
+      });
+    }
+
+    // 3. Work Experience
+    const expEntities = this.getEntitiesByType('experience');
+    const expDeclaredNone = this.getSlot('experience|general', 'declared_none')?.state === 'declared_none';
+    if (expDeclaredNone && expEntities.length === 0) {
+      profile.work_experience.push({
+        employer: 'None',
+        declared_none: true,
+      });
+    } else {
+      for (const exp of expEntities) {
+        const isNone = this.getSlot(exp.id, 'declared_none')?.state === 'declared_none';
+        if (isNone) {
+          profile.work_experience.push({ employer: exp.displayName, declared_none: true });
+          continue;
+        }
+        const facts = this.getFactsForEntity(exp.id);
+        const factMap = new Map(facts.map((f) => [f.slot, f.value]));
+        const rawAchievements = factMap.get('achievements');
+        const achievements: string[] = Array.isArray(rawAchievements)
+          ? rawAchievements.map(String)
+          : rawAchievements ? [String(rawAchievements)] : [];
+
+        profile.work_experience.push({
+          employer: factMap.get('employer') != null ? String(factMap.get('employer')) : exp.displayName,
+          position: factMap.get('position') != null ? String(factMap.get('position')) : undefined,
+          responsibilities: factMap.get('responsibilities') != null ? String(factMap.get('responsibilities')) : undefined,
+          achievements: achievements.length > 0 ? achievements : undefined,
+          start_date: factMap.get('start_date') != null ? String(factMap.get('start_date')) : undefined,
+          end_date: factMap.get('end_date') != null ? String(factMap.get('end_date')) : undefined,
+          is_current: !factMap.get('end_date'),
+        });
+      }
+    }
+
+    // 4. Projects
+    const projEntities = this.getEntitiesByType('project');
+    for (const proj of projEntities) {
+      const facts = this.getFactsForEntity(proj.id);
+      const factMap = new Map(facts.map((f) => [f.slot, f.value]));
+
+      const allTechFacts = facts.filter((f) => f.slot === 'technologies');
+      const allTechs: string[] = [];
+      for (const tf of allTechFacts) {
+        const v = tf.value;
+        if (Array.isArray(v)) allTechs.push(...v.map(String));
+        else if (v) allTechs.push(String(v));
+      }
+
+      const allContribFacts = facts.filter((f) => f.slot === 'contributions' || f.slot === 'achievements');
+      const allContribs: string[] = [];
+      for (const cf of allContribFacts) {
+        const v = cf.value;
+        if (Array.isArray(v)) allContribs.push(...v.map(String));
+        else if (v) allContribs.push(String(v));
+      }
+
+      profile.projects.push({
+        name: factMap.get('name') != null ? String(factMap.get('name')) : proj.displayName,
+        role: factMap.get('role') != null ? String(factMap.get('role')) : undefined,
+        description: factMap.get('description') != null ? String(factMap.get('description')) : undefined,
+        technologies: Array.from(new Set(allTechs)),
+        achievements: Array.from(new Set(allContribs)),
+      });
+    }
+
+    // 5. Skills
+    const skillFacts = this.getFactsForEntity('skill|self');
+    const techSet = new Set<string>();
+    const langSet = new Set<string>();
+    const softSet = new Set<string>();
+    for (const f of skillFacts) {
+      if (f.slot === 'technical') {
+        const arr = Array.isArray(f.value) ? f.value.map(String) : [String(f.value)];
+        for (const s of arr) techSet.add(s);
+      }
+      if (f.slot === 'languages') {
+        const arr = Array.isArray(f.value) ? f.value.map(String) : [String(f.value)];
+        for (const l of arr) langSet.add(l);
+      }
+      if (f.slot === 'soft') {
+        const arr = Array.isArray(f.value) ? f.value.map(String) : [String(f.value)];
+        for (const s of arr) softSet.add(s);
+      }
+    }
+    profile.skills.technical = Array.from(techSet);
+    profile.skills.languages = Array.from(langSet);
+    profile.skills.soft = Array.from(softSet);
+    profile.languages = Array.from(langSet);
+
+    // 6. Leadership
+    const leadEntities = this.getEntitiesByType('leadership');
+    for (const lead of leadEntities) {
+      const facts = this.getFactsForEntity(lead.id);
+      const factMap = new Map(facts.map((f) => [f.slot, f.value]));
+      const isNone = this.getSlot(lead.id, 'declared_none')?.state === 'declared_none';
+      profile.leadership.push({
+        organization: factMap.get('organization') != null ? String(factMap.get('organization')) : lead.displayName,
+        role: factMap.get('role') != null ? String(factMap.get('role')) : undefined,
+        description: factMap.get('description') != null ? String(factMap.get('description')) : undefined,
+        declared_none: isNone,
+      });
+    }
+
+    // 7. Certifications & Awards
+    const certEntities = this.getEntitiesByType('certification');
+    for (const cert of certEntities) {
+      const facts = this.getFactsForEntity(cert.id);
+      const factMap = new Map(facts.map((f) => [f.slot, f.value]));
+      profile.certifications.push({
+        name: factMap.get('name') != null ? String(factMap.get('name')) : cert.displayName,
+        issuer: factMap.get('issuer') != null ? String(factMap.get('issuer')) : undefined,
+        date: factMap.get('date') != null ? String(factMap.get('date')) : undefined,
+      });
+    }
+
+    const awardEntities = this.getEntitiesByType('achievement');
+    for (const aw of awardEntities) {
+      const facts = this.getFactsForEntity(aw.id);
+      const factMap = new Map(facts.map((f) => [f.slot, f.value]));
+      profile.awards.push({
+        name: factMap.get('name') != null ? String(factMap.get('name')) : aw.displayName,
+        issuer: factMap.get('issuer') != null ? String(factMap.get('issuer')) : undefined,
+        date: factMap.get('date') != null ? String(factMap.get('date')) : undefined,
+      });
+      profile.achievements.push({
+        name: factMap.get('name') != null ? String(factMap.get('name')) : aw.displayName,
+        description: factMap.get('description') != null ? String(factMap.get('description')) : undefined,
+        date: factMap.get('date') != null ? String(factMap.get('date')) : undefined,
+      });
+    }
+
+    return profile;
   }
 }
