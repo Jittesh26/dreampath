@@ -1,27 +1,29 @@
 # DreamPath — Scholarship Consultancy System
 
-DreamPath is a scholarship consultancy platform project focused on helping students discover scholarship opportunities and navigate the scholarship application journey.
+DreamPath is a team project focused on developing a digital platform to help students discover scholarship opportunities and navigate the scholarship application journey.
 
-The project explores how a digital platform can make scholarship information easier to access and help students organise their scholarship search and application activities.
-
-## Project Goals
+## Project Objectives
 
 * Make scholarship opportunities easier to discover.
-* Present scholarship information in a structured format.
+* Organise scholarship information in a structured format.
 * Help students understand scholarship requirements.
-* Support students in organising their scholarship application journey.
+* Support students in managing their scholarship search and application activities.
 
 ## My Contribution
 
-I contributed to the website development and implementation of DreamPath.
+I contributed to the website's development and implementation.
 
-This repository showcases my development work and the project as part of my software development portfolio.
+This repository is part of my software development portfolio and documents my work on DreamPath.
 
-> Project attribution: DreamPath originated as a team project. Contributions and ownership should be understood in the context of the team's work.
+**Project context:** DreamPath originated as a team project. The original idea and the contributions of other team members should be credited appropriately.
 
-## Project Status
+## Technology Stack
 
-This repository is being prepared for portfolio presentation. Specific features, technical architecture, and implementation details will be documented based on the actual codebase.
+The technologies and dependencies will be documented after verification against the project's source code and configuration files.
+
+## Project Features
+
+The implemented features will be documented after reviewing the current codebase. Planned or partially implemented features will not be presented as completed functionality.
 
 ## Getting Started
 
@@ -30,30 +32,26 @@ This repository is being prepared for portfolio presentation. Specific features,
 * Node.js
 * npm
 
-Confirm the required Node.js version and package manager from the project configuration before running the application.
+Confirm the required versions and package manager from the project configuration.
 
 ### Installation
 
-1. Clone this repository.
+1. Clone the repository.
 2. Navigate to the project directory.
-3. Install dependencies using the package manager specified by the project.
-4. Configure the required environment variables using the documented example file.
-5. Start the development server using the project's configured command.
+3. Install dependencies using the project's package manager.
+4. Configure the required environment variables using the provided example file.
+5. Start the application using the development command defined in `package.json`.
 
-Do not commit environment files containing API keys, passwords, database credentials, or other secrets.
-
-## Technologies
-
-The confirmed technologies and dependencies will be documented after reviewing the project's package configuration and source code.
+Never commit API keys, database credentials, passwords, or private environment files.
 
 ## Screenshots and Demo
 
-Screenshots and a live demo link will be added after verifying the current deployed application.
+Screenshots and a live demo link will be added after the current application has been verified.
 
 ## Recognition
 
-Competition recognition will be documented with the correct competition name, award category, date, and team attribution once verified.
+Competition recognition will be documented with the correct event name, award category, date, and team attribution after verification.
 
 ## License
 
-No license has been specified yet. Check the project's ownership and permissions before choosing a license for public distribution
+A license has not yet been specified in this documentation. Confirm project ownership and permission before selecting a license for public distribution.
