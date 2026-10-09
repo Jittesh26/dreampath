@@ -56,4 +56,4 @@ Competition recognition will be documented with the correct competition name, aw
 
 ## License
 
-No license has been specified yet. Check the project's ownership and permissions before choosing a license for public distribution.
+No license has been specified yet. Check the project's ownership and permissions before choosing a license for public distribution
