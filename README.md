@@ -1,36 +1,59 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# DreamPath — Scholarship Consultancy System
+
+DreamPath is a scholarship consultancy platform project focused on helping students discover scholarship opportunities and navigate the scholarship application journey.
+
+The project explores how a digital platform can make scholarship information easier to access and help students organise their scholarship search and application activities.
+
+## Project Goals
+
+* Make scholarship opportunities easier to discover.
+* Present scholarship information in a structured format.
+* Help students understand scholarship requirements.
+* Support students in organising their scholarship application journey.
+
+## My Contribution
+
+I contributed to the website development and implementation of DreamPath.
+
+This repository showcases my development work and the project as part of my software development portfolio.
+
+> Project attribution: DreamPath originated as a team project. Contributions and ownership should be understood in the context of the team's work.
+
+## Project Status
+
+This repository is being prepared for portfolio presentation. Specific features, technical architecture, and implementation details will be documented based on the actual codebase.
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+* Node.js
+* npm
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Confirm the required Node.js version and package manager from the project configuration before running the application.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Installation
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Clone this repository.
+2. Navigate to the project directory.
+3. Install dependencies using the package manager specified by the project.
+4. Configure the required environment variables using the documented example file.
+5. Start the development server using the project's configured command.
 
-## Learn More
+Do not commit environment files containing API keys, passwords, database credentials, or other secrets.
 
-To learn more about Next.js, take a look at the following resources:
+## Technologies
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The confirmed technologies and dependencies will be documented after reviewing the project's package configuration and source code.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Screenshots and Demo
 
-## Deploy on Vercel
+Screenshots and a live demo link will be added after verifying the current deployed application.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Recognition
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Competition recognition will be documented with the correct competition name, award category, date, and team attribution once verified.
+
+## License
+
+No license has been specified yet. Check the project's ownership and permissions before choosing a license for public distribution.
